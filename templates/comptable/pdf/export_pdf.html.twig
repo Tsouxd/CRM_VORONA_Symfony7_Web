@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Export PDF - Comptabilité</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #000; padding: 6px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        h2 { margin-top: 30px; }
+    </style>
+</head>
+<body>
+    <h1>Résumé Comptabilité</h1>
+
+    <p><strong>Total Revenus:</strong> {{ totalRevenus }} ariary</p>
+    <p><strong>Total Dépenses:</strong> {{ totalDepenses }} ariary</p>
+    <p>
+        <strong>
+            {{ benefice >= 0 ? 'Bénéfice' : 'Déficit' }} :
+        </strong>
+        {{ benefice|abs }} ariary
+    </p>
+
+
+    <h2>Dépenses</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Montant</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for depense in depenses %}
+                <tr>
+                    <td>{{ depense.montant }} ariary</td>
+                    <td>{{ depense.description }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Revenus</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Montant</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for revenu in revenus %}
+                <tr>
+                    <td>{{ revenu.montant }} ariary</td>
+                    <td>{{ revenu.description }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

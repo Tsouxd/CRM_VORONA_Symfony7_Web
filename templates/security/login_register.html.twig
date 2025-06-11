@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulaire Connexion / Inscription</title>
+    <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+</head>
+<body>
+    <div class="container" id="container">
+        {# FORMULAIRE D’INSCRIPTION #}
+        <div class="form-container sign-up-container">
+            <form action="{{ path('app_register') }}" method="post">
+            {{ form_start(registrationForm) }}
+                <h1>Inscription</h1>
+                {{ form_widget(registrationForm.username, {
+                    'attr': {
+                        'placeholder': 'Nom d’utilisateur',
+                        'class': 'input-style'
+                    },
+                    'label' : false
+                }) }}
+
+                {{ form_widget(registrationForm.plainPassword, {
+                    'attr': {
+                        'placeholder': 'Mot de passe',
+                        'class': 'input-style'
+                    },
+                    'label' : false
+                }) }}
+                </br>           
+                <button type="submit">S'inscrire</button>
+            {{ form_end(registrationForm) }}
+        </div>
+
+        {# FORMULAIRE DE CONNEXION #}
+        <div class="form-container sign-in-container">
+            <form method="post" action="{{ path('app_login') }}">
+                <h1>Connexion</h1>
+                
+                {% if error %}
+                    <div class="alert alert-danger">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+                {% endif %}
+
+                <input type="text" name="username" placeholder="Nom d’utilisateur" value="{{ last_username }}" required autocomplete="username">
+                <input type="password" name="password" placeholder="Mot de passe" required autocomplete="current-password">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+                {# <a href="#">Mot de passe oublié ?</a> #}
+                </br>
+                <button type="submit">Se connecter</button>
+            </form>
+        </div>
+
+        {# BOUTONS POUR CHANGER DE FORMULAIRE #}
+        <div class="overlay-container">
+            <div class="overlay">
+                <div class="overlay-panel overlay-left">
+                    <h1>Bon retour !</h1>
+                    <p>Pour rester connecté, veuillez vous connecter avec vos informations personnelles</p>
+                    <button class="ghost" id="signIn">Se connecter</button>
+                </div>
+                <div class="overlay-panel overlay-right">
+                    <h1>Bonjour, ami(e) !</h1>
+                    <p>Entrez vos informations personnelles et commencez votre aventure avec nous</p>
+                    <button class="ghost" id="signUp">S'inscrire</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ asset('assets/js/scripts.js') }}"></script>
+</body>
+</html>

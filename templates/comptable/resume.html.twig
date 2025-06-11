@@ -1,0 +1,122 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Résumé Financier{% endblock %}
+
+{% block body %}
+<div class="resume-container">
+    <a href="{{ path('app_comptable') }}" class="back-button">
+        <i class="fas fa-arrow-left me-2"></i>Tableau de bord
+    </a>
+    
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="resume-card">
+                    <div class="resume-header">
+                        <h1 class="resume-title">
+                            <i class="fas fa-chart-pie me-3"></i>
+                            Résumé Financier
+                        </h1>
+                        <p class="resume-subtitle">Vue d'ensemble de votre situation financière</p>
+                    </div>
+                    
+                    <div class="stats-container">
+                        <div class="row">
+                            <div class="col-lg-4 col-md-6">
+                                <div class="stat-card expenses animate-delay-1" data-animate="true">
+                                    <i class="fas fa-arrow-down stat-icon"></i>
+                                    <div class="stat-label">Total des Dépenses</div>
+                                    <div class="stat-value" data-target="{{ totalDepenses|default(0) }}">
+                                        {{ totalDepenses|default(0) }} €
+                                    </div>
+                                    <div class="stat-change negative">
+                                        <i class="fas fa-minus me-1"></i>
+                                        Sortie de fonds
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-lg-4 col-md-6">
+                                <div class="stat-card revenues animate-delay-2" data-animate="true">
+                                    <i class="fas fa-arrow-up stat-icon"></i>
+                                    <div class="stat-label">Total des Revenus</div>
+                                    <div class="stat-value" data-target="{{ totalRevenus|default(0) }}">
+                                        {{ totalRevenus|default(0) }} €
+                                    </div>
+                                    <div class="stat-change positive">
+                                        <i class="fas fa-plus me-1"></i>
+                                        Entrée de fonds
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-lg-4 col-md-12">
+                                {% set beneficeValue = benefice|default(0) %}
+                                <div class="stat-card {% if beneficeValue >= 0 %}profit{% else %}loss{% endif %} animate-delay-3" data-animate="true">
+                                    <i class="fas fa-{% if beneficeValue >= 0 %}chart-line{% else %}chart-line-down{% endif %} stat-icon"></i>
+                                    <div class="stat-label">{% if beneficeValue >= 0 %}Bénéfice{% else %}Déficit{% endif %}</div>
+                                    <div class="stat-value" data-target="{{ beneficeValue }}">
+                                        {{ beneficeValue }} €
+                                    </div>
+                                    <div class="stat-change {% if beneficeValue >= 0 %}positive{% else %}negative{% endif %}">
+                                        <i class="fas fa-{% if beneficeValue >= 0 %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                                        {% if beneficeValue >= 0 %}Situation positive{% else %}Situation déficitaire{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="financial-chart">
+                            <h3 class="chart-title">Répartition Financière</h3>
+                            
+                            {% set totalDepensesVal = totalDepenses|default(0) %}
+                            {% set totalRevenusVal = totalRevenus|default(0) %}
+                            {% set total = totalDepensesVal + totalRevenusVal %}
+                            
+                            {% if total > 0 %}
+                                <div class="progress-bar-container">
+                                    <div class="progress-label">
+                                        <span>Dépenses</span>
+                                        <span>{{ (totalDepensesVal / total * 100)|number_format(1) }}%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-expenses" 
+                                             data-width="{{ (totalDepensesVal / total * 100)|round(2) }}"></div>
+                                    </div>
+                                </div>
+                                
+                                <div class="progress-bar-container">
+                                    <div class="progress-label">
+                                        <span>Revenus</span>
+                                        <span>{{ (totalRevenusVal / total * 100)|number_format(1) }}%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill progress-revenues" 
+                                             data-width="{{ (totalRevenusVal / total * 100)|round(2) }}"></div>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="text-center" style="color: #718096; padding: 2rem;">
+                                    <i class="fas fa-chart-bar" style="font-size: 3rem; opacity: 0.3; margin-bottom: 1rem;"></i>
+                                    <p>Aucune donnée financière disponible</p>
+                                    <small>Ajoutez des transactions pour voir les statistiques</small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="export-section">
+                        <h4 style="color: #2d3748; margin-bottom: 1rem;">Exportez vos données</h4>
+                        <p style="color: #718096; margin-bottom: 2rem;">Téléchargez un rapport Excel complet de votre situation financière</p>
+                        <a href="{{ path('app_comptable_export_excel') }}" class="export-button">
+                            <i class="fas fa-file-excel me-2"></i>
+                            Exporter vers Excel
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

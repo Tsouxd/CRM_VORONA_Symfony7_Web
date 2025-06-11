@@ -1,0 +1,30 @@
+<h1 class="my-4 text-primary">Chiffre d'affaires des 12 derniers mois</h1>
+
+<div class="alert fs-5">
+    <strong>Total de toutes les commandes :</strong> {{ chiffreAffaire|number_format(0, ',', ' ') }} ariary
+</div>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Commande ID</th>
+                <th>Date</th>
+                <th>Total (Ariary)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for commande in commandes %}
+                <tr>
+                    <td>{{ commande.id }}</td>
+                    <td>{{ commande.dateCommande|date('d/m/Y') }}</td>
+                    <td>{{ commande.getTotal()|number_format(0, ',', ' ') }} ariary</td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="3" class="text-center text-muted">Aucune commande trouvée pour les 12 derniers mois.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

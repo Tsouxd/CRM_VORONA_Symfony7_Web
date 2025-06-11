@@ -1,0 +1,36 @@
+{% extends '@EasyAdmin/crud/index.html.twig' %}
+
+{% block main %}
+    {# Afficher une alerte globale en haut de la page pour les produits à faible stock #}
+    {% set faible_stock = false %}
+    {% set produits_faible_stock = [] %}
+    {% for entity in entities %}
+        {% if entity.instance.stock <= 10 %}
+            {% set faible_stock = true %}
+            {% set produits_faible_stock = produits_faible_stock|merge([entity.instance.nom]) %}
+        {% endif %}
+    {% endfor %}
+    
+    {% if faible_stock %}
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>Attention :</strong> Les produits suivants ont un stock faible (<= 10) : 
+            {{ produits_faible_stock|join(', ') }}
+        </div>
+    {% endif %}
+    
+    {# Continuer avec le template par défaut d'EasyAdmin #}
+    {{ parent() }}
+{% endblock %}
+
+{% block entity_row %}
+    {# Ajouter une classe CSS aux lignes des produits avec un stock faible #}
+    {% set row_classes = 'product-row' %}
+    {% if entity.instance.stock < 10 %}
+        {% set row_classes = row_classes ~ ' low-stock-row' %}
+    {% endif %}
+    
+    <tr class="{{ row_classes }}">
+        {{ parent() }}
+    </tr>
+{% endblock %}
