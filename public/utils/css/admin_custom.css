@@ -1,0 +1,24 @@
+/* Style pour les lignes de produits avec stock faible */
+.low-stock-row {
+    background-color: rgba(255, 193, 7, 0.1); /* Jaune très léger */
+}
+
+/* Animation clignotante pour attirer l'attention */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+}
+
+/* Appliquer l'animation aux cellules de stock faible */
+.low-stock-row td:nth-child(5) {
+    animation: pulse 2s infinite;
+    font-weight: bold;
+}
+
+/* Style pour le badge de stock faible */
+.badge.bg-warning {
+    font-size: 0.9em;
+    padding: 4px 8px;
+    border-radius: 4px;
+}

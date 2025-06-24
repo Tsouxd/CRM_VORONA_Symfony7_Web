@@ -21,7 +21,6 @@ use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Doctrine\ORM\PersistentCollection;
 use Symfony\Component\HttpFoundation\RequestStack;
 
-
 class CommandeCrudController extends AbstractCrudController implements EventSubscriberInterface
 {
     private $commandeOriginalData = [];

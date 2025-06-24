@@ -47,7 +47,7 @@ class CommandeProduitCrudController extends AbstractCrudController
             return;
         }
 
-        // Mise à jour du stock produit (optionnel, selon ta logique)
+        // Mise à jour du stock produit
         $produit = $entityInstance->getProduit();
         if ($produit) {
             $produit->setStock($produit->getStock() - $entityInstance->getQuantite());

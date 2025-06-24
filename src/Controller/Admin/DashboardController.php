@@ -72,9 +72,9 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::linkToCrud('Commandes', 'fas fa-shopping-cart', Commande::class)
             ->setController(CommandeCrudController::class);
         yield MenuItem::linkToCrud('Commande Produits', 'fas fa-list', CommandeProduit::class);
+        yield MenuItem::linkToCrud('Paiement', 'fas fa-briefcase', Paiement::class);
         yield MenuItem::linkToCrud('Catégorie des dépenses', 'fas fa-cog', CategorieDepense::class);
         yield MenuItem::linkToCrud('Catégorie des révenus', 'fas fa-money-bill', CategorieRevenu::class);
-        yield MenuItem::linkToCrud('Paiement', 'fas fa-briefcase', Paiement::class);
         /*  
         'fas fa-users' : Icône des utilisateurs.
         'fas fa-cogs' : Icône d'engrenages ou de réglages.

@@ -25,11 +25,11 @@ class FournisseurCrudController extends AbstractCrudController
             ->setPageTitle("index", "Liste des fournisseurs inscrits au programme");
     }
 
-    public function configureActions(Actions $actions): Actions
+    /*public function configureActions(Actions $actions): Actions
     {
         return $actions
             ->add(CRUD::PAGE_INDEX, 'detail'); // Vous pouvez également conserver d'autres actions ici
-    }
+    }*/
 
     /*
     public function configureFields(string $pageName): iterable

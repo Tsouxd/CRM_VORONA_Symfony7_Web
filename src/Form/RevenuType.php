@@ -16,9 +16,11 @@ class RevenuType extends AbstractType
     {
         $builder
             ->add('description')
-            ->add('montant', MoneyType::class)
+            ->add('montant', MoneyType::class, [
+                'currency' => 'MGA',
+            ])
             ->add('date', DateType::class, [
-                'widget' => 'single_text',  // pour avoir un input type="date"
+                'widget' => 'single_text',
             ])
             ->add('categorie', EntityType::class, [
                 'class' => \App\Entity\CategorieRevenu::class,

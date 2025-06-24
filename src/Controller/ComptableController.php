@@ -32,7 +32,6 @@ class ComptableController extends AbstractController
         $totalRevenus = $revenuRepo->getTotalAmount();
         $benefice = $totalRevenus - $totalDepenses;
 
-        // Create forms for expense and revenue
         $depense = new Depense();
         $revenu = new Revenu();
         $depenseForm = $this->createForm(DepenseType::class, $depense);
@@ -85,10 +84,12 @@ class ComptableController extends AbstractController
     }
 
     #[Route('/depense/{id}/modifier', name: 'app_comptable_depense_modifier', methods: ['GET', 'POST'])]
-    public function modifierDepense(Depense $depense, Request $request, EntityManagerInterface $em, DepenseRepository $depenseRepo, RevenuRepository $revenuRepo, Security $security): Response
+    public function modifierDepense(Depense $depense, Request $request, EntityManagerInterface $em): Response
     {
-        $form = $this->createForm(DepenseType::class, $depense);
-        $form->handleRequest($request->isRequest($request));
+        $form = $this->createForm(DepenseType::class, $depense, [
+            'action' => $this->generateUrl('app_comptable_depense_modifier', ['id' => $depense->getId()]),
+        ]);
+        $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
             $em->flush();
@@ -101,22 +102,34 @@ class ComptableController extends AbstractController
             return $this->redirectToRoute('app_comptable_depenses');
         }
 
-        $data = $this->getCommonData($depenseRepo, $revenuRepo, $security);
-        $data['depense_form'] = $dataform->createView();
+        if ($request->isXmlHttpRequest()) {
+            return $this->render('comptable/_depense_form.html.twig', [
+                'form' => $form->createView(),
+                'depense' => $depense,
+            ]);
+        }
 
-        return $this->render('comptable/index.html.twig', $data);
+        return $this->render('comptable/_depense_form.html.twig', [
+            'form' => $form->createView(),
+            'depense' => $depense,
+        ]);
     }
 
-    #[Route('/depense/{id}/supprimer', name: 'app_comptable_depense_supprimer')]
-    public function supprimerDepense(Depense $depense, EntityManagerInterface $em): Response
+    #[Route('/depense/{id}/supprimer', name: 'app_comptable_depense_supprimer', methods: ['GET', 'DELETE'])]
+    public function supprimerDepense(Depense $depense, EntityManagerInterface $em, Request $request): Response
     {
         $em->remove($depense);
         $em->flush();
+
+        if ($request->isXmlHttpRequest()) {
+            return new JsonResponse(['success' => true, 'message' => 'Dépense supprimée avec succès.']);
+        }
+
         $this->addFlash('success', 'Dépense supprimée avec succès.');
         return $this->redirectToRoute('app_comptable_depenses');
     }
 
-    #[Route('/revenu/ues', name: 'app_comptable_revenus_ajouter', methods: ['GET', 'POST'])]
+    #[Route('/revenu/ajouter', name: 'app_comptable_revenus_ajouter', methods: ['GET', 'POST'])]
     public function ajouterRevenu(Request $request, EntityManagerInterface $em, DepenseRepository $depenseRepo, RevenuRepository $revenuRepo, Security $security): Response
     {
         $revenu = new Revenu();
@@ -142,9 +155,11 @@ class ComptableController extends AbstractController
     }
 
     #[Route('/revenu/{id}/modifier', name: 'app_comptable_revenus_modifier', methods: ['GET', 'POST'])]
-    public function modifierRevenu(Revenu $revenu, Request $request, EntityManagerInterface $em, DepenseRepository $depenseRepo, RevenuRepository $revenuRepo, Security $security): Response
+    public function modifierRevenu(Revenu $revenu, Request $request, EntityManagerInterface $em): Response
     {
-        $form = $this->createForm(RevenuType::class, $revenu);
+        $form = $this->createForm(RevenuType::class, $revenu, [
+            'action' => $this->generateUrl('app_comptable_revenus_modifier', ['id' => $revenu->getId()]),
+        ]);
         $form->handleRequest($request);
 
         if ($form->isSubmitted() && $form->isValid()) {
@@ -158,17 +173,29 @@ class ComptableController extends AbstractController
             return $this->redirectToRoute('app_comptable_revenus');
         }
 
-        $data = $this->getCommonData($depenseRepo, $revenuRepo, $security);
-        $data['revenu_form'] = $form->createView();
+        if ($request->isXmlHttpRequest()) {
+            return $this->render('comptable/_revenu_form.html.twig', [
+                'form' => $form->createView(),
+                'revenu' => $revenu,
+            ]);
+        }
 
-        return $this->render('comptable/index.html.twig', $data);
+        return $this->render('comptable/_revenu_form.html.twig', [
+            'form' => $form->createView(),
+            'revenu' => $revenu,
+        ]);
     }
 
-    #[Route('/revenu/{id}/supprimer', name: 'app_comptable_revenus_supprimer')]
-    public function supprimerRevenu(Revenu $revenu, EntityManagerInterface $em): Response
+    #[Route('/revenu/{id}/supprimer', name: 'app_comptable_revenus_supprimer', methods: ['GET', 'DELETE'])]
+    public function supprimerRevenu(Revenu $revenu, EntityManagerInterface $em, Request $request): Response
     {
         $em->remove($revenu);
         $em->flush();
+
+        if ($request->isXmlHttpRequest()) {
+            return new JsonResponse(['success' => true, 'message' => 'Revenu supprimé avec succès.']);
+        }
+
         $this->addFlash('success', 'Revenu supprimé avec succès.');
         return $this->redirectToRoute('app_comptable_revenus');
     }
@@ -217,12 +244,10 @@ class ComptableController extends AbstractController
         $totalRevenus = $revenuRepo->getTotalAmount();
         $benefice = $totalRevenus - $totalDepenses;
 
-        // Configuration de Dompdf
         $pdfOptions = new Options();
         $pdfOptions->set('defaultFont', 'Arial');
         $dompdf = new Dompdf($pdfOptions);
 
-        // Rendu du contenu HTML à partir d'un template Twig
         $html = $this->renderView('comptable/pdf/export_pdf.html.twig', [
             'depenses' => $depenses,
             'revenus' => $revenus,
@@ -231,12 +256,10 @@ class ComptableController extends AbstractController
             'benefice' => $benefice,
         ]);
 
-        // Génération du PDF
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
 
-        // Retourne le PDF en réponse
         return new Response(
             $dompdf->output(),
             200,
@@ -246,5 +269,4 @@ class ComptableController extends AbstractController
             ]
         );
     }
-
 }

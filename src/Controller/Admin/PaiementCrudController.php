@@ -37,6 +37,27 @@ class PaiementCrudController extends AbstractCrudController
             ->add(CRUD::PAGE_INDEX, 'detail'); // Vous pouvez également conserver d'autres actions ici
     }
 
+    public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if (!$entityInstance instanceof Paiement) {
+            return;
+        }
+        
+        // Mise à jour du total dans la commande parente
+        $commande = $entityInstance->getCommande();
+        if ($commande) {
+            // Met à jour le montant du paiement
+            foreach ($commande->getPaiements() as $paiement) {
+                $paiement->updateMontant();
+                $entityManager->persist($paiement);
+            }
+
+            $entityManager->flush();
+        }
+
+        parent::persistEntity($entityManager, $entityInstance);
+    }
+
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Paiement) {
@@ -75,6 +96,18 @@ class PaiementCrudController extends AbstractCrudController
                 $commande->setStatut('en cours');
                 $entityManager->persist($commande);
             }
+        }
+
+        // Mise à jour du total dans la commande parente
+        $commande = $entityInstance->getCommande();
+        if ($commande) {
+                // Met à jour le montant du paiement
+                foreach ($commande->getPaiements() as $paiement) {
+                    $paiement->updateMontant();
+                    $entityManager->persist($paiement);
+                }
+
+                $entityManager->flush();
         }
 
         // Ne pas oublier de persister le paiement lui-même
