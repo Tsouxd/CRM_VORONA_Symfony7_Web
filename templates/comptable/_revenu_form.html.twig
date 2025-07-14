@@ -1,30 +1,31 @@
 {{ form_start(form, {'attr': {'id': 'edit-revenue-form', 'novalidate': 'novalidate'}}) }}
-    <div style="position: relative; margin-bottom: 15px;">
-        {{ form_widget(form.description, {'attr': {'placeholder': 'Source de revenu...', 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; color: #333; background: #fff;'}}) }}
-        <i class="fa fa-edit" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #aaa;"></i>
+
+    <div class="form-group-custom">
+        {{ form_widget(form.description, {'attr': {'placeholder': 'Source de revenu...', 'class': 'form-input-custom'}}) }}
+        <i class="fa fa-edit form-icon-custom"></i>
     </div>
-    {{ form_errors(form.description, {'attr': {'style': 'color: #e74c3c;'}}) }}
-    
-    <div style="position: relative; margin-bottom: 15px;">
-        {{ form_widget(form.montant, {'attr': {'placeholder': 'Montant (ariary)', 'step': '0.01', 'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; color: #333; background: #fff;'}}) }}
-        
+    {{ form_errors(form.description, {'attr': {'class': 'form-error-custom'}}) }}
+
+    <div class="form-group-custom">
+        {{ form_widget(form.montant, {'attr': {'placeholder': 'Montant (ariary)', 'step': '0.01', 'class': 'form-input-custom'}}) }}
     </div>
-    {{ form_errors(form.montant, {'attr': {'style': 'color: #e74c3c;'}}) }}
-    
-    <div style="position: relative; margin-bottom: 15px;">
-        {{ form_widget(form.date, {'attr': {'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; color: #333; background: #fff;'}}) }}
-        <i class="fa fa-calendar-alt" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #aaa;"></i>
+    {{ form_errors(form.montant, {'attr': {'class': 'form-error-custom'}}) }}
+
+    <div class="form-group-custom">
+        {{ form_widget(form.date, {'attr': {'class': 'form-input-custom'}}) }}
+        <i class="fa fa-calendar-alt form-icon-custom"></i>
     </div>
-    {{ form_errors(form.date, {'attr': {'style': 'color: #e74c3c;'}}) }}
-    
+    {{ form_errors(form.date, {'attr': {'class': 'form-error-custom'}}) }}
+
     {% if form.categorie is defined %}
-        <div style="position: relative; margin-bottom: 15px;">
-            {{ form_widget(form.categorie, {'attr': {'style': 'width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; color: #333; background: #fff;'}}) }}
-            <i class="fa fa-tags" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #aaa;"></i>
+        <div class="form-group-custom">
+            {{ form_widget(form.categorie, {'attr': {'class': 'form-input-custom'}}) }}
+            <i class="fa fa-tags form-icon-custom"></i>
         </div>
-        {{ form_errors(form.categorie, {'attr': {'style': 'color: #e74c3c;'}}) }}
+        {{ form_errors(form.categorie, {'attr': {'class': 'form-error-custom'}}) }}
     {% endif %}
-    
+
     {{ form_rest(form) }}
-    <button type="submit" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Modifier</button>
+    <button type="submit" class="form-submit-btn">Modifier</button>
+    
 {{ form_end(form) }}

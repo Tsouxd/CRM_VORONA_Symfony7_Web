@@ -1,8 +1,8 @@
 <?php
+
 namespace App\Controller\Admin;
 
 use App\Entity\CommandeProduit;
-use App\Entity\Paiement;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -10,6 +10,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
+use Symfony\Component\HttpFoundation\Response; // Potentiellement utile, mais pas obligatoire ici
 
 class CommandeProduitCrudController extends AbstractCrudController
 {
@@ -37,7 +38,7 @@ class CommandeProduitCrudController extends AbstractCrudController
     {
         return $actions
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
-            ->update(Crud::PAGE_INDEX, Action::NEW, fn(Action $action) => 
+            ->update(Crud::PAGE_INDEX, Action::NEW, fn(Action $action) =>
                 $action->setLabel('Ajouter un produit à une commande'));
     }
 
@@ -47,10 +48,26 @@ class CommandeProduitCrudController extends AbstractCrudController
             return;
         }
 
-        // Mise à jour du stock produit
         $produit = $entityInstance->getProduit();
+        $quantiteCommandee = $entityInstance->getQuantite();
+
+        // --- NOUVEAU : Vérification du stock avant de persister ---
+        if ($produit && $produit->getStock() < $quantiteCommandee) {
+            // Ajoute un message d'erreur qui sera affiché à l'utilisateur
+            $this->addFlash('danger', sprintf(
+                'Stock insuffisant pour le produit "%s". Quantité demandée : %d, Stock disponible : %d.',
+                $produit->getNom(),
+                $quantiteCommandee,
+                $produit->getStock()
+            ));
+
+            // On ne fait rien d'autre, l'entité ne sera pas sauvegardée.
+            return;
+        }
+
+        // --- La logique originale va ici, si le stock est OK ---
         if ($produit) {
-            $produit->setStock($produit->getStock() - $entityInstance->getQuantite());
+            $produit->setStock($produit->getStock() - $quantiteCommandee);
             $entityManager->persist($produit);
         }
 
@@ -59,12 +76,10 @@ class CommandeProduitCrudController extends AbstractCrudController
         // Mise à jour du total dans la commande parente
         $commande = $entityInstance->getCommande();
         if ($commande) {
-            // Met à jour le montant du paiement
             foreach ($commande->getPaiements() as $paiement) {
                 $paiement->updateMontant();
                 $entityManager->persist($paiement);
             }
-
             $entityManager->flush();
         }
     }
@@ -75,19 +90,30 @@ class CommandeProduitCrudController extends AbstractCrudController
             return;
         }
 
-        // Garde ta logique stock actuelle
-        $oldCommandeProduit = $entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance);
+        $produit = $entityInstance->getProduit();
+        $newQuantite = $entityInstance->getQuantite();
 
-        if (!isset($oldCommandeProduit['quantite'])) {
-            parent::updateEntity($entityManager, $entityInstance);
+        // On récupère la quantité originale avant la modification
+        $originalEntityData = $entityManager->getUnitOfWork()->getOriginalEntityData($entityInstance);
+        $oldQuantite = $originalEntityData['quantite'] ?? 0;
+
+        // --- NOUVEAU : Vérification du stock avant de mettre à jour ---
+        // Pour la vérification, on doit calculer le stock disponible "total"
+        // en restituant temporairement le stock de cette ligne de commande.
+        $stockDisponible = $produit->getStock() + $oldQuantite;
+
+        if ($newQuantite > $stockDisponible) {
+            $this->addFlash('danger', sprintf(
+                'Stock insuffisant pour le produit "%s". Vous demandez %d, mais seulement %d sont disponibles (en comptant votre commande initiale).',
+                $produit->getNom(),
+                $newQuantite,
+                $stockDisponible
+            ));
             return;
         }
 
-        $oldQuantite = $oldCommandeProduit['quantite'];
-        $newQuantite = $entityInstance->getQuantite();
+        // --- La logique originale va ici, si le stock est OK ---
         $diff = $newQuantite - $oldQuantite;
-
-        $produit = $entityInstance->getProduit();
         if ($produit) {
             $produit->setStock($produit->getStock() - $diff);
             $entityManager->persist($produit);
@@ -98,33 +124,37 @@ class CommandeProduitCrudController extends AbstractCrudController
         // Mise à jour du total dans la commande parente
         $commande = $entityInstance->getCommande();
         if ($commande) {
-                // Met à jour le montant du paiement
-                foreach ($commande->getPaiements() as $paiement) {
-                    $paiement->updateMontant();
-                    $entityManager->persist($paiement);
-                }
-
-                $entityManager->flush();
+            foreach ($commande->getPaiements() as $paiement) {
+                $paiement->updateMontant();
+                $entityManager->persist($paiement);
+            }
+            $entityManager->flush();
         }
     }
-
+    
+    // N'oublie pas de gérer la restitution du stock lors de la suppression !
     public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof CommandeProduit) {
             return;
         }
 
+        // --- AMÉLIORATION : Restituer le stock du produit supprimé ---
+        $produit = $entityInstance->getProduit();
+        if ($produit) {
+            $produit->setStock($produit->getStock() + $entityInstance->getQuantite());
+            $entityManager->persist($produit);
+        }
+        
+        // Le reste de ta logique
         $commande = $entityInstance->getCommande();
-
         parent::deleteEntity($entityManager, $entityInstance);
 
         if ($commande) {
-            // Met à jour le montant du paiement
             foreach ($commande->getPaiements() as $paiement) {
                 $paiement->updateMontant();
                 $entityManager->persist($paiement);
             }
-
             $entityManager->flush();
         }
     }
