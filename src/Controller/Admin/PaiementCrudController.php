@@ -42,19 +42,28 @@ class PaiementCrudController extends AbstractCrudController
         if (!$entityInstance instanceof Paiement) {
             return;
         }
-        
-        // Mise à jour du total dans la commande parente
+
         $commande = $entityInstance->getCommande();
-        if ($commande) {
-            // Met à jour le montant du paiement
-            foreach ($commande->getPaiements() as $paiement) {
-                $paiement->updateMontant();
-                $entityManager->persist($paiement);
+
+        // ✅ 1. Appliquer le statut à la commande
+        if ($commande !== null) {
+            if ($entityInstance->getStatut() === 'annulée') {
+                $commande->setStatut('annulée');
+            } elseif ($entityInstance->getStatut() === 'en attente') {
+                $commande->setStatut('en attente');
+            } elseif (in_array($entityInstance->getStatut(), ['en cours', 'payée'])) {
+                $commande->setStatut('en cours'); // ou 'payée'
             }
 
-            $entityManager->flush();
+            $entityManager->persist($commande);
         }
 
+        // ✅ 2. Mise à jour du montant DIRECTEMENT sur ce paiement
+        if (in_array($entityInstance->getStatut(), ['en cours', 'payée'])) {
+            $entityInstance->updateMontant();
+        }
+
+        // ✅ 3. Persist du paiement avec montant mis à jour
         parent::persistEntity($entityManager, $entityInstance);
     }
 
