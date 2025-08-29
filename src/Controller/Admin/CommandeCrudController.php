@@ -2,10 +2,17 @@
 
 namespace App\Controller\Admin;
 
+// En haut du fichier (imports)
+use Doctrine\ORM\PersistentCollection;
 use App\Entity\Commande;
-use App\Entity\Paiement;
+use App\Form\CommandeProduitType;
+use App\Form\ClientOrNewClientType;
+use App\Form\PaiementType;
+use App\Form\ClientType;
 use App\Entity\CommandeProduit;
+use App\Entity\Paiement;
 use Doctrine\ORM\EntityManagerInterface;
+use App\Controller\Admin\ClientCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
@@ -18,17 +25,31 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Event\BeforeEntityUpdatedEvent;
 use EasyCorp\Bundle\EasyAdminBundle\Event\BeforeEntityPersistedEvent;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
-use Doctrine\ORM\PersistentCollection;
 use Symfony\Component\HttpFoundation\RequestStack;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use EasyCorp\Bundle\EasyAdminBundle\Field\Field;
+use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ImageField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\MoneyField;
+use Vich\UploaderBundle\Form\Type\VichFileType;
+
+// Import des classes nécessaires pour les filtres
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 
 class CommandeCrudController extends AbstractCrudController implements EventSubscriberInterface
 {
-    private $commandeOriginalData = [];
     private $requestStack;
+    private EntityManagerInterface $entityManager;
 
-    public function __construct(RequestStack $requestStack)
+    public function __construct(RequestStack $requestStack, EntityManagerInterface $entityManager)
     {
         $this->requestStack = $requestStack;
+        $this->entityManager = $entityManager;
     }
 
     public static function getSubscribedEvents()
@@ -64,66 +85,128 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     ->setIcon('fa fa-pen');
             });
     }
+
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters
+            // Pour filtrer par la date de la commande
+            ->add(DateTimeFilter::new('dateCommande', 'Date de commande'))
+            
+            // Pour filtrer en sélectionnant un client dans une liste
+            ->add(EntityFilter::new('client', 'Client'))
+            
+            // Pour filtrer par le statut de la commande
+            ->add(ChoiceFilter::new('statut', 'Statut')->setChoices([
+                'En attente' => 'en attente',
+                'Partiellement payée' => 'partiellement payée',
+                'Payée' => 'payée',
+                'En cours' => 'en cours',
+                'Livrée' => 'livrée',
+                'Annulée' => 'annulée',
+            ]));
+    }
     
     public static function getEntityFqcn(): string
     {
         return Commande::class;
     }
 
-    /**
-     * Récupère la commande originale depuis la base de données
-     */
-    private function getOriginalCommande(EntityManagerInterface $entityManager, Commande $commande): ?Commande
-    {
-        if ($commande->getId() === null) {
-            return null; // Nouvelle commande
-        }
-        
-        // Récupérer l'entité originale depuis la base de données
-        return $entityManager->getRepository(Commande::class)->find($commande->getId());
-    }
-
-    /**
-     * Événement avant la mise à jour d'une commande
-     */
     public function beforeUpdate(BeforeEntityUpdatedEvent $event)
     {
-        $entity = $event->getEntityInstance();
-        
-        if (!$entity instanceof Commande) {
-            return;
-        }
-        
-        $entityManager = $this->container->get('doctrine')->getManager();
-        $session = $this->requestStack->getSession();
-        
-        // Récupérer l'entité originale depuis la base de données
-        $originalCommande = $this->getOriginalCommande($entityManager, $entity);
-        
-        if ($originalCommande === null) {
+        $commande = $event->getEntityInstance();
+        if (!$commande instanceof Commande) {
             return;
         }
 
-        // Sauvegarder les données originales pour les produits
-        $originalCommandeProduits = [];
-        foreach ($originalCommande->getCommandeProduits() as $cp) {
-            $produitId = $cp->getProduit()->getId();
-            $originalCommandeProduits[$produitId] = [
-                'quantite' => $cp->getQuantite(),
-                'produit' => $cp->getProduit()
-            ];
+        $em  = $this->entityManager;
+        $uow = $em->getUnitOfWork();
+
+        $seuilFaibleStock     = 10;
+        $stockSuffisant       = true;
+        $produitsInsuffisants = [];
+        $produitsFaibleStock  = [];
+
+        // 1) Lignes actuelles (ajouts + modifs de quantité + changement de produit)
+        $collection = $commande->getCommandeProduits();
+
+        foreach ($collection as $cp) {
+            $produitActuel = $cp->getProduit();
+            if (!$produitActuel) { continue; }
+
+            // Anciennes valeurs de CETTE ligne (renvoie [] si c'est une nouvelle ligne)
+            $oldData       = $uow->getOriginalEntityData($cp);
+            $ancienneQte   = $oldData['quantite'] ?? 0;
+            $ancienProduit = $oldData['produit']  ?? null;
+
+            // Cas 1 : le produit de la ligne a changé (A -> B)
+            if ($ancienProduit && $ancienProduit !== $produitActuel) {
+                // on recrédite totalement l’ancien produit
+                $ancienProduit->setStock($ancienProduit->getStock() + $ancienneQte);
+                $em->persist($ancienProduit);
+
+                // et on traite l’actuel comme un ajout "from scratch"
+                $difference = $cp->getQuantite(); // ancienne quantité = 0 pour le nouveau produit
+            } else {
+                // Cas 2 : même produit, on traite la différence de quantité
+                $difference = $cp->getQuantite() - $ancienneQte;
+            }
+
+            if ($difference > 0) {
+                // on débite du stock
+                if ($produitActuel->getStock() < $difference) {
+                    $stockSuffisant = false;
+                    $produitsInsuffisants[] = $produitActuel->getNom()
+                        . " (Demandé: {$difference}, Disponible: " . $produitActuel->getStock() . ")";
+                    // on ne modifie pas le stock si insuffisant
+                } else {
+                    $produitActuel->setStock($produitActuel->getStock() - $difference);
+                    $em->persist($produitActuel);
+
+                    if ($produitActuel->getStock() <= $seuilFaibleStock) {
+                        $produitsFaibleStock[] = $produitActuel->getNom()
+                            . " (Stock restant: " . $produitActuel->getStock() . ")";
+                    }
+                }
+            } elseif ($difference < 0) {
+                // quantité diminuée => on crédite la différence absolue
+                $produitActuel->setStock($produitActuel->getStock() + abs($difference));
+                $em->persist($produitActuel);
+            }
         }
-        
-        // Stocke la liste des produits originaux dans la session
-        $session->set('original_commande_produits', $originalCommandeProduits);
-        
-        // Analyser les modifications de produits
-        $this->processProductChanges($entity, $originalCommandeProduits, $entityManager);
+
+        // 2) Lignes supprimées (restaurer le stock)
+        $suppr = [];
+        if ($collection instanceof PersistentCollection) {
+            // éléments retirés de la collection depuis le chargement
+            $suppr = $collection->getDeleteDiff();
+        } else {
+            // fallback (rare) : reconstruire via snapshot si besoin
+            // $snapshot = method_exists($collection, 'getSnapshot') ? $collection->getSnapshot() : [];
+            // comparer $snapshot et $collection...
+        }
+
+        foreach ($suppr as $cpSupprime) {
+            $produit = $cpSupprime->getProduit();
+            if ($produit) {
+                $produit->setStock($produit->getStock() + $cpSupprime->getQuantite());
+                $em->persist($produit);
+            }
+        }
+
+        // 3) Bloquer si insuffisant + warnings faible stock
+        if (!$stockSuffisant) {
+            $messageErreur = "Stock insuffisant pour les produits suivants : " . implode(", ", $produitsInsuffisants);
+            $this->addFlash('danger', $messageErreur);
+        }
+
+        if (!empty($produitsFaibleStock)) {
+            $messageAlerte = "Attention : faible stock pour les produits suivants : " . implode(", ", $produitsFaibleStock);
+            $this->addFlash('warning', $messageAlerte);
+        }
+
+        $commande->updateStatutPaiement();
     }
 
-    /**
-     * Traite les changements de produits entre la commande originale et la nouvelle
-     */
     private function processProductChanges(Commande $commande, array $originalCommandeProduits, EntityManagerInterface $entityManager)
     {
         $seuilFaibleStock = 10;
@@ -131,139 +214,73 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         $produitsInsuffisants = [];
         $produitsFaibleStock = [];
         
-        // Liste pour suivre les changements de stock à appliquer
-        $changementsStock = [];
         $nouveauxCommandeProduits = [];
-        
-        // Indexer les nouveaux produits pour faciliter la comparaison
         foreach ($commande->getCommandeProduits() as $cp) {
+            if ($cp->getProduit() === null) continue;
+            
             $produitId = $cp->getProduit()->getId();
             $nouveauxCommandeProduits[$produitId] = $cp;
         }
         
-        // 1. Vérifier les produits qui ont été modifiés ou ajoutés
         foreach ($nouveauxCommandeProduits as $produitId => $cp) {
             $produit = $cp->getProduit();
             $nouvelleQuantite = $cp->getQuantite();
             
-            // Déterminer si ce produit existait dans la commande originale
-            $ancienneQuantite = 0;
-            if (isset($originalCommandeProduits[$produitId])) {
-                $ancienneQuantite = $originalCommandeProduits[$produitId]['quantite'];
-            }
-            
-            // Calculer la différence
+            $ancienneQuantite = $originalCommandeProduits[$produitId]['quantite'] ?? 0;
             $difference = $nouvelleQuantite - $ancienneQuantite;
             
-            // Si la quantité augmente, vérifier si le stock est suffisant
             if ($difference > 0) {
                 if ($produit->getStock() < $difference) {
                     $stockSuffisant = false;
                     $produitsInsuffisants[] = $produit->getNom() . ' (Demandé en plus: ' . $difference . ', Disponible: ' . $produit->getStock() . ')';
                 } else {
-                    // Stock suffisant, appliquer l'ajustement
-                    $nouveauStock = $produit->getStock() - $difference;
-                    $produit->setStock($nouveauStock);
-                    $entityManager->persist($produit);
-                    
-                    // Vérifier si le stock restant sera faible
-                    if ($nouveauStock <= $seuilFaibleStock) {
-                        $produitsFaibleStock[] = $produit->getNom() . ' (Stock restant: ' . $nouveauStock . ')';
+                    $produit->setStock($produit->getStock() - $difference);
+                    if ($produit->getStock() <= $seuilFaibleStock) {
+                        $produitsFaibleStock[] = $produit->getNom() . ' (Stock restant: ' . $produit->getStock() . ')';
                     }
                 }
             } elseif ($difference < 0) {
-                // Si la quantité diminue, on rend du stock
-                $nouveauStock = $produit->getStock() + abs($difference);
-                $produit->setStock($nouveauStock);
-                $entityManager->persist($produit);
+                $produit->setStock($produit->getStock() + abs($difference));
             }
         }
         
-        // 2. Traiter les produits qui ont été retirés de la commande (rendus au stock)
         foreach ($originalCommandeProduits as $produitId => $data) {
             if (!isset($nouveauxCommandeProduits[$produitId])) {
                 $produit = $data['produit'];
                 $quantite = $data['quantite'];
-                
-                // Rendre au stock la quantité qui avait été réservée
-                $nouveauStock = $produit->getStock() + $quantite;
-                $produit->setStock($nouveauStock);
-                $entityManager->persist($produit);
+                $produit->setStock($produit->getStock() + $quantite);
             }
         }
         
-        // Si le stock est insuffisant, ajouter un message flash et ne pas continuer
         if (!$stockSuffisant) {
             $messageErreur = 'Stock insuffisant pour les produits suivants : ' . implode(', ', $produitsInsuffisants);
             $this->addFlash('danger', $messageErreur);
             throw new \Exception($messageErreur);
         }
         
-        // Afficher une alerte pour les produits à faible stock
         if (!empty($produitsFaibleStock)) {
             $messageAlerte = 'Attention : Faible stock pour les produits suivants : ' . implode(', ', $produitsFaibleStock);
             $this->addFlash('warning', $messageAlerte);
         }
-        
-        // Recalculer le total de la commande
-        $total = 0.0;
-        foreach ($commande->getCommandeProduits() as $cp) {
-            $total += $cp->getQuantite() * $cp->getProduit()->getPrix();
-        }
     }
 
-    /*public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
-    {
-        if (!$entityInstance instanceof Commande) {
-            return;
-        }
-
-        $statutCommande = $entityInstance->getStatut();
-
-        foreach ($entityInstance->getPaiements() as $paiement) {
-            switch ($statutCommande) {
-                case 'annulée':
-                    $paiement->setStatut('annulée');
-                    break;
-
-                case 'en attente':
-                    $paiement->setStatut('en attente');
-                    break;
-
-                case 'en cours':
-                    $paiement->setStatut('en cours');
-                    break;
-
-                case 'livrée':
-                    $paiement->setStatut('payée');
-                    break;
-            }
-
-            $entityManager->persist($paiement);
-        }
-
-        parent::updateEntity($entityManager, $entityInstance);
-    }*/
-
-    /**
-     * Événement avant la persistance d'une nouvelle commande
-     */
     public function beforePersist(BeforeEntityPersistedEvent $event)
     {
+        $commande = $event->getEntityInstance();
+        if (!$commande instanceof Commande) return;
+
         $entity = $event->getEntityInstance();
         
         if (!$entity instanceof Commande) {
             return;
         }
-        
+
         $entityManager = $this->container->get('doctrine')->getManager();
-        
         $stockSuffisant = true;
         $produitsInsuffisants = [];
         $produitsFaibleStock = [];
         $seuilFaibleStock = 10;
         
-        // Vérifier d'abord si le stock est suffisant pour tous les produits
         foreach ($entity->getCommandeProduits() as $cp) {
             $produit = $cp->getProduit();
             $quantite = $cp->getQuantite();
@@ -274,36 +291,29 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             }
         }
         
-        // Si le stock est insuffisant, ajouter un message flash et ne pas continuer
         if (!$stockSuffisant) {
             $messageErreur = 'Stock insuffisant pour les produits suivants : ' . implode(', ', $produitsInsuffisants);
             $this->addFlash('danger', $messageErreur);
             throw new \Exception($messageErreur);
         }
         
-        // Sinon, procéder normalement
-        $total = 0.0;
         foreach ($entity->getCommandeProduits() as $cp) {
             $produit = $cp->getProduit();
             $quantite = $cp->getQuantite();
             $nouveauStock = $produit->getStock() - $quantite;
         
-            // Vérifier si le stock passe sous le seuil d'alerte
             if ($nouveauStock <= $seuilFaibleStock) {
                 $produitsFaibleStock[] = $produit->getNom() . ' (Stock restant: ' . $nouveauStock . ')';
             }
-        
             $produit->setStock($nouveauStock);
-            $entityManager->persist($produit);
-        
-            $total += $quantite * $produit->getPrix();
         }
         
-        // Afficher une alerte pour les produits à faible stock
         if (!empty($produitsFaibleStock)) {
             $messageAlerte = 'Attention : Faible stock pour les produits suivants : ' . implode(', ', $produitsFaibleStock);
             $this->addFlash('warning', $messageAlerte);
         }
+
+        $commande->updateStatutPaiement();
     }
 
     public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
@@ -313,49 +323,282 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             return;
         }
         
-        // Restaurer le stock pour chaque produit de la commande
         foreach ($entityInstance->getCommandeProduits() as $cp) {
             $produit = $cp->getProduit();
             $quantite = $cp->getQuantite();
-            
-            // Augmenter le stock de la quantité qui avait été réservée
             $produit->setStock($produit->getStock() + $quantite);
             $entityManager->persist($produit);
         }
-        
-        // Supprimer l'entité
+        $entityManager->flush();
         parent::deleteEntity($entityManager, $entityInstance);
     }
     
     public function configureFields(string $pageName): iterable
     {
-        return [
-            IdField::new('id')->hideOnForm(),
-            DateTimeField::new('dateCommande', 'Date de Commande')
-                ->setFormat('dd/MM/yyyy HH:mm'),
-            AssociationField::new('client', 'Client')
-                ->autocomplete(),
-            CollectionField::new('paiements', 'Paiement')
-                ->setFormTypeOption('disabled', true),
-            CollectionField::new('commandeProduits')
-                ->setFormTypeOption('disabled', true)
-                ->setEntryIsComplex(true)
-                //->setEntryType(\App\Form\CommandeProduitType::class)
-                ->allowAdd()
-                ->allowDelete(),
-            ChoiceField::new('statut')
-                ->setChoices([
-                    'En attente' => 'en attente',
-                    'En cours' => 'en cours',
-                    'Livrée' => 'livrée',
-                    'Annulée' => 'annulée',
-                ])
-                ->renderAsBadges([
-                    'en attente' => 'warning',
-                    'en cours' => 'info',
-                    'livrée' => 'success',
-                    'annulée' => 'danger',
-                ]),
-        ];
+        yield IdField::new('id')->hideOnForm();
+
+        yield DateTimeField::new('dateCommande', 'Date de Commande')
+            ->setFormat('dd/MM/yyyy HH:mm')
+            //->setFormTypeOption('data', new \DateTime()) // valeur par défaut
+            ->onlyOnForms();
+
+        yield DateTimeField::new('dateCommande', 'Date de Commande')
+            ->hideOnForm();
+
+        // Affichage standard sur index/detail
+        yield AssociationField::new('client')
+            ->hideOnForm();
+
+        // SI on est sur la page de CRÉATION (new)
+        if (Crud::PAGE_NEW === $pageName) {
+            yield FormField::addPanel('Informations du Client')
+            ->setHelp('Choisissez un client existant ou créez-en un nouveau.');
+
+            yield Field::new('clientSelector', 'Client')
+                ->setFormType(ClientOrNewClientType::class)
+                ->setFormTypeOptions([
+                    'label' => false,
+                    'mapped' => false, 
+                ]);
+        }
+
+        // SI on est sur la page de MODIFICATION (edit)
+        if (Crud::PAGE_EDIT === $pageName) {
+            yield FormField::addPanel('Informations du Client');
+            yield AssociationField::new('client', 'Client');
+                //->setFormTypeOption('disabled', true); // Grise le champ pour qu'il ne soit pas modifiable
+        }
+
+        yield MoneyField::new('totalAvecFrais', 'Total à Payer')
+            ->setCurrency('MGA')
+            ->setFormTypeOption('divisor', 1)
+            ->setNumDecimals(0)
+            ->onlyOnIndex();
+
+        yield MoneyField::new('montantPaye', 'Montant Payé')
+            ->setCurrency('MGA')
+            ->setFormTypeOption('divisor', 1)
+            ->setCssClass('text-success')
+            ->setNumDecimals(0)
+            ->onlyOnIndex();
+
+        yield MoneyField::new('resteAPayer', 'Reste à payer')
+            ->setCurrency('MGA')
+            // Votre logique de formatage est toujours parfaite.
+            ->formatValue(function ($value, Commande $entity) {
+                $reste = $entity->getResteAPayer();
+
+                if ($reste <= 0) {
+                    return '<span class="badge bg-success">Paiement effectué</span>';
+                }
+
+                $formattedValue = number_format($reste, 0, ',', ' ') . ' MGA';
+                return sprintf('<span class="font-weight-bold text-danger">%s</span>', $formattedValue);
+            })
+            
+            // ✅ LA CORRECTION : On revient à la méthode qui fonctionne pour TOUS les champs.
+            ->setCustomOption('renderAsHtml', true)
+            
+            ->onlyOnIndex();
+
+        // --- Panneau Produits ---
+        yield FormField::addPanel('Lignes de produits')->onlyOnForms();
+        yield CollectionField::new('commandeProduits')
+            ->setLabel(false) // Le label est déjà dans le panneau
+            ->setEntryType(CommandeProduitType::class) // C'est ici que la magie opère
+            ->setFormTypeOptions(['by_reference' => false])
+            ->setEntryIsComplex(true)
+            ->allowAdd()
+            ->allowDelete()
+            ->onlyOnForms();
+
+        /*yield CollectionField::new('commandeProduits', 'Produits')
+            ->hideOnForm();*/
+        
+        // ✅ C'est ce champ qui remplace le PaiementCrudController
+        yield CollectionField::new('paiements', 'Paiements')
+            ->setEntryType(PaiementType::class)
+            ->setFormTypeOptions(['by_reference' => false])
+            ->allowAdd()
+            ->allowDelete()
+            ->onlyOnForms();
+
+        /*yield CollectionField::new('paiements', 'Tranche de paiements')
+            ->hideOnForm();*/
+
+        yield FormField::addPanel('')->setHelp(<<<HTML
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Fonction pour mettre à jour le prix
+                    const updatePrice = (selectElement) => {
+                        const selectedOption = selectElement.options[selectElement.selectedIndex];
+                        const prix = selectedOption.getAttribute('data-prix') || 0;
+
+                        // Trouver le champ prixUnitaire qui correspond à ce select
+                        const priceInput = selectElement.closest('.form-widget-compound').querySelector('[id$=_prixUnitaire]');
+                        if (priceInput) {
+                            // On doit formater le nombre pour le champ MoneyType
+                            priceInput.value = (prix / 1).toFixed(0); // Divisor 1, 0 décimales
+                        }
+                    };
+
+                    // Attacher l'événement aux selects déjà présents sur la page
+                    document.querySelectorAll('.commande-produit-select').forEach(select => {
+                        select.addEventListener('change', function() {
+                            updatePrice(this);
+                        });
+                    });
+
+                    // Gérer les nouveaux éléments ajoutés par EasyAdmin
+                    const addButton = document.querySelector('.field-collection-add-button');
+                    if (addButton) {
+                        addButton.addEventListener('click', function() {
+                            // On attend un court instant que le nouvel élément soit ajouté au DOM
+                            setTimeout(() => {
+                                const newSelects = document.querySelectorAll('.commande-produit-select:not(.listening)');
+                                newSelects.forEach(select => {
+                                    select.classList.add('listening'); // Eviter de mettre plusieurs listeners
+                                    select.addEventListener('change', function() {
+                                        updatePrice(this);
+                                    });
+                                });
+                            }, 100);
+                        });
+                    }
+                });
+            </script>
+        HTML
+        )->onlyOnForms();
+
+        // Upload (formulaire)
+        yield TextField::new('pieceJointeFile')
+            ->setFormType(VichFileType::class)
+            ->onlyOnForms();
+
+        // Affichage (index/detail) → lien cliquable
+        yield TextField::new('pieceJointe')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/pieces/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })  
+            ->onlyOnIndex()
+            ->renderAsHtml();
+            
+        // Assurez-vous d'avoir les nouveaux statuts dans le ChoiceField
+        yield ChoiceField::new('statut')
+            ->setChoices([
+                'En attente' => 'en attente',
+                'Partiellement payée' => 'partiellement payée', // AJOUTÉ
+                'Payée' => 'payée',                           // AJOUTÉ
+                'En cours' => 'en cours',
+                'Livrée' => 'livrée',
+                'Annulée' => 'annulée',
+            ])
+            ->renderAsBadges([
+                'en attente' => 'secondary',
+                'partiellement payée' => 'warning',
+                'payée' => 'info',
+                'en cours' => 'primary',
+                'livrée' => 'success',
+                'annulée' => 'danger',
+            ]);
+
+        yield MoneyField::new('fraisLivraison', 'Frais de livraison')
+            ->setCurrency('MGA')
+            ->setStoredAsCents(false)
+            ->setNumDecimals(0)
+            ->onlyOnForms();
+
+        // ✅ Injection du JS directement dans EasyAdmin via un champ invisible
+        yield FormField::addPanel('')
+            ->onlyOnForms()
+            ->setHelp(<<<HTML
+                <script>
+                    function initCommandeFormScripts() {
+                        // --- Gestion du choix client existant/nouveau ---
+                        const choiceRadios = document.querySelectorAll(".client-choice-radio input[type=radio]");
+                        const existingBlock = document.querySelector(".existing-client-block");
+                        const newBlock = document.querySelector(".new-client-block");
+
+                        function updateClientChoiceVisibility() {
+                            const selected = document.querySelector(".client-choice-radio input[type=radio]:checked");
+                            if (!selected) return;
+                            if (existingBlock && newBlock) {
+                                if (selected.value === "existing") {
+                                    existingBlock.style.display = "block";
+                                    newBlock.style.display = "none";
+                                } else if (selected.value === "new") {
+                                    existingBlock.style.display = "none";
+                                    newBlock.style.display = "block";
+                                }
+                            }
+                        }
+
+                        choiceRadios.forEach(radio => {
+                            radio.addEventListener("change", updateClientChoiceVisibility);
+                        });
+
+                        // --- Gestion du type de client (particulier/professionnel) ---
+                        const typeSelector = document.querySelector(".client-type-selector");
+                        const particulierFields = document.querySelectorAll(".particulier-field");
+                        const professionnelFields = document.querySelectorAll(".professionnel-field");
+
+                        function updateClientTypeVisibility() {
+                            if (!typeSelector) return;
+                            const selectedType = typeSelector.querySelector("input[type=radio]:checked");
+                            if (!selectedType) return;
+
+                            particulierFields.forEach(field => {
+                                field.style.display = selectedType.value === "particulier" ? "block" : "none";
+                            });
+                            professionnelFields.forEach(field => {
+                                field.style.display = selectedType.value === "professionnel" ? "block" : "none";
+                            });
+                        }
+
+                        if (typeSelector) {
+                            typeSelector.addEventListener("change", updateClientTypeVisibility);
+                        }
+
+                        // --- Gestion du choix produit existant/nouveau ---
+                        const choiceRadios2 = document.querySelectorAll(".product-choice-radio input[type=radio]");
+                        const existingBlock2 = document.querySelector(".existing-product-block");
+                        const newBlock2 = document.querySelector(".new-product-block");
+
+                        function updateProductChoiceVisibility() {
+                            const selected = document.querySelector(".product-choice-radio input[type=radio]:checked");
+                            if (!selected) return;
+                            if (existingBlock2 && newBlock2) {
+                                if (selected.value === "existing") {
+                                    existingBlock2.style.display = "block";
+                                    newBlock2.style.display = "none";
+                                } else if (selected.value === "new") {
+                                    existingBlock2.style.display = "none";
+                                    newBlock2.style.display = "block";
+                                }
+                            }
+                        }
+
+                        choiceRadios2.forEach(radio => {
+                            radio.addEventListener("change", updateProductChoiceVisibility);
+                        });
+
+                        // --- Initialisation ---
+                        updateClientChoiceVisibility();
+                        updateClientTypeVisibility();
+                        updateProductChoiceVisibility();
+                    }
+
+                    // Initialisation sur chargement DOM et rechargements Turbo
+                    document.addEventListener("DOMContentLoaded", initCommandeFormScripts);
+                    document.addEventListener("turbo:load", initCommandeFormScripts);
+                </script>
+            HTML);
+
     }
 }

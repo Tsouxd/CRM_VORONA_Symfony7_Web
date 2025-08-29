@@ -58,12 +58,12 @@ class AppCustomAuthenticator extends AbstractLoginFormAuthenticator
         // Redirigez l'utilisateur vers la page souhaitée en fonction de son rôle ou d'une page par défaut
         if (in_array('ROLE_ADMIN', $user->getRoles(), true)) {
             return new RedirectResponse($this->urlGenerator->generate('admin'));
-        } else {
+        } elseif (in_array('ROLE_COMMERCIAL', $user->getRoles(), true)) {
             return new RedirectResponse($this->urlGenerator->generate('app_comptable'));
+        } elseif (in_array('ROLE_PRODUCTION', $user->getRoles(), true)) {
+            return new RedirectResponse($this->urlGenerator->generate('app_production_index'));
         }
-        
     }
-
     protected function getLoginUrl(Request $request): string
     {
         return $this->urlGenerator->generate(self::LOGIN_ROUTE);

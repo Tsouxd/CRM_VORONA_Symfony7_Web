@@ -1,8 +1,659 @@
 {% extends '@EasyAdmin/page/content.html.twig' %}
 
-{% block content %}
-    <div style="margin-bottom: 20px;">{% include 'admin/filtrage.html.twig' %}</div>
-    <div class="spacer"></div>
-    <div style="margin-bottom: 20px;">{% include 'admin/chiffre_affaire.html.twig' %}</div>
-    <div class="spacer"></div>
+{% block content_title %}
+    <div class="d-flex align-items-center">
+        <i class="fas fa-chart-bar me-3 text-primary fs-3"></i>
+        <span>Tableau de Bord - Statistiques des Ventes</span>
+    </div>
+{% endblock %}
+
+{% block page_content_header %}
+    <style>
+        .dashboard-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: translate(30px, -30px);
+        }
+        
+        .stats-card-today { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .stats-card-month { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .stats-card-year { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .stats-card-period { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        
+        .chart-card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .chart-card .card-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: none;
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .product-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .product-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .product-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .product-list::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        .filter-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 15px;
+            padding: 2rem;
+            color: white;
+            margin-bottom: 2rem;
+        }
+        
+        .filter-section .form-control {
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .filter-section .btn-primary {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            font-weight: 600;
+            padding: 0.75rem 2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-section .btn-primary:hover {
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-1px);
+        }
+        
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #667eea, transparent);
+            border: none;
+            margin: 3rem 0;
+        }
+        
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #495057;
+            margin-bottom: 2rem;
+            position: relative;
+            padding-left: 20px;
+        }
+        
+        .section-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 2px;
+        }
+        
+        .table-modern {
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        
+        .table-modern thead th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            padding: 1rem 1.25rem;
+            border: none;
+        }
+        
+        .table-modern tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        .table-modern tbody td {
+            padding: 1rem 1.25rem;
+            border: none;
+            vertical-align: middle;
+        }
+        
+        .badge-modern {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+            font-weight: 600;
+        }
+        
+        .list-group-modern .list-group-item {
+            border: none;
+            border-bottom: 1px solid #e9ecef;
+            padding: 1rem 1.25rem;
+            transition: background-color 0.3s ease;
+        }
+        
+        .list-group-modern .list-group-item:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .list-group-modern .list-group-item:last-child {
+            border-bottom: none;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-card {
+                margin-bottom: 1rem;
+            }
+            
+            .filter-section {
+                padding: 1.5rem;
+            }
+            
+            .chart-container {
+                height: 250px;
+            }
+        }
+    </style>
+{% endblock %}
+
+{% block main %}
+    {# ================================================================== #}
+    {# SECTION 1 : FILTRE ET STATISTIQUES SUR LA PÉRIODE SÉLECTIONNÉE     #}
+    {# ================================================================== #}
+    <div class="filter-section">
+        <h5 class="mb-4">
+            <i class="fas fa-filter me-2"></i>
+            Filtrer les données par période
+        </h5>
+        <form method="get" action="{{ path('admin') }}" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="startDate" class="form-label fw-semibold">
+                    <i class="fas fa-calendar-alt me-2"></i>Date de début
+                </label>
+                <input type="date" id="startDate" name="startDate" class="form-control" value="{{ startDate|date('Y-m-d') }}">
+            </div>
+            <div class="col-md-5">
+                <label for="endDate" class="form-label fw-semibold">
+                    <i class="fas fa-calendar-alt me-2"></i>Date de fin
+                </label>
+                <input type="date" id="endDate" name="endDate" class="form-control" value="{{ endDate|date('Y-m-d') }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-2"></i>Filtrer
+                </button>
+            </div>
+        </form>
+    </div></br>
+
+    <center><h4 class="section-title">
+        Résultats pour la période du <span class="text-primary">{{ startDate|date('d/m/Y') }}</span> au <span class="text-primary">{{ endDate|date('d/m/Y') }}</span>
+    </h4></center></br>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="stats-card stats-card-period">
+                <div class="text-center position-relative">
+                    <i class="fas fa-chart-line fs-2 mb-3 opacity-75"></i>
+                    <h5 class="fw-semibold mb-2">Total des Ventes sur la période</h5>
+                    <p class="fs-2 fw-bold mb-0">{{ salesForPeriod|number_format(0, ',', ' ') }} MGA</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="card-header bg-transparent border-bottom-0 pb-0">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="fas fa-trophy me-2 text-warning"></i>
+                        Meilleurs produits sur la période
+                    </h6>
+                </div>
+                <div class="product-list">
+                    <ul class="list-group list-group-flush list-group-modern">
+                        {% for p in bestProductsForPeriod %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="fw-medium">{{ p.product_name }}</span>
+                            <span class="badge badge-modern">{{ p.total_quantity }}</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted text-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Aucune vente sur cette période.
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="section-divider">
+
+    {# ================================================================== #}
+    {# SECTION 2 : STATISTIQUES GÉNÉRALES (JOUR/MOIS/ANNÉE)               #}
+    {# ================================================================== #}
+    <center><h4 class="section-title">Statistiques Générales</h4></center></br>
+
+    <div class="row mb-4">
+        <div class="col-lg-4 mb-3">
+            <div class="stats-card stats-card-today">
+                <div class="text-center position-relative">
+                    <i class="fas fa-calendar-day fs-2 mb-2 opacity-75"></i>
+                    <h6 class="fw-semibold mb-2">Ventes du jour</h6>
+                    <p class="fs-4 fw-bold mb-0">{{ salesToday|number_format(0, ',', ' ') }} MGA</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-3">
+            <div class="stats-card stats-card-month">
+                <div class="text-center position-relative">
+                    <i class="fas fa-calendar-week fs-2 mb-2 opacity-75"></i>
+                    <h6 class="fw-semibold mb-2">Ventes du mois (en cours)</h6>
+                    <p class="fs-4 fw-bold mb-0">{{ monthlyData|last.totalAmount|default(0)|number_format(0, ',', ' ') }} MGA</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-3">
+            <div class="stats-card stats-card-year">
+                <div class="text-center position-relative">
+                    <i class="fas fa-calendar fs-2 mb-2 opacity-75"></i>
+                    <h6 class="fw-semibold mb-2">Ventes de l'année (en cours)</h6>
+                    <p class="fs-4 fw-bold mb-0">{{ yearlyData|first.totalAmount|default(0)|number_format(0, ',', ' ') }} MGA</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="card-header bg-transparent">
+                    <h6 class="fw-semibold mb-0">
+                        <i class="fas fa-medal me-2 text-success"></i>
+                        Meilleurs produits / Jour
+                    </h6>
+                </div>
+                <div class="product-list">
+                    <ul class="list-group list-group-flush list-group-modern">
+                        {% for p in bestProductsToday %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="fw-medium">{{ p.product_name }}</span>
+                            <span class="badge badge-modern">{{ p.total_quantity }}</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted text-center">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Aucune vente.
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    <form method="get" action="{{ path('admin') }}" class="d-flex justify-content-between align-items-center">
+                        <span>Meilleurs produits / Mois</span>
+                        <select id="monthSelector" class="form-select form-select-sm w-auto">
+                            {% for monthData in availableMonths %}
+                                <option value="{{ monthData.month }}" {{ monthData.month == selectedMonth ? 'selected' }}>
+                                    {{ monthData.month|date('M Y', timezone='Indian/Antananarivo') }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        {# Garde les autres filtres actifs #}
+                        <input type="hidden" name="startDate" value="{{ startDate|date('Y-m-d') }}">
+                        <input type="hidden" name="endDate" value="{{ endDate|date('Y-m-d') }}">
+                        <input type="hidden" name="year" value="{{ selectedYear }}">
+                    </form>
+                    <div id="best-products-month">
+                        {% include 'admin/partials/_best_products_list.html.twig' with { products: bestProductsThisMonth, label: selectedMonth|date('M Y') } %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header">
+                    {# Le formulaire pour choisir l'année #}
+                    <form method="get" action="{{ path('admin') }}" class="d-flex justify-content-between align-items-center">
+                        <span>Meilleurs produits / Année</span>
+                        <select id="yearSelector" class="form-select form-select-sm w-auto">
+                            {% for yearData in availableYears %}
+                                <option value="{{ yearData.year }}" {{ yearData.year == selectedYear ? 'selected' }}>
+                                    {{ yearData.year }}
+                                </option>
+                            {% endfor %}
+                        </select>
+
+                        {# Garde les autres filtres actifs si besoin #}
+                        <input type="hidden" name="startDate" value="{{ startDate|date('Y-m-d') }}">
+                        <input type="hidden" name="endDate" value="{{ endDate|date('Y-m-d') }}">
+                    </form>
+                    <div id="best-products-year">
+                        {% include 'admin/partials/_best_products_list.html.twig' with { products: bestProductsThisYear, label: selectedYear } %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <hr class="section-divider">
+
+    {# ================================================================== #}
+    {# SECTION 3 : GRAPHIQUES ET TABLEAUX HISTORIQUES                     #}
+    {# ================================================================== #}
+    <h4 class="section-title">Statistiques Historiques</h4>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="chart-card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Commandes (12 derniers mois)
+                    </h6>
+                </div>
+                <div class="chart-container">
+                    <canvas id="monthlyOrderChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="chart-card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Total des Ventes par Mois
+                    </h6>
+                </div>
+                <div class="chart-container">
+                    <canvas id="monthlyRevenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mb-4">
+            <div class="chart-card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-area me-2"></i>
+                        Commandes par Année
+                    </h6>
+                </div>
+                <div class="chart-container">
+                    <canvas id="yearlyOrderChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="chart-card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Total des Ventes par Année
+                    </h6>
+                </div>
+                <div class="chart-container">
+                    <canvas id="yearlyRevenueChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="dashboard-card">
+                <div class="card-header bg-transparent">
+                    <h6 class="mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        Détail des Ventes Mensuelles
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-modern mb-0">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-calendar me-2"></i>Période</th>
+                                    <th><i class="fas fa-shopping-cart me-2"></i>Nb. Commandes</th>
+                                    <th class="text-end"><i class="fas fa-money-bill-wave me-2"></i>Total Ventes</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for data in monthlyData %}
+                                <tr>
+                                    <td class="fw-medium">{{ data.period }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary rounded-pill">{{ data.orderCount }}</span>
+                                    </td>
+                                    <td class="text-end fw-bold">{{ data.totalAmount|number_format(0, ',', ' ') }} MGA</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block body_javascript %}
+    {{ parent() }}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const monthlyData = {{ monthlyData|json_encode|raw }};
+            const yearlyData = {{ yearlyData|json_encode|raw }};
+            
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            usePointStyle: true,
+                            font: {
+                                family: 'Inter, system-ui, sans-serif',
+                                weight: '500'
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            font: {
+                                family: 'Inter, system-ui, sans-serif'
+                            }
+                        }
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            font: {
+                                family: 'Inter, system-ui, sans-serif'
+                            }
+                        }
+                    }
+                }
+            };
+
+            // Graphique des commandes mensuelles
+            if (document.getElementById('monthlyOrderChart')) {
+                new Chart(document.getElementById('monthlyOrderChart'), {
+                    type: 'line',
+                    data: {
+                        labels: monthlyData.map(i => i.period),
+                        datasets: [{
+                            label: 'Nombre de Commandes',
+                            data: monthlyData.map(i => i.orderCount),
+                            borderColor: 'rgb(102, 126, 234)',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: 'rgb(102, 126, 234)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5
+                        }]
+                    },
+                    options: commonOptions
+                });
+            }
+
+            // Graphique des revenus mensuels
+            if (document.getElementById('monthlyRevenueChart')) {
+                new Chart(document.getElementById('monthlyRevenueChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: monthlyData.map(i => i.period),
+                        datasets: [{
+                            label: 'Total Ventes (MGA)',
+                            data: monthlyData.map(i => i.totalAmount),
+                            backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: commonOptions
+                });
+            }
+
+            // Graphique des commandes annuelles
+            if (document.getElementById('yearlyOrderChart')) {
+                new Chart(document.getElementById('yearlyOrderChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: yearlyData.map(i => i.period),
+                        datasets: [{
+                            label: 'Nombre de Commandes',
+                            data: yearlyData.map(i => i.orderCount),
+                            backgroundColor: 'rgba(255, 99, 132, 0.8)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1,
+                            borderRadius: 6,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: commonOptions
+                });
+            }
+
+            // Graphique des revenus annuels
+            if (document.getElementById('yearlyRevenueChart')) {
+                new Chart(document.getElementById('yearlyRevenueChart'), {
+                    type: 'line',
+                    data: {
+                        labels: yearlyData.map(i => i.period),
+                        datasets: [{
+                            label: 'Total Ventes (MGA)',
+                            data: yearlyData.map(i => i.totalAmount),
+                            borderColor: 'rgb(255, 205, 86)',
+                            backgroundColor: 'rgba(255, 205, 86, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointBackgroundColor: 'rgb(255, 205, 86)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2,
+                            pointRadius: 5
+                        }]
+                    },
+                    options: commonOptions
+                });
+            }
+        });
+        document.addEventListener('DOMContentLoaded', () => {
+        const monthSelector = document.getElementById('monthSelector');
+        const yearSelector = document.getElementById('yearSelector');
+
+        if (monthSelector) {
+            monthSelector.addEventListener('change', async (e) => {
+                const month = e.target.value;
+                const res = await fetch(`/admin/best-products?type=month&month=${month}`);
+                const html = await res.text();
+                document.getElementById('best-products-month').innerHTML = html;
+            });
+        }
+
+        if (yearSelector) {
+            yearSelector.addEventListener('change', async (e) => {
+                const year = e.target.value;
+                const res = await fetch(`/admin/best-products?type=year&year=${year}`);
+                const html = await res.text();
+                document.getElementById('best-products-year').innerHTML = html;
+            });
+        }
+    });
+
+    </script>
 {% endblock %}

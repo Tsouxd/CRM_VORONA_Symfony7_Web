@@ -1,0 +1,14 @@
+{# admin/partials/_best_products_list.html.twig #}
+<ul class="list-group list-group-flush list-group-modern">
+    {% for p in products %}
+    <li class="list-group-item d-flex justify-content-between align-items-center">
+        <span class="fw-medium">{{ p.product_name }}</span>
+        <span class="badge badge-modern">{{ p.total_quantity }}</span>
+    </li>
+    {% else %}
+    <li class="list-group-item text-muted text-center">
+        <i class="fas fa-info-circle me-2"></i>
+        Aucune vente{% if label is defined %} pour {{ label }}{% endif %}.
+    </li>
+    {% endfor %}
+</ul>

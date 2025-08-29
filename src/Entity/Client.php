@@ -11,6 +11,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: ClientRepository::class)]
 class Client
 {
+    public const TYPE_PARTICULIER = 'particulier';
+    public const TYPE_PROFESSIONNEL = 'professionnel';
+
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     private ?int $id = null;
 
@@ -20,18 +23,38 @@ class Client
     #[ORM\Column(length: 255)]
     private ?string $email = null;
 
-    #[ORM\Column(length: 20)]
+    #[ORM\Column(length: 20, nullable: true)] // Mettre nullable au cas où
     private ?string $telephone = null;
 
     #[ORM\OneToMany(mappedBy: 'client', targetEntity: Commande::class)]
     private Collection $commandes;
 
+    // --- PROPRIÉTÉ MANQUANTE À AJOUTER ---
+    #[ORM\Column(length: 50)]
+    private ?string $type = self::TYPE_PARTICULIER; // Valeur par défaut
+    // --- FIN DE LA PROPRIÉTÉ MANQUANTE ---
+    
+    // --- Champs Particuliers ---
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $adresseLivraison = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $lieuLivraison = null;
+
+    // --- Champs Professionnels ---
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $nif = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $stat = null;
+    
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $adresse = null;
+
     public function __construct()
     {
         $this->commandes = new ArrayCollection();
     }
-
-    // getters / setters
 
     public function getId(): ?int
     {
@@ -46,7 +69,6 @@ class Client
     public function setNom(string $nom): static
     {
         $this->nom = $nom;
-
         return $this;
     }
 
@@ -58,7 +80,6 @@ class Client
     public function setEmail(string $email): static
     {
         $this->email = $email;
-
         return $this;
     }
 
@@ -67,12 +88,46 @@ class Client
         return $this->telephone;
     }
 
-    public function setTelephone(string $telephone): static
+    public function setTelephone(?string $telephone): static // Accepter null
     {
         $this->telephone = $telephone;
-
         return $this;
     }
+
+    // --- GETTERS/SETTERS MANQUANTS À AJOUTER ---
+    public function getType(): ?string
+    {
+        return $this->type;
+    }
+
+    public function setType(string $type): static
+    {
+        $this->type = $type;
+        return $this;
+    }
+
+    public function getAdresseLivraison(): ?string
+    {
+        return $this->adresseLivraison;
+    }
+
+    public function setAdresseLivraison(?string $adresseLivraison): static
+    {
+        $this->adresseLivraison = $adresseLivraison;
+        return $this;
+    }
+
+    public function getLieuLivraison(): ?string
+    {
+        return $this->lieuLivraison;
+    }
+
+    public function setLieuLivraison(?string $lieuLivraison): static
+    {
+        $this->lieuLivraison = $lieuLivraison;
+        return $this;
+    }
+    // --- FIN DES GETTERS/SETTERS MANQUANTS ---
 
     /**
      * @return Collection<int, Commande>
@@ -88,19 +143,16 @@ class Client
             $this->commandes->add($commande);
             $commande->setClient($this);
         }
-
         return $this;
     }
 
     public function removeCommande(Commande $commande): static
     {
         if ($this->commandes->removeElement($commande)) {
-            // set the owning side to null (unless already changed)
             if ($commande->getClient() === $this) {
                 $commande->setClient(null);
             }
         }
-
         return $this;
     }
 
@@ -109,5 +161,38 @@ class Client
         return $this->nom;
     }
 
-}
+    public function getNif(): ?string
+    {
+        return $this->nif;
+    }
 
+    public function setNif(?string $nif): static
+    {
+        $this->nif = $nif;
+        return $this;
+    }
+
+    public function getStat(): ?string
+    {
+        return $this->stat;
+    }
+
+
+
+    public function setStat(?string $stat): static
+    {
+        $this->stat = $stat;
+        return $this;
+    }
+    
+    public function getAdresse(): ?string
+    {
+        return $this->adresse;
+    }
+
+    public function setAdresse(?string $adresse): static
+    {
+        $this->adresse = $adresse;
+        return $this;
+    }
+}

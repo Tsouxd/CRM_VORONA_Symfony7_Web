@@ -49,10 +49,13 @@ class ProduitCrudController extends AbstractCrudController
             TextField::new('nom', 'Nom du produit'),
             AssociationField::new('fournisseur', 'Fournisseur')
                 ->autocomplete(),
+
             MoneyField::new('prix')
                 ->setCurrency('MGA')
-                ->setCustomOption('suffix', ' Ar')
+                // On dit au champ de ne pas diviser par 100. L'entier stocké est la valeur affichée.
+                ->setFormTypeOption('divisor', 1)
                 ->setNumDecimals(0),
+                
             NumberField::new('stock')
                 ->setCustomOption('renderCallback', function ($value) {
                     if ($value < self::SEUIL_FAIBLE_STOCK) {

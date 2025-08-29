@@ -36,7 +36,7 @@ class RegistrationController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()) {
             $user->setIsVerified(true);
-            $user->setRoles(['ROLE_COMPTABLE']);
+            $user->setRoles(['ROLE_COMMERCIAL']);
 
             /** @var string $plainPassword */
             $plainPassword = $form->get('plainPassword')->getData();

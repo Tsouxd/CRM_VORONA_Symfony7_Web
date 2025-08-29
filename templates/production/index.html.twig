@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tableau de Bord Production</title>
+    
+    <style>
+        /* --- Style "Dashboard" directement intégré --- */
+        :root {
+            --airtable-border-color: #e9ecef;
+            --airtable-header-bg: #ffffff;
+            --airtable-row-hover: #f1f3f5;
+            --airtable-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --primary-color: #0d6efd;
+            --text-color: #212529;
+            --text-muted: #6c757d;
+        }
+        
+        /* --- Reset et base --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background-color: #f8f9fa; font-family: var(--airtable-font-family); color: var(--text-color); line-height: 1.6; }
+
+        /* --- En-tête de l'application --- */
+        .app-header {
+            background-color: var(--airtable-header-bg);
+            border-bottom: 1px solid var(--airtable-border-color);
+            padding: 0 2rem;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .brand-logo { font-size: 20px; font-weight: 700; color: var(--text-color); text-decoration: none; }
+        .user-profile { position: relative; display: flex; align-items: center; cursor: pointer; }
+        .user-avatar { width: 36px; height: 36px; border-radius: 50%; background-color: var(--primary-color); color: white; display: flex; align-items: center; justify-content: center; font-weight: 600; margin-right: 12px; }
+        .user-name { font-weight: 500; }
+        .dropdown-menu { display: none; position: absolute; top: 110%; right: 0; background-color: white; border: 1px solid var(--airtable-border-color); border-radius: 8px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); list-style: none; width: 200px; padding: 8px 0; z-index: 101; }
+        .user-profile:hover .dropdown-menu { display: block; }
+        .dropdown-menu a { display: block; padding: 10px 16px; color: var(--text-color); text-decoration: none; font-size: 14px; }
+        .dropdown-menu a:hover { background-color: #f1f3f5; }
+        .dropdown-header { padding: 10px 16px; font-size: 12px; color: var(--text-muted); border-bottom: 1px solid var(--airtable-border-color); margin-bottom: 8px; }
+        .dropdown-header strong { display: block; color: var(--text-color); font-size: 14px; }
+        
+        /* --- Contenu principal --- */
+        .container { max-width: 1600px; margin: 0 auto; padding: 2rem; }
+        h1, h2 { font-weight: 600; margin-bottom: 1.5rem; }
+        h1 { font-size: 28px; }
+        h2 { font-size: 22px; color: var(--text-muted); margin-top: 3rem; }
+        
+        /* Cartes du tableau de bord */
+        .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-bottom: 3rem; }
+        .stat-card { background-color: white; border: 1px solid var(--airtable-border-color); border-radius: 8px; padding: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+        .stat-card .title { font-size: 14px; font-weight: 500; color: var(--text-muted); margin-bottom: 0.5rem; }
+        .stat-card .value { font-size: 36px; font-weight: 700; color: var(--text-color); }
+        .chart-container { height: 180px; position: relative; }
+        
+        /* Tableau des commandes */
+        .table-wrapper { background-color: white; border: 1px solid var(--airtable-border-color); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.04); overflow: hidden; overflow-x: auto; }
+        .airtable-table { border-collapse: collapse; width: 100%; font-size: 14px; }
+        .airtable-table thead th { text-align: left; padding: 12px 16px; font-weight: 600; color: #555; background-color: #f8f9fa; border-bottom: 2px solid var(--airtable-border-color); }
+        .airtable-table tbody td { padding: 12px 16px; border-bottom: 1px solid var(--airtable-border-color); vertical-align: middle; }
+        .airtable-table tbody tr:last-child td { border-bottom: none; }
+        .airtable-table tbody tr:hover { background-color: var(--airtable-row-hover); }
+        .airtable-id { font-weight: 500; color: #888; }
+        .airtable-client { font-weight: 600; }
+        .product-list { list-style: none; }
+        .product-list li { padding: 4px 0; }
+        .product-list li:not(:last-child) { border-bottom: 1px dashed #eee; }
+        .product-quantity { display: inline-block; width: 28px; text-align: right; margin-right: 8px; font-weight: 700; color: var(--primary-color); }
+        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-weight: 600; font-size: 12px; text-transform: capitalize; }
+        .status-badge.payee { background-color: #d4edda; color: #155724; }
+        .status-badge.partiellement-payee { background-color: #fff3cd; color: #856404; }
+        .status-badge.en-cours { background-color: #cce5ff; color: #004085; }
+        .empty-state { text-align: center; padding: 4rem; color: #888; }
+        .empty-state h2 { font-size: 20px; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+
+    <header class="app-header">
+        <a href="{{ path('app_production_index') }}" class="brand-logo">
+            Production
+        </a>
+        <div class="user-profile">
+            <div class="user-avatar">
+                {{ user is not null ? user.userIdentifier|first|upper : '?' }}
+            </div>
+            <span class="user-name">{{ user is not null ? user.userIdentifier : 'Utilisateur' }}</span>
+
+            <ul class="dropdown-menu">
+                {% if user is not null %}
+                    <li class="dropdown-header">
+                        Connecté en tant que
+                        <strong>{{ user.userIdentifier }}</strong>
+                    </li>
+                    <li><a href="{{ path('app_production_profil') }}">Mon Profil</a></li>
+                    <li><a href="{{ path('app_logout') }}">Déconnexion</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </header>
+
+    <div class="container">
+        <h1>Tableau de Bord Production</h1>
+
+        <!-- LES CARTES DE STATS -->
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <div class="title">Commandes à préparer</div>
+                <div class="value">{{ pendingOrdersCount }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="title">Articles au total</div>
+                <div class="value">{{ totalItemsToProduce }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="title">Répartition de la Production</div>
+                <div class="chart-container">
+                    <canvas id="productionChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- LA LISTE DÉTAILLÉE DES COMMANDES -->
+        <h2>Détail des Commandes</h2>
+        <div class="table-wrapper">
+            <table class="airtable-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Client</th>
+                        <th style="width: 50%;">Produits</th>
+                        <th>Statut Paiement</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for commande in commandes %}
+                        <tr>
+                            <td class="airtable-id">#{{ commande.id }}</td>
+                            <td>{{ commande.dateCommande|date('d M Y') }}</td>
+                            <td class="airtable-client">{{ commande.client.nom|default('N/A') }}</td>
+                            <td>
+                                <ul class="product-list">
+                                    {% for item in commande.commandeProduits %}
+                                        <li><span class="product-quantity">{{ item.quantite }}x</span><span>{{ item.produit.nom }}</span></li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                            <td><span class="status-badge {{ commande.statut|replace({' ': '-'})|lower }}">{{ commande.statut }}</span></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="5"><div class="empty-state"><h2>Aucune commande à préparer</h2><p>Excellent travail !</p></div></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- LE SCRIPT POUR LE GRAPHIQUE -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('productionChart');
+            if (ctx && {{ chartData|raw }}.length > 0) {
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: {{ chartLabels|raw }},
+                        datasets: [{
+                            label: 'Articles à produire',
+                            data: {{ chartData|raw }},
+                            backgroundColor: ['rgba(54, 162, 235, 0.8)', 'rgba(255, 99, 132, 0.8)', 'rgba(255, 206, 86, 0.8)', 'rgba(75, 192, 192, 0.8)', 'rgba(153, 102, 255, 0.8)', 'rgba(255, 159, 64, 0.8)'],
+                            borderColor: '#fff',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 12 } } } } }
+                });
+            } else if (ctx) {
+                const context = ctx.getContext('2d');
+                context.font = "14px " + getComputedStyle(document.body).fontFamily;
+                context.textAlign = 'center';
+                context.fillStyle = '#888';
+                context.fillText("Aucune donnée à afficher", ctx.canvas.width / 2, ctx.canvas.height / 2);
+            }
+        });
+    </script>
+
+</body>
+</html>

@@ -90,7 +90,8 @@ class UserCrudController extends AbstractCrudController
                 ->setHelp('Sélectionnez un seul rôle pour l\'utilisateur.')
                 ->setChoices([
                     'Administrateur' => 'ROLE_ADMIN',
-                    'Comptable' => 'ROLE_COMPTABLE',
+                    'Commercial' => 'ROLE_COMMERCIAL',
+                    'Production' => 'ROLE_PRODUCTION',
                 ])
                 ->allowMultipleChoices(true) // nécessaire car roles est un array
                 ->renderExpanded(true) // boutons radio
@@ -105,7 +106,8 @@ class UserCrudController extends AbstractCrudController
                         return implode(', ', array_map(function ($role) {
                             return match ($role) {
                                 'ROLE_ADMIN' => 'Administrateur',
-                                'ROLE_COMPTABLE' => 'Comptable',
+                                'ROLE_COMMERCIAL' => 'Commercial',
+                                'ROLE_PRODUCTION' => 'Production',
                                 default => $role,
                             };
                         }, $value));
