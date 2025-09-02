@@ -23,17 +23,15 @@ class Client
     #[ORM\Column(length: 255)]
     private ?string $email = null;
 
-    #[ORM\Column(length: 20, nullable: true)] // Mettre nullable au cas où
+    #[ORM\Column(length: 20, nullable: true)]
     private ?string $telephone = null;
 
     #[ORM\OneToMany(mappedBy: 'client', targetEntity: Commande::class)]
     private Collection $commandes;
 
-    // --- PROPRIÉTÉ MANQUANTE À AJOUTER ---
     #[ORM\Column(length: 50)]
-    private ?string $type = self::TYPE_PARTICULIER; // Valeur par défaut
-    // --- FIN DE LA PROPRIÉTÉ MANQUANTE ---
-    
+    private ?string $type = self::TYPE_PARTICULIER;
+
     // --- Champs Particuliers ---
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $adresseLivraison = null;
@@ -41,13 +39,16 @@ class Client
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $lieuLivraison = null;
 
+    #[ORM\Column(type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureLivraison = null;
+
     // --- Champs Professionnels ---
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $nif = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $stat = null;
-    
+
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $adresse = null;
 
@@ -88,13 +89,12 @@ class Client
         return $this->telephone;
     }
 
-    public function setTelephone(?string $telephone): static // Accepter null
+    public function setTelephone(?string $telephone): static
     {
         $this->telephone = $telephone;
         return $this;
     }
 
-    // --- GETTERS/SETTERS MANQUANTS À AJOUTER ---
     public function getType(): ?string
     {
         return $this->type;
@@ -127,7 +127,17 @@ class Client
         $this->lieuLivraison = $lieuLivraison;
         return $this;
     }
-    // --- FIN DES GETTERS/SETTERS MANQUANTS ---
+
+    public function getHeureLivraison(): ?\DateTimeInterface
+    {
+        return $this->heureLivraison;
+    }
+
+    public function setHeureLivraison(?\DateTimeInterface $heureLivraison): static
+    {
+        $this->heureLivraison = $heureLivraison;
+        return $this;
+    }
 
     /**
      * @return Collection<int, Commande>
@@ -177,14 +187,12 @@ class Client
         return $this->stat;
     }
 
-
-
     public function setStat(?string $stat): static
     {
         $this->stat = $stat;
         return $this;
     }
-    
+
     public function getAdresse(): ?string
     {
         return $this->adresse;

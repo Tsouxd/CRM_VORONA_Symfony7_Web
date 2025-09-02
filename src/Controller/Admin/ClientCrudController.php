@@ -3,7 +3,6 @@
 namespace App\Controller\Admin;
 
 use App\Entity\Client;
-use App\Controller\Admin\CommandeCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -15,12 +14,11 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\RequestStack;
-use Symfony\Component\HttpFoundation\RedirectResponse;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
-
+use Doctrine\ORM\EntityManagerInterface;
 
 class ClientCrudController extends AbstractCrudController
 {
@@ -49,9 +47,9 @@ class ClientCrudController extends AbstractCrudController
     {
         return $actions
             ->update(Crud::PAGE_INDEX, Action::NEW, function (Action $action) {
-                return $action; // Ici tu peux ajouter un label ou une icône personnalisée
+                return $action;
             })
-            ->add(Crud::PAGE_NEW, Action::SAVE_AND_CONTINUE); // OK car SAVE_AND_CONTINUE n'existe pas encore sur PAGE_NEW
+            ->add(Crud::PAGE_NEW, Action::SAVE_AND_CONTINUE);
     }
 
     public function configureFields(string $pageName): iterable
@@ -64,7 +62,7 @@ class ClientCrudController extends AbstractCrudController
         yield IdField::new('id')->onlyOnIndex();
 
         // --- Champ de choix du Type ---
-        yield TextField::new('type')->onlyOnIndex(); // Pour l'affichage simple en liste
+        yield TextField::new('type')->onlyOnIndex();
 
         yield ChoiceField::new('type')
             ->setChoices([
@@ -72,30 +70,32 @@ class ClientCrudController extends AbstractCrudController
                 'Professionnel' => Client::TYPE_PROFESSIONNEL,
             ])
             ->renderExpanded()
-            // On ajoute une classe sur le conteneur du champ pour que le JS le trouve facilement
             ->addCssClass('client-type-choice-container')
             ->onlyOnForms();
 
         // --- Panneau pour les Particuliers ---
         yield FormField::addPanel('Informations Particulier')
-            // On ajoute une classe sur le panneau pour pouvoir le masquer en entier
             ->addCssClass('client-particulier-panel')
             ->onlyOnForms();
+
         yield TextareaField::new('adresseLivraison')->onlyOnForms();
         yield TextField::new('lieuLivraison')->onlyOnForms();
-            
+        yield TimeField::new('heureLivraison', 'Heure de livraison')
+            ->setFormat('HH:mm') // format 24h
+            ->onlyOnForms();
+
         // --- Panneau pour les Professionnels ---
         yield FormField::addPanel('Informations Professionnel')
-            // On ajoute une classe sur le panneau pour pouvoir le masquer en entier
             ->addCssClass('client-professionnel-panel')
             ->onlyOnForms();
+
         yield TextField::new('nif')->onlyOnForms();
         yield TextField::new('stat')->onlyOnForms();
         yield TextareaField::new('adresse', 'Adresse (siège social)')->onlyOnForms();
 
-        // ✅ INJECTION DU SCRIPT JS POUR GÉRER L'AFFICHAGE DYNAMIQUE
+        // ✅ Script JS pour afficher/masquer les bons panneaux
         yield FormField::addPanel('', '')
-            ->onlyOnForms() // Ce panneau invisible n'apparaît que sur les formulaires
+            ->onlyOnForms()
             ->setHelp(<<<HTML
 <script>
     function initializeClientTypeToggle() {
@@ -104,11 +104,10 @@ class ClientCrudController extends AbstractCrudController
         const professionnelPanel = document.querySelector('.client-professionnel-panel');
 
         if (!typeChoiceContainer || !particulierPanel || !professionnelPanel) {
-            return; // Si les éléments ne sont pas trouvés, on ne fait rien
+            return;
         }
 
         function updatePanelVisibility() {
-            // On trouve le bouton radio qui est actuellement coché
             const selectedRadio = typeChoiceContainer.querySelector('input[type="radio"]:checked');
             if (!selectedRadio) return;
 
@@ -121,16 +120,11 @@ class ClientCrudController extends AbstractCrudController
             }
         }
 
-        // On écoute les changements sur les boutons radio
         typeChoiceContainer.addEventListener('change', updatePanelVisibility);
-
-        // On exécute la fonction une première fois au chargement pour définir le bon état
         updatePanelVisibility();
     }
 
-    // Lancement au chargement de la page
     document.addEventListener('DOMContentLoaded', initializeClientTypeToggle);
-    // Lancement si la page est chargée via Turbo (navigation interne d'EasyAdmin)
     document.addEventListener('turbo:load', initializeClientTypeToggle);
 </script>
 HTML
@@ -155,5 +149,5 @@ HTML
             $response->send();
             exit;
         }
-    }
+    } 
 }

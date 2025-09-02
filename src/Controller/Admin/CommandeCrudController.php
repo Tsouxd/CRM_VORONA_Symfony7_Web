@@ -11,10 +11,10 @@ use App\Form\PaiementType;
 use App\Form\ClientType;
 use App\Entity\CommandeProduit;
 use App\Entity\Paiement;
+use App\Controller\Admin\PaoCrudController;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use App\Controller\Admin\ClientCrudController;
-use App\Controller\Admin\PaoCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
@@ -73,28 +73,29 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         $requestEditAction = Action::new('demanderModification', 'Demander à modifier', 'fa fa-key')
             ->linkToCrudAction('requestModification')
             ->setCssClass('btn btn-secondary')
-            // Ce bouton s'affiche UNIQUEMENT si aucune demande n'est en cours ou approuvée
             ->displayIf(function (Commande $commande) {
-                return $this->isGranted('ROLE_COMMERCIAL') && 
+                return $this->isGranted('ROLE_COMMERCIAL') &&
                        !in_array($commande->getDemandeModificationStatut(), ['requested', 'approved']);
             });
-
+    
         // --- ACTIONS POUR L'ADMIN : Approuver / Refuser ---
         $approveAction = Action::new('approuverDemande', 'Approuver', 'fa fa-check-circle')
             ->linkToCrudAction('approveRequest')
             ->setCssClass('btn btn-success')
             ->displayIf(function (Commande $commande) {
-                return $this->isGranted('ROLE_ADMIN') && 
+                return $this->isGranted('ROLE_ADMIN') &&
                        $commande->getDemandeModificationStatut() === 'requested';
             });
-            
+    
         $refuseAction = Action::new('refuserDemande', 'Refuser', 'fa fa-times-circle')
             ->linkToCrudAction('refuseRequest')
             ->setCssClass('btn btn-danger')
             ->displayIf(function (Commande $commande) {
-                return $this->isGranted('ROLE_ADMIN') && 
+                return $this->isGranted('ROLE_ADMIN') &&
                        $commande->getDemandeModificationStatut() === 'requested';
             });
+    
+        // --- ACTION EXPORT PDF ---
         $exportPdf = Action::new('exportPdf', '🧾 Exporter PDF')
             ->linkToUrl(function (Commande $commande) {
                 return $this->generateUrl('admin_export_facture', ['id' => $commande->getId()]);
@@ -103,38 +104,44 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 'target' => '_blank',
                 'class' => 'btn btn-secondary',
             ]);
-
+    
         return $actions
+            // --- PAGE INDEX ---
             ->add(Crud::PAGE_INDEX, $requestEditAction)
             ->add(Crud::PAGE_INDEX, $approveAction)
             ->add(Crud::PAGE_INDEX, $refuseAction)
-            // --- LOGIQUE D'AFFICHAGE DU BOUTON "MODIFIER" ---
+            ->add(Crud::PAGE_INDEX, $exportPdf)
             ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
                 return $action->displayIf(function (Commande $commande) {
-                    // L'admin peut toujours modifier
                     if ($this->isGranted('ROLE_ADMIN')) {
                         return true;
                     }
-                    // Le commercial ne peut modifier que si sa demande a été approuvée
                     if ($this->isGranted('ROLE_COMMERCIAL')) {
                         return $commande->getDemandeModificationStatut() === 'approved';
                     }
                     return false;
                 });
             })
-            ->add(Crud::PAGE_INDEX, $exportPdf)
-            ->add(Crud::PAGE_DETAIL, $exportPdf)
+            ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
+                return $action
+                    ->setLabel('Modifier')
+                    ->setIcon('fa fa-pen');
+            })
             ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
                 return $action
                     ->setLabel('Supprimer')
                     ->setIcon('fa fa-trash');
             })
-            ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
+    
+            // --- PAGE DETAIL ---
+            ->add(Crud::PAGE_DETAIL, $exportPdf) // Ajout avant DELETE
+            ->update(Crud::PAGE_DETAIL, Action::DELETE, function (Action $action) {
                 return $action
-                    ->setLabel('Modifier')
-                    ->setIcon('fa fa-pen');
+                    ->setLabel('Supprimer')
+                    ->setIcon('fa fa-trash');
             });
     }
+    
 
     public function configureFilters(Filters $filters): Filters
     {
@@ -406,11 +413,6 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         yield AssociationField::new('client')
             ->hideOnForm();
 
-        yield AssociationField::new('pao', 'PAO')
-            ->setCrudController(PaoCrudController::class) // Si tu as un CRUD pour PAO
-            ->setRequired(false) // Nullable
-            ->onlyOnForms();
-
         // SI on est sur la page de CRÉATION (new)
         if (Crud::PAGE_NEW === $pageName) {
             yield FormField::addPanel('Informations du Client')
@@ -551,7 +553,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->onlyOnIndex()
             ->renderAsHtml();
             
-        // Assurez-vous d'avoir les nouveaux statuts dans le ChoiceField
+        // Assurez-vous d'avoir les nouveaux statuts danDes le ChoiceField
         yield ChoiceField::new('statut')
             ->setChoices([
                 'En attente' => 'en attente',
@@ -569,6 +571,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 'livrée' => 'success',
                 'annulée' => 'danger',
             ]);
+
         if ($this->security->isGranted('ROLE_PAO')) {
             yield ChoiceField::new('statutPao', 'Statut PAO')
                 ->setChoices([
@@ -600,11 +603,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     'requested' => 'warning',
                     'approved' => 'success',
                     'refused' => 'danger',
-                ])
-                ->onlyOnForms()       // uniquement dans les formulaires
-                ->setFormTypeOption('disabled', false) // facultatif : éditable
-                ->setFormTypeOption('mapped', true)
-                ->hideWhenCreating(); // NE s'affiche pas lors du new
+                ]);
         }
 
         if ($this->security->isGranted('ROLE_COMMERCIAL')) {
@@ -623,6 +622,31 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         }
             
         yield TextareaField::new('demandeModificationMotif', 'Motif')->onlyOnDetail();
+
+
+
+    // --- NOUVEAUX CHAMPS ---
+    yield TextField::new('referencePaiement', 'Référence du Paiement')
+        ->setRequired(false);
+
+    yield TextField::new('categorie', 'Catégorie')
+        ->setRequired(false);
+
+    yield TextareaField::new('description', 'Description')
+        ->setRequired(false);
+
+    yield ChoiceField::new('priorite', 'Priorité')
+        ->setChoices([
+            'Urgent' => 'urgent',
+            'Normal' => 'normal',
+            'Faible' => 'faible',
+        ])
+        ->renderAsBadges([
+            'urgent' => 'danger',
+            'normal' => 'primary',
+            'faible' => 'secondary',
+        ])
+        ->setRequired(false);
 
         // ✅ Injection du JS directement dans EasyAdmin via un champ invisible
         yield FormField::addPanel('')

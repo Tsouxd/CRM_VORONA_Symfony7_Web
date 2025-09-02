@@ -10,6 +10,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\Extension\Core\Type\EmailType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
+use Symfony\Component\Form\Extension\Core\Type\TimeType;
 
 class ClientType extends AbstractType
 {
@@ -36,7 +37,6 @@ class ClientType extends AbstractType
                 ],
                 'expanded' => true,
                 'required' => true,
-                // On ajoute une classe pour pouvoir cibler ce champ en JS
                 'attr' => ['class' => 'client-type-selector'],
                 'data' => Client::TYPE_PARTICULIER,
             ])
@@ -45,29 +45,36 @@ class ClientType extends AbstractType
             ->add('adresseLivraison', TextareaType::class, [
                 'label' => 'Adresse de livraison',
                 'required' => false,
-                'row_attr' => ['class' => 'client-field particulier-field'], // Classe pour le JS
+                'row_attr' => ['class' => 'client-field particulier-field'],
             ])
             ->add('lieuLivraison', TextType::class, [
                 'label' => 'Lieu de livraison (ville, code postal...)',
                 'required' => false,
-                'row_attr' => ['class' => 'client-field particulier-field'], // Classe pour le JS
+                'row_attr' => ['class' => 'client-field particulier-field'],
+            ])
+            ->add('heureLivraison', TimeType::class, [
+                'label' => 'Heure de livraison',
+                'required' => false,
+                'widget' => 'single_text', // un seul input HTML5 type="time"
+                'input' => 'datetime',     // valeur stockée en \DateTime
+                'row_attr' => ['class' => 'client-field particulier-field'],
             ])
 
-            // --- Groupe de champs pour les Entreprises ---
+            // --- Groupe de champs pour les Professionnels ---
             ->add('nif', TextType::class, [
                 'label' => 'NIF',
                 'required' => false,
-                'row_attr' => ['class' => 'client-field professionnel-field'], // Classe pour le JS
+                'row_attr' => ['class' => 'client-field professionnel-field'],
             ])
             ->add('stat', TextType::class, [
                 'label' => 'STAT',
                 'required' => false,
-                'row_attr' => ['class' => 'client-field professionnel-field'], // Classe pour le JS
+                'row_attr' => ['class' => 'client-field professionnel-field'],
             ])
             ->add('adresse', TextareaType::class, [
                 'label' => 'Adresse (siège social)',
                 'required' => false,
-                'row_attr' => ['class' => 'client-field professionnel-field'], // Classe pour le JS
+                'row_attr' => ['class' => 'client-field professionnel-field'],
             ])
         ;
     }
