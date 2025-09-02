@@ -3,34 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulaire Connexion / Inscription</title>
+    <title>Accès à la plateforme</title>
     <link rel="stylesheet" href="{{ asset('utils/css/style.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
 </head>
 <body>
-    <div class="container" id="container">
-        {# FORMULAIRE D’INSCRIPTION #}
-        <div class="form-container sign-up-container">
-            <form action="{{ path('app_register') }}" method="post">
-            {{ form_start(registrationForm) }}
-                <h1>Inscription</h1>
-                {{ form_widget(registrationForm.username, {
-                    'attr': {
-                        'placeholder': 'Nom d’utilisateur',
-                        'class': 'input-style'
-                    },
-                    'label' : false
-                }) }}
+    {# AJOUT DE LA CLASSE CONDITIONNELLE #}
+    <div class="container {% if show_signup_panel is defined and show_signup_panel %}right-panel-active{% endif %}" id="container">
 
-                {{ form_widget(registrationForm.plainPassword, {
-                    'attr': {
-                        'placeholder': 'Mot de passe',
-                        'class': 'input-style'
-                    },
-                    'label' : false
-                }) }}
-                </br>           
-                <button type="submit">S'inscrire</button>
+        {# FORMULAIRE DE DEMANDE DE COMPTE #}
+        <div class="form-container sign-up-container">
+            
+            {# GESTION AMÉLIORÉE DES MESSAGES FLASH - AVANT LE FORMULAIRE #}
+            {% for label, messages in app.flashes %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ label }} alert-center" data-auto-dismiss="6000">
+                        {{ message }}
+                        <button type="button" class="alert-close" onclick="closeAlert(this)" aria-label="Fermer">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+            
+            {{ form_start(registrationForm, {'action': path('app_register')}) }}
+                <h1>Demande de compte</h1>
+                <br>
+                {{ form_row(registrationForm.username) }}
+                {{ form_row(registrationForm.password) }}
+
+                <button type="submit">Envoyer la demande</button>
             {{ form_end(registrationForm) }}
         </div>
 
@@ -40,35 +42,91 @@
                 <h1>Connexion</h1>
                 
                 {% if error %}
-                    <div class="alert alert-danger">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
+                    <div class="alert alert-danger alert-center">
+                        <i class="fas fa-exclamation-circle"></i>
+                        {{ error.messageKey|trans(error.messageData, 'security') }}
+                    </div>
                 {% endif %}
 
-                <input type="text" name="username" placeholder="Nom d’utilisateur" value="{{ last_username }}" required autocomplete="username">
+                <input type="text" name="username" placeholder="Nom d'utilisateur"
+                       value="{{ last_username }}" required autocomplete="username">
                 <input type="password" name="password" placeholder="Mot de passe" required autocomplete="current-password">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
-                {# <a href="#">Mot de passe oublié ?</a> #}
-                </br>
+                <br>
                 <button type="submit">Se connecter</button>
             </form>
         </div>
 
-        {# BOUTONS POUR CHANGER DE FORMULAIRE #}
+        {# BOUTONS POUR CHANGER DE FORMULAIRE (overlay animé) #}
         <div class="overlay-container">
             <div class="overlay">
                 <div class="overlay-panel overlay-left">
-                    <h1>Bon retour !</h1>
-                    <p>Pour rester connecté, veuillez vous connecter avec vos informations personnelles</p>
+                    <h1>Ravi de vous revoir !</h1>
+                    <p>Connectez-vous pour accéder à votre espace personnel.</p>
                     <button class="ghost" id="signIn">Se connecter</button>
                 </div>
                 <div class="overlay-panel overlay-right">
-                    <h1>Bonjour, ami(e) !</h1>
-                    <p>Entrez vos informations personnelles et commencez votre aventure avec nous</p>
-                    <button class="ghost" id="signUp">S'inscrire</button>
+                    <h1>Bienvenue !</h1>
+                    <p>Vous n'avez pas encore de compte ? Soumettez une demande ici.</p>
+                    <button class="ghost" id="signUp">Demander un compte</button>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="{{ asset('utils/js/scripts.js') }}"></script>
+    <script>
+        // Script pour gérer la fermeture et l'auto-disparition des alertes
+        function closeAlert(button) {
+            const alert = button.parentNode;
+            alert.style.animation = 'slideOutToTop 0.5s ease-in';
+            setTimeout(() => {
+                alert.remove();
+            }, 500);
+        }
+
+        // Auto-disparition des messages après 6 secondes
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('[data-auto-dismiss]');
+            alerts.forEach(alert => {
+                const dismissTime = parseInt(alert.getAttribute('data-auto-dismiss'));
+                if (dismissTime > 0) {
+                    setTimeout(() => {
+                        if (alert.parentNode) {
+                            alert.style.animation = 'slideOutToTop 0.5s ease-in';
+                            setTimeout(() => {
+                                alert.remove();
+                            }, 500);
+                        }
+                    }, dismissTime);
+                }
+            });
+        });
+
+        // IMPORTANT: Force l'affichage du panneau d'inscription si il y a des messages flash
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.getElementById('container');
+            const hasFlashMessages = document.querySelectorAll('.alert').length > 0;
+            
+            // Si il y a des messages flash, afficher le panneau d'inscription
+            if (hasFlashMessages) {
+                container.classList.add('right-panel-active');
+            }
+        });
+    </script>
+
+    <style>
+        /* Animation de sortie pour les alertes */
+        @keyframes slideOutToTop {
+            0% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+    </style>
 </body>
 </html>

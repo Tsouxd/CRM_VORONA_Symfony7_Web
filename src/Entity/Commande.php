@@ -59,6 +59,13 @@ class Commande
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $demandeModificationMotif = null; // Le motif entré par le commercial
 
+    #[ORM\ManyToOne(inversedBy: 'commandes', cascade: ['persist'])]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?Pao $pao = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $statutPao = null; // => utilise camelCase
+
     public function __construct()
     {
         $this->commandeProduits = new ArrayCollection();
@@ -331,6 +338,29 @@ class Commande
         $this->demandeModificationMotif = $demandeModificationMotif;
         return $this;
     }
+
+    public function getPao(): ?Pao
+    {
+        return $this->pao;
+    }
+
+    public function setPao(?Pao $pao): self
+    {
+        $this->pao = $pao;
+        return $this;
+    }
+
+    public function getStatutPao(): ?string
+    {
+        return $this->statutPao;
+    }
+
+    public function setStatutPao(?string $statutPao): self
+    {
+        $this->statutPao = $statutPao;
+        return $this;
+    }
+
 
     public function __toString(): string
     {

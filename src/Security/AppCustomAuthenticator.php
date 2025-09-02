@@ -62,6 +62,8 @@ class AppCustomAuthenticator extends AbstractLoginFormAuthenticator
             return new RedirectResponse($this->urlGenerator->generate('commercial_dashboard'));
         } elseif (in_array('ROLE_PRODUCTION', $user->getRoles(), true)) {
             return new RedirectResponse($this->urlGenerator->generate('production_dashboard'));
+        } elseif (in_array('ROLE_PAO', $user->getRoles(), true)) {
+            return new RedirectResponse($this->urlGenerator->generate('pao_dashboard'));
         }
     }
     protected function getLoginUrl(Request $request): string

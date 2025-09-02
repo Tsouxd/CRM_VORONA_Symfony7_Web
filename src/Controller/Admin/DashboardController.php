@@ -10,7 +10,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Entity\User;
+use App\Entity\Pao;
 use App\Entity\Client;
+use App\Entity\UserRequest;
 use App\Entity\Produit;
 use App\Entity\Commande;
 use App\Entity\Fournisseur;
@@ -138,17 +140,19 @@ class DashboardController extends AbstractDashboardController
         return new Response('', 400);
     }
 
-
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()
-        ->setTitle('<img src="/utils/logo/forever-removebg-preview.png" alt="Forever Logo" width="130" height="100">');
+            ->setTitle('<div style="text-align:center;">
+                            <img src="/utils/logo/forever-removebg-preview.png" alt="Forever Logo" width="130" height="100">
+                        </div>');
     }
 
     public function configureMenuItems(): iterable
     {
         yield MenuItem::linktoDashboard('Tableau de bord', 'fa fa-home');
         yield MenuItem::linkToCrud('Utilisateurs', 'fas fa-camera', User::class);
+        yield MenuItem::linkToCrud('Demandes Utilisateurs', 'fa fa-user-plus', UserRequest::class);
         yield MenuItem::linkToCrud('Clients', 'fas fa-users', Client::class);
         yield MenuItem::linkToCrud('Fournisseurs', 'fas fa-thumbs-up', Fournisseur::class);
         yield MenuItem::linkToCrud('Produits', 'fas fa-box', Produit::class);
@@ -159,6 +163,7 @@ class DashboardController extends AbstractDashboardController
             ->setCssClass('text-warning')
             ->setPermission('ROLE_ADMIN');*/
         /* yield MenuItem::linkToCrud('Paiement', 'fas fa-briefcase', Paiement::class);*/   
+        yield MenuItem::linkToCrud('PAO', 'fa fa-pencil-ruler', Pao::class);
         yield MenuItem::linkToCrud('Catégorie des dépenses', 'fas fa-cog', CategorieDepense::class);
         yield MenuItem::linkToCrud('Catégorie des révenus', 'fas fa-money-bill', CategorieRevenu::class);
         /*  

@@ -249,3 +249,195 @@ footer a {
     color: #3c97bf;
     text-decoration: none;
 }
+
+/* === STYLES POUR LES MESSAGES FLASH === */
+
+/* Conteneur principal des alertes */
+.alert {
+    padding: 15px 20px;
+    margin: 15px 0;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.4;
+    position: relative;
+    animation: slideInFromTop 0.5s ease-out;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+}
+
+/* Animation d'apparition */
+@keyframes slideInFromTop {
+    0% {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Style pour les messages de succès */
+.alert-success {
+    background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+    color: white;
+    border-left: 5px solid #16a34a;
+}
+
+.alert-success::before {
+    content: '\f058'; /* Icône check-circle FontAwesome */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+/* Style pour les messages d'erreur */
+.alert-danger {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border-left: 5px solid #b91c1c;
+}
+
+.alert-danger::before {
+    content: '\f057'; /* Icône times-circle FontAwesome */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+/* Style pour les messages d'information */
+.alert-info {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-left: 5px solid #1d4ed8;
+}
+
+.alert-info::before {
+    content: '\f05a'; /* Icône info-circle FontAwesome */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+/* Style pour les messages d'avertissement */
+.alert-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+    border-left: 5px solid #b45309;
+}
+
+.alert-warning::before {
+    content: '\f071'; /* Icône exclamation-triangle FontAwesome */
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+/* Bouton de fermeture (optionnel) */
+.alert-close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 18px;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.alert-close:hover {
+    color: white;
+}
+
+/* === RESPONSIVE DESIGN === */
+
+/* Pour les écrans de taille moyenne (tablettes) */
+@media (max-width: 768px) {
+    .alert {
+        padding: 12px 15px;
+        margin: 10px 0;
+        font-size: 13px;
+        border-radius: 6px;
+    }
+    
+    .alert::before {
+        font-size: 14px;
+        margin-right: 8px;
+    }
+}
+
+/* Pour les petits écrans (mobiles) */
+@media (max-width: 480px) {
+    .alert {
+        padding: 10px 12px;
+        margin: 8px 0;
+        font-size: 12px;
+        border-radius: 5px;
+        border-left-width: 3px;
+    }
+    
+    .alert::before {
+        font-size: 12px;
+        margin-right: 6px;
+    }
+}
+
+/* === STYLES SPÉCIFIQUES POUR VOTRE CONTENEUR === */
+
+/* Adaptation pour votre conteneur de formulaire */
+.form-container .alert {
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Pour que l'alerte soit bien visible dans le panneau d'inscription */
+.sign-up-container .alert {
+    max-width: 100%;
+    word-wrap: break-word;
+}
+
+/* Animation pour les longues alertes */
+.alert.long-message {
+    animation: slideInFromTop 0.7s ease-out;
+}
+
+/* Effet hover subtil */
+.alert:hover {
+    transform: translateY(-2px);
+    transition: transform 0.3s ease;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* === CLASSES UTILITAIRES === */
+
+/* Pour centrer le message */
+.alert-center {
+    text-align: center;
+}
+
+/* Pour un message en pleine largeur */
+.alert-full-width {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* Pour un message avec une taille de police plus grande */
+.alert-large {
+    font-size: 16px;
+    padding: 18px 24px;
+}
+
+/* Pour un message compact */
+.alert-compact {
+    padding: 8px 12px;
+    margin: 5px 0;
+    font-size: 12px;
+}

@@ -1,5 +1,5 @@
 <?php
-namespace App\Controller\Production;
+namespace App\Controller\Pao;
 
 use App\Controller\Production\ProductionCommandeCrudController;
 use App\Entity\Commande;
@@ -10,12 +10,12 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 
-class ProductionDashboardController extends AbstractDashboardController
+class PaoDashboardController extends AbstractDashboardController
 {
-    #[Route('/production', name: 'production_dashboard')]
+    #[Route('/pao', name: 'pao_dashboard')]
     public function index(): Response
     {
-        return $this->render('production/dashboard.html.twig');
+        return $this->render('pao/dashboard.html.twig');
     }
 
     public function configureDashboard(): Dashboard
@@ -29,7 +29,7 @@ class ProductionDashboardController extends AbstractDashboardController
     public function configureMenuItems(): iterable
     {
         yield MenuItem::linkToDashboard('Tableau de bord', 'fa fa-home');
-        yield MenuItem::linkToCrud('Commandes à traiter', 'fas fa-industry', Commande::class)
-            ->setController(ProductionCommandeCrudController::class);
+        yield MenuItem::linkToCrud('Pao à traiter', 'fa fa-pencil-ruler', Commande::class)
+            ->setController(PaoCommandeCrudController::class);
     }
 }

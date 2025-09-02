@@ -14,6 +14,7 @@ use App\Entity\Paiement;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use App\Controller\Admin\ClientCrudController;
+use App\Controller\Admin\PaoCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
@@ -152,6 +153,13 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 'En cours' => 'en cours',
                 'Livrée' => 'livrée',
                 'Annulée' => 'annulée',
+            ]))
+
+            // Pour filtrer par le statut de PAO
+            ->add(ChoiceFilter::new('statutPao', 'Statut Pao')->setChoices([
+                'En attente' => 'en attente',
+                'Fait' => 'fait',
+                'En cours' => 'en cours',
             ]));
     }
     
@@ -398,6 +406,11 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         yield AssociationField::new('client')
             ->hideOnForm();
 
+        yield AssociationField::new('pao', 'PAO')
+            ->setCrudController(PaoCrudController::class) // Si tu as un CRUD pour PAO
+            ->setRequired(false) // Nullable
+            ->onlyOnForms();
+
         // SI on est sur la page de CRÉATION (new)
         if (Crud::PAGE_NEW === $pageName) {
             yield FormField::addPanel('Informations du Client')
@@ -556,6 +569,19 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 'livrée' => 'success',
                 'annulée' => 'danger',
             ]);
+        if ($this->security->isGranted('ROLE_PAO')) {
+            yield ChoiceField::new('statutPao', 'Statut PAO')
+                ->setChoices([
+                    'En attente' => 'en attente',
+                    'En cours' => 'en cours',
+                    'Fait' => 'fait',
+                ])
+                ->renderAsBadges([
+                    'en attente' => 'secondary',
+                    'en cours' => 'primary',
+                    'fait' => 'success',
+                ]);
+        }
 
         yield MoneyField::new('fraisLivraison', 'Frais de livraison')
             ->setCurrency('MGA')
@@ -574,7 +600,11 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     'requested' => 'warning',
                     'approved' => 'success',
                     'refused' => 'danger',
-                ]);
+                ])
+                ->onlyOnForms()       // uniquement dans les formulaires
+                ->setFormTypeOption('disabled', false) // facultatif : éditable
+                ->setFormTypeOption('mapped', true)
+                ->hideWhenCreating(); // NE s'affiche pas lors du new
         }
 
         if ($this->security->isGranted('ROLE_COMMERCIAL')) {

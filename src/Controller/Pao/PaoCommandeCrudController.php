@@ -1,5 +1,5 @@
 <?php
-namespace App\Controller\Production;
+namespace App\Controller\Pao;
 
 use App\Entity\Commande;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
@@ -11,7 +11,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 
-class ProductionCommandeCrudController extends AbstractCrudController
+class PaoCommandeCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
@@ -20,7 +20,7 @@ class ProductionCommandeCrudController extends AbstractCrudController
 
     public function configureCrud(Crud $crud): Crud
     {
-        return $crud->setEntityLabelInPlural('Gestion de Production')
+        return $crud->setEntityLabelInPlural('Gestion de PAO')
                     ->setEntityLabelInSingular('Commande')
                     ->setDefaultSort(['dateCommande' => 'DESC']);
     }
@@ -37,23 +37,28 @@ class ProductionCommandeCrudController extends AbstractCrudController
     {
         yield DateTimeField::new('dateCommande', 'Date de Commande')
             ->hideOnForm();
-
+        
+        yield AssociationField::new('pao', 'Nom du PAO')
+            ->setCrudController(PaoCrudController::class) // Si tu as un CRUD pour PAO
+            ->setRequired(false); // Nullable
+            
         yield AssociationField::new('client', 'Client')
             ->hideOnForm();
 
         yield CollectionField::new('commandeProduits', 'Produits commandés')
-            ->useEntryCrudForm(CommandeProduitCrudController::class);
+            ->useEntryCrudForm(CommandePaoCrudController::class)
+            ->hideOnForm();
 
-        yield ChoiceField::new('statut', 'Statut de production')
-            ->setChoices([
-                'En attente' => 'en attente',
-                'En cours' => 'en cours',
-                'Livrée' => 'livrée',
-            ])
-            ->renderAsBadges([
-                'en attente' => 'secondary',
-                'en cours' => 'primary',
-                'livrée' => 'success',
-            ]);
+        yield ChoiceField::new('statutPao', 'Statut de PAO')
+                ->setChoices([
+                    'En attente' => 'en attente',
+                    'En cours' => 'en cours',
+                    'Fait' => 'fait',
+                ])
+                ->renderAsBadges([
+                    'en attente' => 'secondary',
+                    'en cours' => 'primary',
+                    'fait' => 'success',
+                ]);
     }
 }

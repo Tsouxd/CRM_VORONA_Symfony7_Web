@@ -92,6 +92,7 @@ class UserCrudController extends AbstractCrudController
                     'Administrateur' => 'ROLE_ADMIN',
                     'Commercial' => 'ROLE_COMMERCIAL',
                     'Production' => 'ROLE_PRODUCTION',
+                    'Pao' => 'ROLE_PAO',
                 ])
                 ->allowMultipleChoices(true) // nécessaire car roles est un array
                 ->renderExpanded(true) // boutons radio
@@ -108,6 +109,7 @@ class UserCrudController extends AbstractCrudController
                                 'ROLE_ADMIN' => 'Administrateur',
                                 'ROLE_COMMERCIAL' => 'Commercial',
                                 'ROLE_PRODUCTION' => 'Production',
+                                'ROLE_PAO' => 'Pao',
                                 default => $role,
                             };
                         }, $value));

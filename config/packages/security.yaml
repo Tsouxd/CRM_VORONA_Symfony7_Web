@@ -42,6 +42,7 @@ security:
         - { path: ^/admin, roles: ROLE_ADMIN }
         - { path: ^/commercial, roles: ROLE_COMMERCIAL }
         - { path: ^/production, roles: ROLE_PRODUCTION }
+        - { path: ^/pao, roles: ROLE_PAO }
 
 when@test:
     security:

@@ -28,18 +28,17 @@ final class CommercialDashboardController extends AbstractDashboardController
     #[Route('/commercial/gestion', name: 'commercial_dashboard')]
     public function index(): Response
     {
-        $url = $this->container->get(AdminUrlGenerator::class)
-            ->setController(\App\Controller\Admin\ProduitCrudController::class)
-            ->setController(\App\Controller\Admin\CommandeCrudController::class)
-            ->generateUrl();
-
-        return $this->redirect($url);
+        return $this->render('commercial/dashboard.html.twig');
     }
 
-        public function configureDashboard(): Dashboard
-        {
-            return Dashboard::new()->setTitle('Espace Commercial');
-        }
+    public function configureDashboard(): Dashboard
+    {
+        return Dashboard::new()
+            ->setTitle('<div style="text-align:center;">
+                            <img src="/utils/logo/forever-removebg-preview.png" alt="Forever Logo" width="130" height="100">
+                        </div>');
+    }
+
     
     public function configureMenuItems(): iterable
     {
