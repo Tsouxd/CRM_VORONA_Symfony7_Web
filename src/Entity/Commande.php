@@ -53,6 +53,12 @@ class Commande
     #[ORM\Column(type: 'float')]
     private float $fraisLivraison = 0.0; // ✅ Frais de livraison
 
+    #[ORM\Column(length: 20, nullable: true)]
+    private ?string $demandeModificationStatut = null; // 'requested', 'approved', 'refused'
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $demandeModificationMotif = null; // Le motif entré par le commercial
+
     public function __construct()
     {
         $this->commandeProduits = new ArrayCollection();
@@ -302,6 +308,28 @@ class Commande
     public function setUpdatedAt(?\DateTimeInterface $updatedAt): void
     {
         $this->updatedAt = $updatedAt;
+    }
+
+        public function getDemandeModificationStatut(): ?string
+    {
+        return $this->demandeModificationStatut;
+    }
+
+    public function setDemandeModificationStatut(?string $demandeModificationStatut): self
+    {
+        $this->demandeModificationStatut = $demandeModificationStatut;
+        return $this;
+    }
+
+    public function getDemandeModificationMotif(): ?string
+    {
+        return $this->demandeModificationMotif;
+    }
+
+    public function setDemandeModificationMotif(?string $demandeModificationMotif): self
+    {
+        $this->demandeModificationMotif = $demandeModificationMotif;
+        return $this;
     }
 
     public function __toString(): string

@@ -142,7 +142,7 @@ class DashboardController extends AbstractDashboardController
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()
-        ->setTitle('<img src="/utils/logo/forever.jpeg" alt="Forever Logo" width="130" height="100">');
+        ->setTitle('<img src="/utils/logo/forever-removebg-preview.png" alt="Forever Logo" width="130" height="100">');
     }
 
     public function configureMenuItems(): iterable
@@ -154,6 +154,10 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::linkToCrud('Produits', 'fas fa-box', Produit::class);
         yield MenuItem::linkToCrud('Commandes', 'fas fa-shopping-cart', Commande::class)
             ->setController(CommandeCrudController::class); 
+        /*yield MenuItem::linkToCrud('Demandes de Modif.', 'fa fa-key', Commande::class)
+            ->setQueryParameter('filters[demandeModificationStatut][value]', 'requested')
+            ->setCssClass('text-warning')
+            ->setPermission('ROLE_ADMIN');*/
         /* yield MenuItem::linkToCrud('Paiement', 'fas fa-briefcase', Paiement::class);*/   
         yield MenuItem::linkToCrud('Catégorie des dépenses', 'fas fa-cog', CategorieDepense::class);
         yield MenuItem::linkToCrud('Catégorie des révenus', 'fas fa-money-bill', CategorieRevenu::class);

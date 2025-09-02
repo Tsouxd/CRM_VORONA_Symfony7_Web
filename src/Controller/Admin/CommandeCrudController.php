@@ -12,6 +12,7 @@ use App\Form\ClientType;
 use App\Entity\CommandeProduit;
 use App\Entity\Paiement;
 use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use App\Controller\Admin\ClientCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -34,22 +35,27 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\MoneyField;
 use Vich\UploaderBundle\Form\Type\VichFileType;
+use Symfony\Component\HttpFoundation\Response;
+
 
 // Import des classes nécessaires pour les filtres
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
+use Symfony\Bundle\SecurityBundle\Security;
 
 class CommandeCrudController extends AbstractCrudController implements EventSubscriberInterface
 {
     private $requestStack;
     private EntityManagerInterface $entityManager;
+    private Security $security;
 
-    public function __construct(RequestStack $requestStack, EntityManagerInterface $entityManager)
+    public function __construct(Security $security, RequestStack $requestStack, EntityManagerInterface $entityManager)
     {
         $this->requestStack = $requestStack;
         $this->entityManager = $entityManager;
+        $this->security = $security;
     }
 
     public static function getSubscribedEvents()
@@ -62,6 +68,32 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
     public function configureActions(Actions $actions): Actions
     {
+        // --- ACTION POUR LE COMMERCIAL : Demander la modification ---
+        $requestEditAction = Action::new('demanderModification', 'Demander à modifier', 'fa fa-key')
+            ->linkToCrudAction('requestModification')
+            ->setCssClass('btn btn-secondary')
+            // Ce bouton s'affiche UNIQUEMENT si aucune demande n'est en cours ou approuvée
+            ->displayIf(function (Commande $commande) {
+                return $this->isGranted('ROLE_COMMERCIAL') && 
+                       !in_array($commande->getDemandeModificationStatut(), ['requested', 'approved']);
+            });
+
+        // --- ACTIONS POUR L'ADMIN : Approuver / Refuser ---
+        $approveAction = Action::new('approuverDemande', 'Approuver', 'fa fa-check-circle')
+            ->linkToCrudAction('approveRequest')
+            ->setCssClass('btn btn-success')
+            ->displayIf(function (Commande $commande) {
+                return $this->isGranted('ROLE_ADMIN') && 
+                       $commande->getDemandeModificationStatut() === 'requested';
+            });
+            
+        $refuseAction = Action::new('refuserDemande', 'Refuser', 'fa fa-times-circle')
+            ->linkToCrudAction('refuseRequest')
+            ->setCssClass('btn btn-danger')
+            ->displayIf(function (Commande $commande) {
+                return $this->isGranted('ROLE_ADMIN') && 
+                       $commande->getDemandeModificationStatut() === 'requested';
+            });
         $exportPdf = Action::new('exportPdf', '🧾 Exporter PDF')
             ->linkToUrl(function (Commande $commande) {
                 return $this->generateUrl('admin_export_facture', ['id' => $commande->getId()]);
@@ -72,6 +104,23 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ]);
 
         return $actions
+            ->add(Crud::PAGE_INDEX, $requestEditAction)
+            ->add(Crud::PAGE_INDEX, $approveAction)
+            ->add(Crud::PAGE_INDEX, $refuseAction)
+            // --- LOGIQUE D'AFFICHAGE DU BOUTON "MODIFIER" ---
+            ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
+                return $action->displayIf(function (Commande $commande) {
+                    // L'admin peut toujours modifier
+                    if ($this->isGranted('ROLE_ADMIN')) {
+                        return true;
+                    }
+                    // Le commercial ne peut modifier que si sa demande a été approuvée
+                    if ($this->isGranted('ROLE_COMMERCIAL')) {
+                        return $commande->getDemandeModificationStatut() === 'approved';
+                    }
+                    return false;
+                });
+            })
             ->add(Crud::PAGE_INDEX, $exportPdf)
             ->add(Crud::PAGE_DETAIL, $exportPdf)
             ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
@@ -514,6 +563,37 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->setNumDecimals(0)
             ->onlyOnForms();
 
+        if ($this->security->isGranted('ROLE_ADMIN')) {
+            yield ChoiceField::new('demandeModificationStatut', 'Demande Modif.')
+                ->setChoices([
+                    'Demandée' => 'requested',
+                    'Approuvée' => 'approved',
+                    'Refusée' => 'refused',
+                ])
+                ->renderAsBadges([
+                    'requested' => 'warning',
+                    'approved' => 'success',
+                    'refused' => 'danger',
+                ]);
+        }
+
+        if ($this->security->isGranted('ROLE_COMMERCIAL')) {
+            yield ChoiceField::new('demandeModificationStatut', 'Demande de Modification')
+                ->setChoices([
+                    'Demandée' => 'requested',
+                    'Approuvée' => 'approved',
+                    'Refusée' => 'refused',
+                ])
+                ->renderAsBadges([
+                    'requested' => 'warning',
+                    'approved' => 'success',
+                    'refused' => 'danger',
+                ])
+                ->onlyOnIndex();
+        }
+            
+        yield TextareaField::new('demandeModificationMotif', 'Motif')->onlyOnDetail();
+
         // ✅ Injection du JS directement dans EasyAdmin via un champ invisible
         yield FormField::addPanel('')
             ->onlyOnForms()
@@ -599,6 +679,76 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     document.addEventListener("turbo:load", initCommandeFormScripts);
                 </script>
             HTML);
+    }
 
+    public function requestModification(
+        AdminContext $context,
+        EntityManagerInterface $em,
+        AdminUrlGenerator $adminUrlGenerator
+    ): Response
+    {
+        /** @var Commande|null $commande */
+        $commande = $context->getEntity()->getInstance();
+        if (!$commande) {
+            $this->addFlash('danger', 'Commande introuvable.');
+            $url = $adminUrlGenerator->setController(self::class)->setAction('index')->generateUrl();
+            return $this->redirect($url);
+        }
+
+        $motif = $context->getRequest()->query->get('motif', 'Aucun motif fourni.');
+
+        $commande->setDemandeModificationStatut('requested');
+        $commande->setDemandeModificationMotif($motif);
+        $em->flush();
+
+        $this->addFlash('info', 'Votre demande de modification a été envoyée à un administrateur.');
+
+        // fallback vers l'index si pas de referrer
+        $url = $context->getReferrer() ?? $adminUrlGenerator->setController(self::class)->setAction('index')->generateUrl();
+
+        return $this->redirect($url);
+    }
+
+    public function approveRequest(AdminContext $context, EntityManagerInterface $em, AdminUrlGenerator $adminUrlGenerator): Response
+    {
+        $commande = $context->getEntity()->getInstance();
+        $commande->setDemandeModificationStatut('approved');
+        $em->flush();
+
+        $this->addFlash('success', 'La demande de modification a été approuvée.');
+
+        // Si pas de referrer → retour à l’index des commandes
+        $url = $context->getReferrer() 
+            ?? $adminUrlGenerator
+                ->setController(self::class)
+                ->setAction('index')
+                ->generateUrl();
+
+        return $this->redirect($url);
+    }
+
+    
+    // L'admin refuse
+    public function refuseRequest(AdminContext $context, EntityManagerInterface $em): Response
+    {
+        /** @var Commande $commande */
+        $commande = $context->getEntity()->getInstance();
+
+        // On change le statut de la demande
+        $commande->setDemandeModificationStatut('refused');
+
+        // On sauvegarde en BDD
+        $em->flush();
+
+        // Message flash
+        $this->addFlash('danger', 'La demande de modification a été refusée.');
+
+        // Redirection vers la page précédente ou fallback sur l'index
+        $url = $context->getReferrer() ?? $this->generateUrl('admin', [
+            'crudAction' => 'index',
+            'entityFqcn' => Commande::class,
+        ]);
+
+        return $this->redirect($url);
     }
 }
