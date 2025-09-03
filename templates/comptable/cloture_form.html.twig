@@ -1,0 +1,117 @@
+{# templates/comptable/cloture_form.html.twig #}
+
+<style>
+    /* Style customisé pour le formulaire de clôture */
+    .cloture-form-wrapper {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 30px;
+        border-radius: 8px;
+        color: #fff;
+    }
+    .cloture-form-group {
+        margin-bottom: 25px;
+    }
+    .cloture-form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 500;
+        color: #f0f0f0;
+    }
+    .cloture-input, .cloture-textarea {
+        width: 100%;
+        padding: 12px 15px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 5px;
+        color: #fff;
+        font-size: 16px;
+        transition: all 0.3s ease;
+    }
+    .cloture-input:focus, .cloture-textarea:focus {
+        outline: none;
+        background-color: rgba(255, 255, 255, 0.15);
+        border-color: #F96D38; /* Couleur orange du thème Moonlight */
+    }
+    /* Pour retirer les flèches des champs number sur certains navigateurs */
+    .cloture-input[type=number]::-webkit-inner-spin-button, 
+    .cloture-input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
+    .cloture-input[type=number] { -moz-appearance: textfield; }
+
+    .cloture-table {
+        width: 100%;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        border-collapse: collapse;
+    }
+    .cloture-table th, .cloture-table td {
+        padding: 15px;
+        text-align: left;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .cloture-table th {
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 12px;
+        color: #ccc;
+    }
+    .cloture-table td.numeric {
+        text-align: right;
+    }
+    .cloture-table .ecart {
+        font-weight: bold;
+        font-size: 1.1em;
+    }
+    .cloture-submit-btn {
+        background-color: #27ae60;
+        color: white;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        transition: background-color 0.3s ease;
+    }
+    .cloture-submit-btn:hover {
+        background-color: #2ecc71;
+    }
+</style>
+
+{% if totals is not empty %}
+<form id="cloture-caisse-form" action="{{ path('app_comptable_arret_de_caisse_submit') }}" method="post">
+    <div class="cloture-form-wrapper">
+        <div class="cloture-form-group">
+            <label for="fond_de_caisse_initial">Fond de caisse initial</label>
+            <input type="number" step="0.01" id="fond_de_caisse_initial" name="fond_de_caisse_initial" class="cloture-input" required>
+        </div>
+        <table class="cloture-table">
+            <thead><tr><th>Méthode</th><th class="numeric">Théorique</th><th>Compté</th><th class="numeric">Écart</th></tr></thead>
+            <tbody>
+            {% for methode, theorique in totals %}
+                <tr>
+                    <td><strong>{{ methode }}</strong></td>
+                    <td class="numeric" data-theorique="{{ theorique }}">{{ theorique|number_format(0, ',', ' ') }} MGA</td>
+                    <td><input type="number" step="0.01" class="cloture-input amount-counted" name="compte_{{ methode|lower|replace({' ': '_'}) }}"></td>
+                    <td class="numeric ecart">0 MGA</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <div class="cloture-form-group">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" class="cloture-textarea" rows="3"></textarea>
+        </div>
+        <button type="submit" class="cloture-submit-btn">Valider et Clôturer la Caisse</button>
+    </div>
+</form>
+<script>
+    document.querySelectorAll('.amount-counted').forEach(input => {
+        input.addEventListener('input', function() { /* ... (script de calcul d'écart) ... */ });
+    });
+</script>
+{% else %}
+<div class="alert alert-info">Il n'y a aucun paiement à clôturer.</div>
+{% endif %}

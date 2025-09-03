@@ -20,6 +20,10 @@ class Paiement
     #[ORM\Column(type: 'float')]
     private float $montant = 0.0; // Le montant de CE paiement, saisi par l'utilisateur
 
+    #[ORM\ManyToOne(targetEntity: ArretDeCaisse::class, inversedBy: 'paiements')]
+    #[ORM\JoinColumn(nullable: true)] // Un paiement n'a pas d'arrêt de caisse tant qu'il n'est pas clôturé
+    private ?ArretDeCaisse $arretDeCaisse = null;
+
     #[ORM\ManyToOne(targetEntity: Commande::class, inversedBy: 'paiements')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Commande $commande = null;
@@ -33,4 +37,15 @@ class Paiement
     public function setMontant(float $montant): static { $this->montant = $montant; return $this; }
     public function getStatut(): ?string { return $this->statut; }
     public function setStatut(string $statut): static { $this->statut = $statut; return $this; }
+
+    public function getArretDeCaisse(): ?ArretDeCaisse
+    {
+        return $this->arretDeCaisse;
+    }
+
+    public function setArretDeCaisse(?ArretDeCaisse $arretDeCaisse): static
+    {
+        $this->arretDeCaisse = $arretDeCaisse;
+        return $this;
+    }
 }

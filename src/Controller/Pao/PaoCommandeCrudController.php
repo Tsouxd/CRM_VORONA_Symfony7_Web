@@ -40,13 +40,15 @@ class PaoCommandeCrudController extends AbstractCrudController
         
         yield AssociationField::new('pao', 'Nom du PAO')
             ->setCrudController(PaoCrudController::class) // Si tu as un CRUD pour PAO
-            ->setRequired(false); // Nullable
+            ->setRequired(false) // Nullable
+            ->setFormTypeOption('disabled', true);
             
         yield AssociationField::new('client', 'Client')
             ->hideOnForm();
 
         yield CollectionField::new('commandeProduits', 'Produits commandés')
             ->useEntryCrudForm(CommandePaoCrudController::class)
+            ->setFormTypeOption('disabled', true)
             ->hideOnForm();
 
         yield ChoiceField::new('statutPao', 'Statut de PAO')

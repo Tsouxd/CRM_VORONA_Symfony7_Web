@@ -40,4 +40,23 @@ class PaiementRepository extends ServiceEntityRepository
 //            ->getOneOrNullResult()
 //        ;
 //    }
+
+    /**
+     * Calcule le total théorique des paiements non clôturés, groupé par la méthode
+     * de paiement définie sur la commande parente via 'referencePaiement'.
+     */
+    public function findTotalsToClose(): array
+    {
+        return $this->createQueryBuilder('p')
+            // ✅ On sélectionne directement 'referencePaiement', sans alias
+            ->select('c.referencePaiement, SUM(p.montant) as totalTheorique')
+            ->join('p.commande', 'c')
+            ->where('p.arretDeCaisse IS NULL')
+            ->andWhere("p.statut = 'effectué' OR p.statut = 'payée'")
+            ->andWhere('c.referencePaiement IS NOT NULL')
+            // ✅ On groupe par le vrai nom du champ
+            ->groupBy('c.referencePaiement')
+            ->getQuery()
+            ->getResult();
+    }
 }

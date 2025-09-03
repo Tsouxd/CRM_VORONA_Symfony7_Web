@@ -413,6 +413,8 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         yield AssociationField::new('client')
             ->hideOnForm();
 
+        yield AssociationField::new('pao', 'Responsable PAO');
+
         // SI on est sur la page de CRÉATION (new)
         if (Crud::PAGE_NEW === $pageName) {
             yield FormField::addPanel('Informations du Client')
@@ -486,6 +488,19 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->allowAdd()
             ->allowDelete()
             ->onlyOnForms();
+
+        yield ChoiceField::new('referencePaiement', 'Méthode de Paiement')
+            ->setChoices([
+                'Espèces' => 'Espèces',
+                'Carte Bancaire' => 'Carte Bancaire',
+                'Mobile Money' => 'Mobile Money', // On peut rendre le choix plus général
+                'Virement Bancaire' => 'Virement Bancaire',
+                'Chèque' => 'Chèque',
+            ]);
+
+        yield TextField::new('detailsPaiement', 'Détails / Référence')
+            ->setHelp('Ex: Mvola, Orange Money, N° de chèque, Réf. virement...');
+
 
         /*yield CollectionField::new('paiements', 'Tranche de paiements')
             ->hideOnForm();*/
@@ -603,7 +618,8 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     'requested' => 'warning',
                     'approved' => 'success',
                     'refused' => 'danger',
-                ]);
+                ])
+                ->setFormTypeOption('disabled', true);
         }
 
         if ($this->security->isGranted('ROLE_COMMERCIAL')) {
@@ -621,13 +637,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 ->onlyOnIndex();
         }
             
-        yield TextareaField::new('demandeModificationMotif', 'Motif')->onlyOnDetail();
-
-
-
-    // --- NOUVEAUX CHAMPS ---
-    yield TextField::new('referencePaiement', 'Référence du Paiement')
-        ->setRequired(false);
+    yield TextareaField::new('demandeModificationMotif', 'Motif')->onlyOnDetail();
 
     yield TextField::new('categorie', 'Catégorie')
         ->setRequired(false);

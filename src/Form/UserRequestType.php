@@ -27,6 +27,14 @@ class UserRequestType extends AbstractType
                     'placeholder' => 'Mot de passe envisagé', // Plus poli
                     'class' => 'input-style'
                 ],
+            ])
+            ->add('roleDemander', TextType::class, [
+                'label' => false,
+                'required' => false, // Important si le champ est nullable dans l'entité
+                'attr' => [
+                    'placeholder' => 'Rôle souhaité (ex: COMMERCIAL)', // Plus poli
+                    'class' => 'input-style'
+                ],
             ]);
     }
 

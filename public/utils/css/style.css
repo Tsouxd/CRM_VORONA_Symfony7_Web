@@ -8,7 +8,7 @@ body {
 	background: #f6f5f7;
 	display: flex;
 	justify-content: center;
-	align-items: center;
+	align-items: center;	
 	flex-direction: column;
 	font-family: 'Montserrat', sans-serif;
 	height: 100vh;
@@ -388,56 +388,50 @@ footer a {
     }
 }
 
-/* === STYLES SPÉCIFIQUES POUR VOTRE CONTENEUR === */
-
-/* Adaptation pour votre conteneur de formulaire */
-.form-container .alert {
-    margin-top: 0;
-    margin-bottom: 20px;
-    text-align: center;
-}
-
-/* Pour que l'alerte soit bien visible dans le panneau d'inscription */
-.sign-up-container .alert {
-    max-width: 100%;
-    word-wrap: break-word;
-}
-
-/* Animation pour les longues alertes */
-.alert.long-message {
-    animation: slideInFromTop 0.7s ease-out;
-}
-
-/* Effet hover subtil */
-.alert:hover {
-    transform: translateY(-2px);
-    transition: transform 0.3s ease;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
-}
-
-/* === CLASSES UTILITAIRES === */
-
-/* Pour centrer le message */
-.alert-center {
-    text-align: center;
-}
-
-/* Pour un message en pleine largeur */
-.alert-full-width {
-    width: 100%;
-    margin-left: 0;
-    margin-right: 0;
-}
-
-/* Pour un message avec une taille de police plus grande */
-.alert-large {
-    font-size: 16px;
-    padding: 18px 24px;
-}
-
-/* Pour un message compact */
-.alert-compact {
-    padding: 8px 12px;
-    margin: 5px 0;
-    font-size: 12px;
-}
+#flash-messages-container {
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 9999;
+        width: 90%;
+        max-width: 600px;
+        pointer-events: none; /* Permet les clics à travers le conteneur */
+    }
+    /* Messages flash en overlay */
+    .flash-overlay {
+        pointer-events: auto; /* Réactive les clics sur les alertes */
+        margin-bottom: 10px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        backdrop-filter: blur(15px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    /* Animation de sortie pour les alertes */
+    @keyframes slideOutToTop {
+        0% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        100% {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+    }
+    /* Responsive pour les messages overlay */
+    @media (max-width: 768px) {
+        #flash-messages-container {
+            width: 95%;
+            top: 15px;
+        }
+    }
+    @media (max-width: 480px) {
+        #flash-messages-container {
+            width: 98%;
+            top: 10px;
+        }
+        
+        .flash-overlay {
+            font-size: 12px;
+            padding: 10px 12px;
+        }
+    }

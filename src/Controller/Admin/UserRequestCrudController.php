@@ -9,6 +9,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;  
 
 class UserRequestCrudController extends AbstractCrudController
 {
@@ -28,11 +29,20 @@ class UserRequestCrudController extends AbstractCrudController
     public function configureFields(string $pageName): iterable
     {
         return [
-            TextField::new('username'),
-            TextField::new('password')->setHelp('Mot de passe suggéré par l\'utilisateur. L\'administrateur doit l\'encoder lors de la création réelle.'),
-            DateTimeField::new('createdAt')->setLabel('Date de la demande'),
-            // Vous pourriez ajouter un champ 'status' (ex: 'pending', 'approved', 'rejected')
-            // et un champ 'notes' pour l'administrateur.
+            TextField::new('username', 'Nom d’utilisateur demandé')->setFormTypeOption('disabled', true),
+            TextField::new('password', 'Mot de passe envisagé')->setHelp('Mot de passe suggéré par l\'utilisateur. L\'administrateur doit l\'encoder lors de la création réelle.')->setFormTypeOption('disabled', true),
+            DateTimeField::new('createdAt')->setLabel('Date de la demande')->setFormTypeOption('disabled', true),
+                    // ✅ Voici comment afficher le statut sous forme de choix
+            TextField::new('roleDemander', 'Rôle souhaité du Demandeur')->setFormTypeOption('disabled', true),
+            ChoiceField::new('status', 'Statut de validation')
+                ->setChoices([
+                    'Pas encore fait' => 'pas encore fait',
+                    'Fait' => 'fait',
+                ])
+                ->renderAsBadges([
+                    'pas encore fait' => 'warning', // Affiche un badge jaune
+                    'fait' => 'success',      // Affiche un badge vert
+                ]),
         ];
     }
 

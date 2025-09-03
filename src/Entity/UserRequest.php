@@ -21,6 +21,13 @@ class UserRequest
     #[ORM\Column(type: 'datetime')]
     private \DateTimeInterface $createdAt;
 
+    // ✅ AJOUT DE LA NOUVELLE PROPRIÉTÉ
+    #[ORM\Column(length: 50)]
+    private string $status = 'pas encore fait'; // Valeur par défaut
+
+    #[ORM\Column(length: 255, nullable: true)] // On le met nullable pour qu'il ne soit pas obligatoire
+    private ?string $roleDemander = null;
+
     public function __construct()
     {
         $this->createdAt = new \DateTime();
@@ -64,6 +71,30 @@ class UserRequest
     {
         $this->createdAt = $createdAt;
 
+        return $this;
+    }
+
+    // ✅ AJOUT DES GETTER ET SETTER POUR LE STATUT
+    public function getStatus(): string
+    {
+        return $this->status;
+    }
+
+    public function setStatus(string $status): static
+    {
+        $this->status = $status;
+
+        return $this;
+    }
+
+    public function getRoleDemander(): ?string
+    {
+        return $this->roleDemander;
+    }
+
+    public function setRoleDemander(?string $roleDemander): static
+    {
+        $this->roleDemander = $roleDemander;
         return $this;
     }
 }

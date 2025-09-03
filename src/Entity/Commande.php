@@ -65,6 +65,9 @@ class Commande
     #[ORM\Column(type: 'string', length: 100, nullable: true)]
     private ?string $referencePaiement = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $detailsPaiement = null;
+
     #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $categorie = null;
 
@@ -222,6 +225,17 @@ class Commande
     // --- NOUVEAUX GETTERS/SETTERS ---
     public function getReferencePaiement(): ?string { return $this->referencePaiement; }
     public function setReferencePaiement(?string $referencePaiement): self { $this->referencePaiement = $referencePaiement; return $this; }
+
+    public function getDetailsPaiement(): ?string
+    {
+        return $this->detailsPaiement;
+    }
+
+    public function setDetailsPaiement(?string $detailsPaiement): static
+    {
+        $this->detailsPaiement = $detailsPaiement;
+        return $this;
+    }
 
     public function getCategorie(): ?string { return $this->categorie; }
     public function setCategorie(?string $categorie): self { $this->categorie = $categorie; return $this; }

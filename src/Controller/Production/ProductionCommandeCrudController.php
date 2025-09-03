@@ -42,7 +42,8 @@ class ProductionCommandeCrudController extends AbstractCrudController
             ->hideOnForm();
 
         yield CollectionField::new('commandeProduits', 'Produits commandés')
-            ->useEntryCrudForm(CommandeProduitCrudController::class);
+            ->useEntryCrudForm(CommandeProduitCrudController::class)
+            ->setFormTypeOption('disabled', true);
 
         yield ChoiceField::new('statut', 'Statut de production')
             ->setChoices([

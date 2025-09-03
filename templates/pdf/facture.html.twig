@@ -1,47 +1,219 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Facture</title>
+    <title>Facture - Commande #{{ commande.id }}</title>
     <style>
-        body { font-family: Arial, sans-serif; font-size: 14px; }
-        h1 { text-align: center; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #000; padding: 8px; }
-        th { background-color: #f5f5f5; }
+        /* La police DejaVu Sans est recommandée pour Dompdf car elle gère bien les accents et symboles */
+        @font-face {
+            font-family: 'DejaVu Sans';
+            font-style: normal;
+            font-weight: normal;
+            src: url(https://cdnjs.cloudflare.com/ajax/libs/dejavu-sans/2.37/DejaVuSans.ttf) format('truetype');
+        }
+
+        /* --- Style général --- */
+        body {
+            font-family: 'DejaVu Sans', Arial, sans-serif;
+            font-size: 12px; /* 9pt */
+            color: #333333;
+            margin: 0;
+        }
+        .container {
+            padding: 20px;
+        }
+
+        /* --- En-tête avec les informations (utilisant une table pour la compatibilité) --- */
+        .invoice-header {
+            width: 100%;
+            border-bottom: 2px solid #000000;
+            padding-bottom: 10px;
+            margin-bottom: 40px;
+        }
+        .invoice-header td {
+            width: 50%;
+            vertical-align: top;
+        }
+        .company-info {
+            text-align: left;
+        }
+        .client-info {
+            text-align: right;
+        }
+        .company-info h2 {
+            margin: 0;
+            font-size: 16px; /* 12pt */
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .client-info h2 {
+            margin: 0;
+            font-size: 13px; /* 10pt */
+            color: #555555;
+        }
+        .company-info p, .client-info p {
+            margin: 5px 0 0 0;
+            line-height: 1.4;
+        }
+
+        /* --- Titre du document --- */
+        .invoice-title {
+            text-align: center;
+            font-size: 28px; /* 21pt */
+            margin-bottom: 10px;
+            color: #000000;
+        }
+        .invoice-details {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #555555;
+        }
+
+        /* --- Tableau des produits --- */
+        .products-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .products-table th, .products-table td {
+            border-bottom: 1px solid #dddddd;
+            padding: 10px 5px;
+            text-align: left;
+        }
+        .products-table thead th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            border-top: 2px solid #000000;
+            border-bottom: 2px solid #000000;
+            text-align: center;
+        }
+        .products-table td.numeric, .products-table th.numeric {
+            text-align: right;
+        }
+        
+        /* --- Section des totaux (utilisant une table alignée à droite) --- */
+        .summary-wrapper {
+            width: 100%;
+        }
+        .summary-table {
+            width: 50%;
+            margin-left: 50%; /* Pousse la table à droite */
+            border-collapse: collapse;
+        }
+        .summary-table td {
+            padding: 8px 5px;
+        }
+        .summary-label {
+            text-align: right;
+            font-weight: bold;
+        }
+        .summary-value {
+            text-align: right;
+        }
+        .total-row td {
+            border-top: 2px solid #000000;
+            font-size: 14px; /* 10.5pt */
+            font-weight: bold;
+        }
+
+        /* --- Pied de page --- */
+        .footer {
+            position: fixed; /* Fixe le pied de page en bas */
+            bottom: 0;
+            left: 20px;
+            right: 20px;
+            text-align: center;
+            font-size: 10px; /* 7.5pt */
+            color: #777777;
+            border-top: 1px solid #cccccc;
+            padding-top: 5px;
+        }
     </style>
 </head>
 <body>
-    <h1>Facture n°{{ commande.id }}</h1>
-    <p><strong>Date :</strong> {{ commande.dateCommande|date('d/m/Y') }}</p>
+    <div class="container">
+        <!-- En-tête -->
+        <table class="invoice-header">
+            <tr>
+                <td class="company-info">
+                    {% if imageSrc is not null %}
+                        <img src="{{ imageSrc }}" alt="Logo" style="max-width: 150px; margin-bottom: 10px;">
+                    {% else %}
+                        <h2>VOTRE LOGO</h2>
+                    {% endif %}
+                    <p>
+                        <strong>Information de l'entreprise</strong><br>
+                        4EVER<br>
+                        Ambohitrarahaba, Antananarivo, Code Postal<br>
+                        Tél : xx.xx.xx.xx.xx - Email : contact@societe.com
+                    </p>
+                </td>
+                <td class="client-info">
+                    <br><br><br><br><br><br><br><br><br><h2>Facturé à :</h2>
+                    <p>
+                        <strong>{{ commande.client.nom|default('N/A') }}</strong><br>
+                        {% if commande.client.adresse %}{{ commande.client.adresse }}<br>{% endif %}
+                        {% if commande.client.telephone %}{{ commande.client.telephone }}<br>{% endif %}
+                    </p>
+                </td>
+            </tr>
+        </table>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Client</th>
-                <th>Produit</th>
-                <th>Quantité</th>
-                <th>Statut de paiement</th>
-                <th>Prix unitaire</th>
-                <th>Total</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for cp in commande.commandeProduits %}
+        <!-- Titre et détails de la facture -->
+        <h1 class="invoice-title">FACTURE</h1>
+        <div class="invoice-details">
+            Facture N° : {{ commande.id }}<br>
+            Date : {{ commande.dateCommande|date('d/m/Y') }}
+        </div>
+
+        <!-- Tableau des produits -->
+        <table class="products-table">
+            <thead>
                 <tr>
-                    <td>{{ commande.client.nom }}</td>
-                    <td>{{ cp.produit.nom }}</td>
-                    <td>{{ cp.quantite }}</td>
-                    <td>{{ commande.statut }}</td>
-                    <td>{{ cp.produit.prix/100 }} ariary</td>
-                    <td>{{ (cp.quantite * cp.produit.prix)/100 }} ariary</td>
+                    <th>Produit</th>
+                    <th class="numeric">Quantité</th>
+                    <th class="numeric">Prix Unitaire</th>
+                    <th class="numeric">Prix Total</th>
                 </tr>
-            {% endfor %}
+            </thead>
+            <tbody>
+                {% for item in commande.commandeProduits %}
+                    <tr>
+                        <td>{{ item.produit.nom }}</td>
+                        <td class="numeric">{{ item.quantite }}</td>
+                        <td class="numeric">{{ item.produit.prix|number_format(0, ',', ' ') }} MGA</td>
+                        <td class="numeric">{{ (item.quantite * item.produit.prix)|number_format(0, ',', ' ') }} MGA</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Section des totaux -->
+        <table class="summary-wrapper">
             <tr>
-                <td colspan="5"><strong><center>Total de prix à payer</center></strong></td>
-                <td><strong>{{ commande.getTotal() }} ariary</strong></td>
+                <td>
+                    <table class="summary-table">
+                        <tr>
+                            <td class="summary-label">Sous-total :</td>
+                            <td class="summary-value">{{ commande.getTotal()|number_format(0, ',', ' ') }} MGA</td>
+                        </tr>
+                        <tr>
+                            <td class="summary-label">Livraison :</td>
+                            <td class="summary-value">{{ commande.fraisLivraison|number_format(0, ',', ' ') }} MGA</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td class="summary-label">Total :</td>
+                            <td class="summary-value">{{ commande.getTotalAvecFrais()|number_format(0, ',', ' ') }} MGA</td>
+                        </tr>
+                    </table>
+                </td>
             </tr>
-        </tbody>
-    </table>
+        </table>
+    </div>
+
+    <!-- Pied de page -->
+    <div class="footer">
+        <p>Merci pour votre confiance. | Nom de votre société - Conditions de vente disponibles sur demande.</p>
+    </div>
 </body>
 </html>

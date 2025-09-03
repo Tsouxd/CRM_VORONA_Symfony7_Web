@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Arrêt de Caisse</title>
+    <link rel="stylesheet" href="{{ asset('utils/css_moon/bootstrap.min.css') }}">
+    <style>
+        body { background-color: #f4f7f6; }
+        .container { max-width: 900px; }
+        .card-header { font-weight: bold; }
+        .ecart { font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Arrêt de Caisse</h1>
+        <a href="{{ path('app_comptable') }}" class="btn btn-secondary">Retour à la comptabilité</a>
+    </div>
+
+    {% if totals is not empty %}
+    <form method="post">
+        <div class="card mb-4">
+            <div class="card-header">Fond de Caisse</div>
+            <div class="card-body">
+                <label for="fond_de_caisse_initial">Fond de caisse initial (laissé la veille)</label>
+                <input type="number" step="0.01" id="fond_de_caisse_initial" name="fond_de_caisse_initial" class="form-control" required>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">Détail des Encaissements</div>
+            <div class="card-body">
+                <table class="table">
+                    <thead><tr><th>Méthode</th><th>Montant Théorique</th><th>Montant Compté</th><th>Écart</th></tr></thead>
+                    <tbody>
+                    {% for methode, theorique in totals %}
+                        <tr>
+                            <td><strong>{{ methode }}</strong></td>
+                            <td data-theorique="{{ theorique }}">{{ theorique|number_format(0, ',', ' ') }} MGA</td>
+                            <td><input type="number" step="0.01" class="form-control amount-counted" name="compte_{{ methode|lower|replace({' ': '_'}) }}" required></td>
+                            <td class="ecart">0 MGA</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">Notes</div>
+            <div class="card-body"><textarea name="notes" class="form-control" rows="3"></textarea></div>
+        </div>
+        
+        <button type="submit" class="btn btn-success btn-lg">Valider et Clôturer la Caisse</button>
+    </form>
+    {% else %}
+    <div class="alert alert-success">Il n'y a aucun paiement à clôturer pour le moment.</div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.amount-counted').forEach(input => {
+            input.addEventListener('input', function() {
+                const row = this.closest('tr');
+                const theorique = parseFloat(row.querySelector('[data-theorique]').dataset.theorique);
+                const compte = parseFloat(this.value) || 0;
+                const ecart = compte - theorique;
+                const ecartCell = row.querySelector('.ecart');
+                ecartCell.textContent = new Intl.NumberFormat('fr-FR').format(ecart.toFixed(0)) + ' MGA';
+                if (ecart < 0) { ecartCell.style.color = 'red'; } 
+                else if (ecart > 0) { ecartCell.style.color = 'orange'; } 
+                else { ecartCell.style.color = 'green'; }
+            });
+        });
+    });
+</script>
+</body>
+</html>

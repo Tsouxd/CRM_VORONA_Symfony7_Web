@@ -8,29 +8,28 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
 </head>
 <body>
+    <div id="flash-messages-container">
+        {% for label, messages in app.flashes %}
+            {% for message in messages %}
+                <div class="alert alert-{{ label }} alert-center flash-overlay" data-auto-dismiss="6000">
+                    {{ message }}
+                    <button type="button" class="alert-close" onclick="closeAlert(this)" aria-label="Fermer">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            {% endfor %}
+        {% endfor %}
+    </div>
     {# AJOUT DE LA CLASSE CONDITIONNELLE #}
     <div class="container {% if show_signup_panel is defined and show_signup_panel %}right-panel-active{% endif %}" id="container">
-
         {# FORMULAIRE DE DEMANDE DE COMPTE #}
         <div class="form-container sign-up-container">
-            
-            {# GESTION AMÉLIORÉE DES MESSAGES FLASH - AVANT LE FORMULAIRE #}
-            {% for label, messages in app.flashes %}
-                {% for message in messages %}
-                    <div class="alert alert-{{ label }} alert-center" data-auto-dismiss="6000">
-                        {{ message }}
-                        <button type="button" class="alert-close" onclick="closeAlert(this)" aria-label="Fermer">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                {% endfor %}
-            {% endfor %}
-            
             {{ form_start(registrationForm, {'action': path('app_register')}) }}
                 <h1>Demande de compte</h1>
                 <br>
                 {{ form_row(registrationForm.username) }}
                 {{ form_row(registrationForm.password) }}
+                {{ form_row(registrationForm.roleDemander) }}
 
                 <button type="submit">Envoyer la demande</button>
             {{ form_end(registrationForm) }}
