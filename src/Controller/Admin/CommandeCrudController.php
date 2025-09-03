@@ -69,48 +69,44 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
     public function configureActions(Actions $actions): Actions
     {
-        // --- ACTION POUR LE COMMERCIAL : Demander la modification ---
         $requestEditAction = Action::new('demanderModification', 'Demander à modifier', 'fa fa-key')
             ->linkToCrudAction('requestModification')
-            ->setCssClass('btn btn-secondary')
+            ->setCssClass('btn btn-secondary btn-sm') // btn-sm pour un look plus compact
             ->displayIf(function (Commande $commande) {
                 return $this->isGranted('ROLE_COMMERCIAL') &&
-                       !in_array($commande->getDemandeModificationStatut(), ['requested', 'approved']);
+                    !in_array($commande->getDemandeModificationStatut(), ['requested', 'approved']);
             });
-    
-        // --- ACTIONS POUR L'ADMIN : Approuver / Refuser ---
+
         $approveAction = Action::new('approuverDemande', 'Approuver', 'fa fa-check-circle')
             ->linkToCrudAction('approveRequest')
-            ->setCssClass('btn btn-success')
+            ->setCssClass('btn btn-success btn-sm')
             ->displayIf(function (Commande $commande) {
                 return $this->isGranted('ROLE_ADMIN') &&
-                       $commande->getDemandeModificationStatut() === 'requested';
+                    $commande->getDemandeModificationStatut() === 'requested';
             });
-    
+
         $refuseAction = Action::new('refuserDemande', 'Refuser', 'fa fa-times-circle')
             ->linkToCrudAction('refuseRequest')
-            ->setCssClass('btn btn-danger')
+            ->setCssClass('btn btn-danger btn-sm')
             ->displayIf(function (Commande $commande) {
                 return $this->isGranted('ROLE_ADMIN') &&
-                       $commande->getDemandeModificationStatut() === 'requested';
+                    $commande->getDemandeModificationStatut() === 'requested';
             });
-    
-        // --- ACTION EXPORT PDF ---
-        $exportPdf = Action::new('exportPdf', '🧾 Exporter PDF')
+
+        $exportPdf = Action::new('exportPdf', 'PDF', 'fa fa-file-pdf') // Icône plus directe
             ->linkToUrl(function (Commande $commande) {
                 return $this->generateUrl('admin_export_facture', ['id' => $commande->getId()]);
             })
-            ->setHtmlAttributes([
-                'target' => '_blank',
-                'class' => 'btn btn-secondary',
-            ]);
-    
+            ->setHtmlAttributes(['target' => '_blank'])
+            ->setCssClass('btn btn-secondary btn-sm');
+
+        // --- Configuration de l'affichage des actions ---
+        
         return $actions
-            // --- PAGE INDEX ---
-            ->add(Crud::PAGE_INDEX, $requestEditAction)
-            ->add(Crud::PAGE_INDEX, $approveAction)
-            ->add(Crud::PAGE_INDEX, $refuseAction)
-            ->add(Crud::PAGE_INDEX, $exportPdf)
+            // Ajoute l'action "Détails" en premier sur la page d'index
+            ->add(Crud::PAGE_INDEX, Action::DETAIL)
+
+            // Met à jour l'action "Modifier" existante avec votre logique
             ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
                 return $action->displayIf(function (Commande $commande) {
                     if ($this->isGranted('ROLE_ADMIN')) {
@@ -122,24 +118,20 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     return false;
                 });
             })
-            ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
-                return $action
-                    ->setLabel('Modifier')
-                    ->setIcon('fa fa-pen');
-            })
+
+            // Met à jour l'action "Supprimer" existante
             ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
-                return $action
-                    ->setLabel('Supprimer')
-                    ->setIcon('fa fa-trash');
+                return $action; // Vous pouvez ajouter une condition de permission ici si besoin
             })
-    
-            // --- PAGE DETAIL ---
-            ->add(Crud::PAGE_DETAIL, $exportPdf) // Ajout avant DELETE
-            ->update(Crud::PAGE_DETAIL, Action::DELETE, function (Action $action) {
-                return $action
-                    ->setLabel('Supprimer')
-                    ->setIcon('fa fa-trash');
-            });
+
+            // Ajoute vos actions personnalisées à la page d'index
+            ->add(Crud::PAGE_INDEX, $requestEditAction)
+            ->add(Crud::PAGE_INDEX, $approveAction)
+            ->add(Crud::PAGE_INDEX, $refuseAction)
+            ->add(Crud::PAGE_INDEX, $exportPdf)
+
+            // Configure les actions de la page de détails
+            ->add(Crud::PAGE_DETAIL, $exportPdf);
     }
     
 
@@ -413,7 +405,8 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         yield AssociationField::new('client')
             ->hideOnForm();
 
-        yield AssociationField::new('pao', 'Responsable PAO');
+        yield AssociationField::new('pao', 'Responsable PAO')
+            ->hideOnIndex();
 
         // SI on est sur la page de CRÉATION (new)
         if (Crud::PAGE_NEW === $pageName) {
@@ -439,14 +432,14 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->setCurrency('MGA')
             ->setFormTypeOption('divisor', 1)
             ->setNumDecimals(0)
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield MoneyField::new('montantPaye', 'Montant Payé')
             ->setCurrency('MGA')
             ->setFormTypeOption('divisor', 1)
             ->setCssClass('text-success')
             ->setNumDecimals(0)
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         yield MoneyField::new('resteAPayer', 'Reste à payer')
             ->setCurrency('MGA')
@@ -465,7 +458,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             // ✅ LA CORRECTION : On revient à la méthode qui fonctionne pour TOUS les champs.
             ->setCustomOption('renderAsHtml', true)
             
-            ->onlyOnIndex();
+            ->hideOnForm();
 
         // --- Panneau Produits ---
         yield FormField::addPanel('Lignes de produits')->onlyOnForms();
@@ -475,8 +468,8 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->setFormTypeOptions(['by_reference' => false])
             ->setEntryIsComplex(true)
             ->allowAdd()
-            ->allowDelete()
-            ->onlyOnForms();
+            ->hideOnIndex()
+            ->allowDelete();
 
         /*yield CollectionField::new('commandeProduits', 'Produits')
             ->hideOnForm();*/
@@ -487,7 +480,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->setFormTypeOptions(['by_reference' => false])
             ->allowAdd()
             ->allowDelete()
-            ->onlyOnForms();
+            ->hideOnIndex();
 
         yield ChoiceField::new('referencePaiement', 'Méthode de Paiement')
             ->setChoices([
@@ -496,10 +489,12 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 'Mobile Money' => 'Mobile Money', // On peut rendre le choix plus général
                 'Virement Bancaire' => 'Virement Bancaire',
                 'Chèque' => 'Chèque',
-            ]);
+            ])
+            ->hideOnIndex();
 
         yield TextField::new('detailsPaiement', 'Détails / Référence')
-            ->setHelp('Ex: Mvola, Orange Money, N° de chèque, Réf. virement...');
+            ->setHelp('Ex: Mvola, Orange Money, N° de chèque, Réf. virement...')
+            ->hideOnIndex();
 
 
         /*yield CollectionField::new('paiements', 'Tranche de paiements')
@@ -565,7 +560,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     $value
                 );
             })  
-            ->onlyOnIndex()
+            ->hideOnIndex()
             ->renderAsHtml();
             
         // Assurez-vous d'avoir les nouveaux statuts danDes le ChoiceField
@@ -605,7 +600,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->setCurrency('MGA')
             ->setStoredAsCents(false)
             ->setNumDecimals(0)
-            ->onlyOnForms();
+            ->hideOnIndex();
 
         if ($this->security->isGranted('ROLE_ADMIN')) {
             yield ChoiceField::new('demandeModificationStatut', 'Demande Modif.')
@@ -619,7 +614,8 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     'approved' => 'success',
                     'refused' => 'danger',
                 ])
-                ->setFormTypeOption('disabled', true);
+                ->setFormTypeOption('disabled', true)
+                ->hideOnIndex();
         }
 
         if ($this->security->isGranted('ROLE_COMMERCIAL')) {
@@ -637,13 +633,15 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 ->onlyOnIndex();
         }
             
-    yield TextareaField::new('demandeModificationMotif', 'Motif')->onlyOnDetail();
+    yield TextareaField::new('demandeModificationMotif', 'Motif')->hideOnForm();
 
     yield TextField::new('categorie', 'Catégorie')
-        ->setRequired(false);
+        ->setRequired(false)
+        ->hideOnIndex();
 
     yield TextareaField::new('description', 'Description')
-        ->setRequired(false);
+        ->setRequired(false)
+        ->hideOnIndex();
 
     yield ChoiceField::new('priorite', 'Priorité')
         ->setChoices([
