@@ -49,13 +49,13 @@ class PaiementRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('p')
             // ✅ On sélectionne directement 'referencePaiement', sans alias
-            ->select('c.referencePaiement, SUM(p.montant) as totalTheorique')
+            ->select('p.referencePaiement, SUM(p.montant) as totalTheorique')
             ->join('p.commande', 'c')
             ->where('p.arretDeCaisse IS NULL')
             ->andWhere("p.statut = 'effectué' OR p.statut = 'payée'")
-            ->andWhere('c.referencePaiement IS NOT NULL')
+            ->andWhere('p.referencePaiement IS NOT NULL')
             // ✅ On groupe par le vrai nom du champ
-            ->groupBy('c.referencePaiement')
+            ->groupBy('p.referencePaiement')
             ->getQuery()
             ->getResult();
     }

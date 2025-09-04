@@ -482,21 +482,6 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->allowDelete()
             ->hideOnIndex();
 
-        yield ChoiceField::new('referencePaiement', 'Méthode de Paiement')
-            ->setChoices([
-                'Espèces' => 'Espèces',
-                'Carte Bancaire' => 'Carte Bancaire',
-                'Mobile Money' => 'Mobile Money', // On peut rendre le choix plus général
-                'Virement Bancaire' => 'Virement Bancaire',
-                'Chèque' => 'Chèque',
-            ])
-            ->hideOnIndex();
-
-        yield TextField::new('detailsPaiement', 'Détails / Référence')
-            ->setHelp('Ex: Mvola, Orange Money, N° de chèque, Réf. virement...')
-            ->hideOnIndex();
-
-
         /*yield CollectionField::new('paiements', 'Tranche de paiements')
             ->hideOnForm();*/
 
@@ -560,7 +545,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     $value
                 );
             })  
-            ->hideOnIndex()
+            ->hideOnForm()
             ->renderAsHtml();
             
         // Assurez-vous d'avoir les nouveaux statuts danDes le ChoiceField
@@ -615,7 +600,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     'refused' => 'danger',
                 ])
                 ->setFormTypeOption('disabled', true)
-                ->hideOnIndex();
+                ->hideOnform();
         }
 
         if ($this->security->isGranted('ROLE_COMMERCIAL')) {

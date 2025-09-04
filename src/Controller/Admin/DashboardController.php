@@ -164,8 +164,8 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_ADMIN');*/
         /* yield MenuItem::linkToCrud('Paiement', 'fas fa-briefcase', Paiement::class);*/   
         yield MenuItem::linkToCrud('PAO', 'fa fa-pencil-ruler', Pao::class);
-        yield MenuItem::linkToCrud('Catégorie des dépenses', 'fas fa-cog', CategorieDepense::class);
-        yield MenuItem::linkToCrud('Catégorie des révenus', 'fas fa-money-bill', CategorieRevenu::class);
+        /*yield MenuItem::linkToCrud('Catégorie des dépenses', 'fas fa-cog', CategorieDepense::class);
+        yield MenuItem::linkToCrud('Catégorie des révenus', 'fas fa-money-bill', CategorieRevenu::class);*/
         /*  
         'fas fa-users' : Icône des utilisateurs.
         'fas fa-cogs' : Icône d'engrenages ou de réglages.

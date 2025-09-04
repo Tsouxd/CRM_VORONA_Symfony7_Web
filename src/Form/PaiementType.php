@@ -7,6 +7,7 @@ use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\DateTimeType;
 use Symfony\Component\Form\Extension\Core\Type\MoneyType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 
@@ -17,15 +18,15 @@ class PaiementType extends AbstractType
         $builder
             ->add('montant', MoneyType::class, [
                 'label' => 'Montant Payé',
-                'currency' => 'MGA', // Ariary
-                'divisor' => 1, // Si vous stockez en float, le diviseur est 1
-                'scale' => 0, 
+                'currency' => 'MGA',
+                'divisor' => 1,
+                'scale' => 0,
             ])
             ->add('datePaiement', DateTimeType::class, [
                 'widget' => 'single_text',
                 'required' => true,
+                'label' => 'Date du Paiement',
             ])
-
             ->add('statut', ChoiceType::class, [
                 'label' => 'Statut',
                 'choices' => [
@@ -33,6 +34,21 @@ class PaiementType extends AbstractType
                     'En attente' => 'en attente',
                     'Annulé' => 'annulé',
                 ],
+            ])
+            ->add('referencePaiement', ChoiceType::class, [
+                'label' => 'Méthode de Paiement',
+                'choices' => [
+                    'Espèces' => 'Espèces',
+                    'Carte Bancaire' => 'Carte Bancaire',
+                    'Mobile Money' => 'Mobile Money',
+                    'Virement Bancaire' => 'Virement Bancaire',
+                    'Chèque' => 'Chèque',
+                ],
+            ])
+            ->add('detailsPaiement', TextType::class, [
+                'label' => 'Détails / Référence',
+                'required' => false,
+                'help' => 'Ex: Mvola, Orange Money, N° de chèque, Réf. virement...',
             ]);
     }
 

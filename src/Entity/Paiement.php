@@ -27,6 +27,12 @@ class Paiement
     #[ORM\ManyToOne(targetEntity: Commande::class, inversedBy: 'paiements')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Commande $commande = null;
+
+    #[ORM\Column(type: 'string', length: 100, nullable: true)]
+    private ?string $referencePaiement = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $detailsPaiement = null;
     
     public function getId(): ?int { return $this->id; }
     public function getDatePaiement(): ?\DateTimeInterface { return $this->datePaiement; }
@@ -47,5 +53,43 @@ class Paiement
     {
         $this->arretDeCaisse = $arretDeCaisse;
         return $this;
+    }
+
+    public function getReferencePaiement(): ?string { return $this->referencePaiement; }
+    public function setReferencePaiement(?string $referencePaiement): self { $this->referencePaiement = $referencePaiement; return $this; }
+
+    public function getDetailsPaiement(): ?string
+    {
+        return $this->detailsPaiement;
+    }
+
+    public function setDetailsPaiement(?string $detailsPaiement): static
+    {
+        $this->detailsPaiement = $detailsPaiement;
+        return $this;
+    }
+
+    /**
+     * Définit comment un objet Paiement doit être affiché sous forme de texte.
+     * C'est cette méthode que EasyAdmin utilisera pour le label.
+     *
+     * VERSION CORRIGÉE
+     */
+    public function __toString(): string
+    {
+        // On utilise getReferencePaiement() au lieu de getMoyenPaiement()
+        // On vérifie aussi que la valeur n'est pas vide
+        if ($this->getMontant() === 0.0 && empty($this->getReferencePaiement())) {
+            return 'Nouveau Paiement'; // Label pour un paiement pas encore rempli
+        }
+
+        // On formate le montant pour une meilleure lisibilité
+        $montantFormatted = number_format($this->getMontant(), 0, ',', ' ');
+
+        return sprintf(
+            'Paiement de %s MGA (%s)',
+            $montantFormatted,
+            $this->getReferencePaiement() // <-- LA CORRECTION EST ICI
+        );
     }
 }
