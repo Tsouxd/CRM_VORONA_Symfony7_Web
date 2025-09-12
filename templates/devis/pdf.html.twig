@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Devis #{{ devis.id }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+        th { background-color: #f0f0f0; }
+        .right { text-align: right; }
+    </style>
+</head>
+<body>
+    <h2>Devis #{{ devis.id }}</h2>
+    <p><strong>Client:</strong> {{ devis.client.nom }}</p>
+    <p><strong>Date:</strong> {{ devis.dateCreation|date('d/m/Y H:i') }}</p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Produit</th>
+                <th>Quantité</th>
+                <th>Prix Unitaire (MGA)</th>
+                <th>Total (MGA)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in devis.lignes %}
+                <tr>
+                    <td>{{ ligne.produit.nom }}</td>
+                    <td class="right">{{ ligne.quantite }}</td>
+                    <td class="right">{{ ligne.prixUnitaire|number_format(0, ',', ' ') }}</td>
+                    <td class="right">{{ ligne.prixTotal|number_format(0, ',', ' ') }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <th colspan="3" class="right">Total</th>
+                <th class="right">{{ devis.total|number_format(0, ',', ' ') }}</th>
+            </tr>
+        </tfoot>
+    </table>
+</body>
+</html>

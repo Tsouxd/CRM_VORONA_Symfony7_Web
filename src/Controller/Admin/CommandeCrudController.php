@@ -462,13 +462,13 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
         // --- Panneau Produits ---
         yield FormField::addPanel('Lignes de produits')->onlyOnForms();
-        yield CollectionField::new('commandeProduits')
-            ->setLabel(false) // Le label est déjà dans le panneau
+        yield CollectionField::new('commandeProduits', 'Produits commanders')
+            //->setLabel(false) // Le label est déjà dans le panneau
             ->setEntryType(CommandeProduitType::class) // C'est ici que la magie opère
             ->setFormTypeOptions(['by_reference' => false])
             ->setEntryIsComplex(true)
             ->allowAdd()
-            ->hideOnIndex()
+            //->hideOnIndex()
             ->allowDelete();
 
         /*yield CollectionField::new('commandeProduits', 'Produits')
@@ -496,13 +496,16 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                         // Trouver le champ prixUnitaire qui correspond à ce select
                         const priceInput = selectElement.closest('.form-widget-compound').querySelector('[id$=_prixUnitaire]');
                         if (priceInput) {
-                            // On doit formater le nombre pour le champ MoneyType
                             priceInput.value = (prix / 1).toFixed(0); // Divisor 1, 0 décimales
                         }
                     };
 
                     // Attacher l'événement aux selects déjà présents sur la page
                     document.querySelectorAll('.commande-produit-select').forEach(select => {
+                        // Mise à jour initiale si un produit est déjà sélectionné (édition)
+                        updatePrice(select);
+
+                        // Ajout du listener pour changements futurs
                         select.addEventListener('change', function() {
                             updatePrice(this);
                         });
@@ -512,11 +515,13 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     const addButton = document.querySelector('.field-collection-add-button');
                     if (addButton) {
                         addButton.addEventListener('click', function() {
-                            // On attend un court instant que le nouvel élément soit ajouté au DOM
                             setTimeout(() => {
                                 const newSelects = document.querySelectorAll('.commande-produit-select:not(.listening)');
                                 newSelects.forEach(select => {
-                                    select.classList.add('listening'); // Eviter de mettre plusieurs listeners
+                                    select.classList.add('listening');
+                                    // Mise à jour initiale du nouveau champ
+                                    updatePrice(select);
+                                    // Ajout du listener
                                     select.addEventListener('change', function() {
                                         updatePrice(this);
                                     });

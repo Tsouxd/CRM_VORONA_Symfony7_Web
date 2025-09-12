@@ -23,6 +23,10 @@ use App\Entity\Paiement;
 use App\Repository\CommandeRepository;
 use App\Repository\CommandeProduitRepository;
 use Symfony\Component\HttpFoundation\Request;
+use App\Entity\Facture;
+use App\Controller\Admin\FactureCrudController;
+use App\Entity\Devis;
+use App\Controller\Admin\DevisCrudController;
 
 #[AdminDashboard(routePath: '/admin', routeName: 'admin')]
 class DashboardController extends AbstractDashboardController
@@ -164,6 +168,11 @@ class DashboardController extends AbstractDashboardController
             ->setPermission('ROLE_ADMIN');*/
         /* yield MenuItem::linkToCrud('Paiement', 'fas fa-briefcase', Paiement::class);*/   
         yield MenuItem::linkToCrud('PAO', 'fa fa-pencil-ruler', Pao::class);
+        yield MenuItem::linkToCrud('Devis', 'fas fa-file-pdf', Devis::class)
+            ->setController(DevisCrudController::class);
+        // ✅ Facture au-dessus de Devis
+        yield MenuItem::linkToCrud('Factures', 'fas fa-file-invoice', Facture::class)
+            ->setController(FactureCrudController::class);
         /*yield MenuItem::linkToCrud('Catégorie des dépenses', 'fas fa-cog', CategorieDepense::class);
         yield MenuItem::linkToCrud('Catégorie des révenus', 'fas fa-money-bill', CategorieRevenu::class);*/
         /*  

@@ -19,7 +19,7 @@ class ArretDeCaisse
     #[ORM\JoinColumn(nullable: false)]
     private User $utilisateur;
 
-    #[ORM\Column(type: 'float')]
+    #[ORM\Column(type: 'float', nullable: true)]
     private float $fondDeCaisseInitial = 0.0;
 
     #[ORM\Column(type: 'json')] // Stocke tous les détails (théorique, compté, écart)
