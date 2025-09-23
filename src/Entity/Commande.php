@@ -14,6 +14,15 @@ use Vich\UploaderBundle\Mapping\Annotation as Vich;
 #[Vich\Uploadable]
 class Commande
 {
+    public const STATUT_PAO_ATTENTE = 'en attente';
+    public const STATUT_PAO_EN_COURS = 'en cours';
+    public const STATUT_PAO_FAIT = 'fait';
+    public const STATUT_PAO_MODIFICATION = 'modification';
+
+    public const BAT_EN_ATTENTE = 'En attente de validation';
+    public const BAT_MODIFICATION = 'Modification demandée';
+    public const BAT_PRODUCTION = 'Validé pour production';
+
     public const PRIORITES = ['urgent', 'normal', 'faible'];
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
@@ -55,12 +64,6 @@ class Commande
     #[ORM\Column(type: 'float')]
     private float $fraisLivraison = 0.0;
 
-    #[ORM\Column(length: 20, nullable: true)]
-    private ?string $demandeModificationStatut = null;
-
-    #[ORM\Column(type: 'text', nullable: true)]
-    private ?string $demandeModificationMotif = null;
-
     // --- NOUVELLES PROPRIÉTÉS ---
     #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $categorie = null;
@@ -72,11 +75,44 @@ class Commande
     private ?string $priorite = null;
 
     #[ORM\ManyToOne(inversedBy: 'commandes', cascade: ['persist'])]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)] // Rendu nullable pour ne pas bloquer les anciennes commandes
     private ?Pao $pao = null;
 
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
-    private ?string $statutPao = null; // => utilise camelCase
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
+    private ?string $statutPao = self::STATUT_PAO_ATTENTE;
+
+    // === NOUVEAUX CHAMPS POUR LE WORKFLOW PAO ===
+
+    #[ORM\Column(type: 'boolean')]
+    private bool $paoFichierOk = false;
+
+    #[ORM\Column(type: 'boolean')]
+    private bool $paoBatOk = false;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $paoBatValidation = self::BAT_EN_ATTENTE;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $paoMotifModification = null;
+
+    #[ORM\Column(type: 'boolean')]
+    private bool $paoModif1Ok = false;
+
+    #[ORM\Column(type: 'boolean')]
+    private bool $paoModif2Ok = false;
+
+    #[ORM\Column(type: 'boolean')]
+    private bool $paoModif3Ok = false;
+
+    // === NOUVEAUX CHAMPS POUR L'HISTORIQUE DES MOTIFS ===
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $paoMotifM1 = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $paoMotifM2 = null;
+
+    #[ORM\Column(type: 'text', nullable: true)]
+    private ?string $paoMotifM3 = null;
 
     public function __construct()
     {
@@ -210,12 +246,6 @@ class Commande
     public function getUpdatedAt(): ?\DateTimeInterface { return $this->updatedAt; }
     public function setUpdatedAt(?\DateTimeInterface $updatedAt): void { $this->updatedAt = $updatedAt; }
 
-    public function getDemandeModificationStatut(): ?string { return $this->demandeModificationStatut; }
-    public function setDemandeModificationStatut(?string $demandeModificationStatut): self { $this->demandeModificationStatut = $demandeModificationStatut; return $this; }
-
-    public function getDemandeModificationMotif(): ?string { return $this->demandeModificationMotif; }
-    public function setDemandeModificationMotif(?string $demandeModificationMotif): self { $this->demandeModificationMotif = $demandeModificationMotif; return $this; }
-
     // --- NOUVEAUX GETTERS/SETTERS ---
     public function getCategorie(): ?string { return $this->categorie; }
     public function setCategorie(?string $categorie): self { $this->categorie = $categorie; return $this; }
@@ -254,6 +284,39 @@ class Commande
         $this->statutPao = $statutPao;
         return $this;
     }
+
+    // === AJOUTEZ TOUS LES GETTERS ET SETTERS POUR LES NOUVEAUX CHAMPS CI-DESSOUS ===
+    
+    public function isPaoFichierOk(): bool { return $this->paoFichierOk; }
+    public function setPaoFichierOk(bool $paoFichierOk): self { $this->paoFichierOk = $paoFichierOk; return $this; }
+
+    public function isPaoBatOk(): bool { return $this->paoBatOk; }
+    public function setPaoBatOk(bool $paoBatOk): self { $this->paoBatOk = $paoBatOk; return $this; }
+
+    public function getPaoBatValidation(): ?string { return $this->paoBatValidation; }
+    public function setPaoBatValidation(?string $paoBatValidation): self { $this->paoBatValidation = $paoBatValidation; return $this; }
+
+    public function getPaoMotifModification(): ?string { return $this->paoMotifModification; }
+    public function setPaoMotifModification(?string $paoMotifModification): self { $this->paoMotifModification = $paoMotifModification; return $this; }
+
+    public function isPaoModif1Ok(): bool { return $this->paoModif1Ok; }
+    public function setPaoModif1Ok(bool $paoModif1Ok): self { $this->paoModif1Ok = $paoModif1Ok; return $this; }
+
+    public function isPaoModif2Ok(): bool { return $this->paoModif2Ok; }
+    public function setPaoModif2Ok(bool $paoModif2Ok): self { $this->paoModif2Ok = $paoModif2Ok; return $this; }
+
+    public function isPaoModif3Ok(): bool { return $this->paoModif3Ok; }
+    public function setPaoModif3Ok(bool $paoModif3Ok): self { $this->paoModif3Ok = $paoModif3Ok; return $this; }
+
+    // === AJOUTEZ LES GETTERS/SETTERS POUR CES 3 NOUVEAUX CHAMPS ===
+    public function getPaoMotifM1(): ?string { return $this->paoMotifM1; }
+    public function setPaoMotifM1(?string $paoMotifM1): self { $this->paoMotifM1 = $paoMotifM1; return $this; }
+
+    public function getPaoMotifM2(): ?string { return $this->paoMotifM2; }
+    public function setPaoMotifM2(?string $paoMotifM2): self { $this->paoMotifM2 = $paoMotifM2; return $this; }
+
+    public function getPaoMotifM3(): ?string { return $this->paoMotifM3; }
+    public function setPaoMotifM3(?string $paoMotifM3): self { $this->paoMotifM3 = $paoMotifM3; return $this; }
 
     public function __toString(): string
     {

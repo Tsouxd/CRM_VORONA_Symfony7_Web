@@ -37,7 +37,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\MoneyField;
 use Vich\UploaderBundle\Form\Type\VichFileType;
 use Symfony\Component\HttpFoundation\Response;
-
+use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 
 // Import des classes nécessaires pour les filtres
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
@@ -69,71 +69,33 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
     public function configureActions(Actions $actions): Actions
     {
-        $requestEditAction = Action::new('demanderModification', 'Demander à modifier', 'fa fa-key')
-            ->linkToCrudAction('requestModification')
-            ->setCssClass('btn btn-secondary btn-sm') // btn-sm pour un look plus compact
-            ->displayIf(function (Commande $commande) {
-                return $this->isGranted('ROLE_COMMERCIAL') &&
-                    !in_array($commande->getDemandeModificationStatut(), ['requested', 'approved']);
-            });
-
-        $approveAction = Action::new('approuverDemande', 'Approuver', 'fa fa-check-circle')
-            ->linkToCrudAction('approveRequest')
-            ->setCssClass('btn btn-success btn-sm')
-            ->displayIf(function (Commande $commande) {
-                return $this->isGranted('ROLE_ADMIN') &&
-                    $commande->getDemandeModificationStatut() === 'requested';
-            });
-
-        $refuseAction = Action::new('refuserDemande', 'Refuser', 'fa fa-times-circle')
-            ->linkToCrudAction('refuseRequest')
-            ->setCssClass('btn btn-danger btn-sm')
-            ->displayIf(function (Commande $commande) {
-                return $this->isGranted('ROLE_ADMIN') &&
-                    $commande->getDemandeModificationStatut() === 'requested';
-            });
-
-        $exportPdf = Action::new('exportPdf', 'PDF', 'fa fa-file-pdf') // Icône plus directe
+        // --- Actions PDF ---
+        $exportPdf = Action::new('exportPdf', 'PDF', 'fa fa-file-pdf')
             ->linkToUrl(function (Commande $commande) {
                 return $this->generateUrl('admin_export_facture', ['id' => $commande->getId()]);
             })
             ->setHtmlAttributes(['target' => '_blank'])
             ->setCssClass('btn btn-secondary btn-sm');
 
-        // --- Configuration de l'affichage des actions ---
-        
-        return $actions
-            // Ajoute l'action "Détails" en premier sur la page d'index
+        $actions = $actions
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
-
-            // Met à jour l'action "Modifier" existante avec votre logique
-            ->update(Crud::PAGE_INDEX, Action::EDIT, function (Action $action) {
-                return $action->displayIf(function (Commande $commande) {
-                    if ($this->isGranted('ROLE_ADMIN')) {
-                        return true;
-                    }
-                    if ($this->isGranted('ROLE_COMMERCIAL')) {
-                        return $commande->getDemandeModificationStatut() === 'approved';
-                    }
-                    return false;
-                });
-            })
-
-            // Met à jour l'action "Supprimer" existante
-            ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
-                return $action; // Vous pouvez ajouter une condition de permission ici si besoin
-            })
-
-            // Ajoute vos actions personnalisées à la page d'index
-            ->add(Crud::PAGE_INDEX, $requestEditAction)
-            ->add(Crud::PAGE_INDEX, $approveAction)
-            ->add(Crud::PAGE_INDEX, $refuseAction)
             ->add(Crud::PAGE_INDEX, $exportPdf)
+            ->add(Crud::PAGE_DETAIL, $exportPdf)
+            ->update(Crud::PAGE_INDEX, Action::DELETE, fn (Action $action) =>
+                $action->displayIf(fn () => $this->isGranted('ROLE_ADMIN'))
+            )
+            ->update(Crud::PAGE_DETAIL, Action::DELETE, fn (Action $action) =>
+                $action->displayIf(fn () => $this->isGranted('ROLE_ADMIN'))
+            );
 
-            // Configure les actions de la page de détails
-            ->add(Crud::PAGE_DETAIL, $exportPdf);
+        // ⚡ Ici on enlève le bouton "Supprimer la sélection" pour les commerciaux
+        if ($this->isGranted('ROLE_COMMERCIAL')) {
+            $actions = $actions->disable(Action::BATCH_DELETE);
+        }
+
+        return $actions;
     }
-    
+
 
     public function configureFilters(Filters $filters): Filters
     {
@@ -485,6 +447,71 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         /*yield CollectionField::new('paiements', 'Tranche de paiements')
             ->hideOnForm();*/
 
+        // === AJOUTEZ CE BLOC COMPLET À LA FIN DE VOTRE FORMULAIRE ===
+        yield FormField::addPanel('Validation PAO / Bon à Tirer (BAT)')->collapsible()
+            ->setHelp('Vous disposez de 3 cycles de modification. Après la 3ème modification, la validation sera automatique.');
+
+        // Le commercial voit le travail du PAO en lecture seule
+        yield BooleanField::new('paoFichierOk', 'Fichier OK ?')->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoBatOk', 'BAT Prêt ?')->setFormTypeOption('disabled', true);
+        yield ChoiceField::new('paoBatValidation', 'Statut PAO')
+            ->setChoices([
+                'En attente de validation' => Commande::BAT_EN_ATTENTE,
+                'Modification à faire' => Commande::BAT_MODIFICATION,
+                'Valider pour la production' => Commande::BAT_PRODUCTION,
+            ])
+            ->renderAsBadges([
+                Commande::BAT_EN_ATTENTE => 'secondary',
+                Commande::BAT_MODIFICATION => 'danger',
+                Commande::BAT_PRODUCTION => 'success',
+            ]);
+
+        // Champ de SAISIE pour la PROCHAINE modification
+        yield TextareaField::new('paoMotifModification', 'Motif de la modification à faire')
+            ->setHelp('À remplir OBLIGATOIREMENT si vous demandez une modification.')
+            ->setCssClass('bat-motif-field');
+
+        // Affichage de l'HISTORIQUE des motifs (lecture seule)
+        yield TextareaField::new('paoMotifM1', 'Motif Modif. 1')->setFormTypeOption('disabled', true);
+        yield TextareaField::new('paoMotifM2', 'Motif Modif. 2')->setFormTypeOption('disabled', true);
+        yield TextareaField::new('paoMotifM3', 'Motif Modif. 3')->setFormTypeOption('disabled', true);
+
+        // Suivi des cases cochées par le PAO
+        yield BooleanField::new('paoModif1Ok', 'Modif 1 Faite')->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoModif2Ok', 'Modif 2 Faite')->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoModif3Ok', 'Modif 3 Faite')->setFormTypeOption('disabled', true);
+
+        // Script pour afficher/cacher le champ motif
+        yield FormField::addPanel('')->setHelp(<<<HTML
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const batValidationSelect = document.querySelector('#Commande_paoBatValidation');
+                    // On cible l'élément parent pour bien cacher le label aussi
+                    const motifWrapper = document.querySelector('.bat-motif-field').closest('.form-group');
+
+                    function toggleMotifField() {
+                        // On vérifie que les éléments existent avant de les manipuler
+                        if (!batValidationSelect || !motifWrapper) return;
+                        
+                        if (batValidationSelect.value === 'Modification demandée') {
+                            motifWrapper.style.display = 'block';
+                        } else {
+                            motifWrapper.style.display = 'none';
+                        }
+                    }
+
+                    // Au chargement de la page et lors d'événements Turbo
+                    document.addEventListener('turbo:load', toggleMotifField);
+                    toggleMotifField();
+
+                    // À chaque changement du select
+                    if (batValidationSelect) {
+                        batValidationSelect.addEventListener('change', toggleMotifField);
+                    }
+                });
+            </script>
+        HTML)->setCssClass('d-none'); // Cache le panneau
+
         yield FormField::addPanel('')->setHelp(<<<HTML
             <script>
                 document.addEventListener('DOMContentLoaded', function() {
@@ -592,59 +619,26 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->setNumDecimals(0)
             ->hideOnIndex();
 
-        if ($this->security->isGranted('ROLE_ADMIN')) {
-            yield ChoiceField::new('demandeModificationStatut', 'Demande Modif.')
-                ->setChoices([
-                    'Demandée' => 'requested',
-                    'Approuvée' => 'approved',
-                    'Refusée' => 'refused',
-                ])
-                ->renderAsBadges([
-                    'requested' => 'warning',
-                    'approved' => 'success',
-                    'refused' => 'danger',
-                ])
-                ->setFormTypeOption('disabled', true)
-                ->hideOnform();
-        }
+        yield TextField::new('categorie', 'Catégorie')
+            ->setRequired(false)
+            ->hideOnIndex();
 
-        if ($this->security->isGranted('ROLE_COMMERCIAL')) {
-            yield ChoiceField::new('demandeModificationStatut', 'Demande de Modification')
-                ->setChoices([
-                    'Demandée' => 'requested',
-                    'Approuvée' => 'approved',
-                    'Refusée' => 'refused',
-                ])
-                ->renderAsBadges([
-                    'requested' => 'warning',
-                    'approved' => 'success',
-                    'refused' => 'danger',
-                ])
-                ->onlyOnIndex();
-        }
-            
-    yield TextareaField::new('demandeModificationMotif', 'Motif')->hideOnForm();
+        yield TextareaField::new('description', 'Description')
+            ->setRequired(false)
+            ->hideOnIndex();
 
-    yield TextField::new('categorie', 'Catégorie')
-        ->setRequired(false)
-        ->hideOnIndex();
-
-    yield TextareaField::new('description', 'Description')
-        ->setRequired(false)
-        ->hideOnIndex();
-
-    yield ChoiceField::new('priorite', 'Priorité')
-        ->setChoices([
-            'Urgent' => 'urgent',
-            'Normal' => 'normal',
-            'Faible' => 'faible',
-        ])
-        ->renderAsBadges([
-            'urgent' => 'danger',
-            'normal' => 'primary',
-            'faible' => 'secondary',
-        ])
-        ->setRequired(false);
+        yield ChoiceField::new('priorite', 'Priorité')
+            ->setChoices([
+                'Urgent' => 'urgent',
+                'Normal' => 'normal',
+                'Faible' => 'faible',
+            ])
+            ->renderAsBadges([
+                'urgent' => 'danger',
+                'normal' => 'primary',
+                'faible' => 'secondary',
+            ])
+            ->setRequired(false);
 
         // ✅ Injection du JS directement dans EasyAdmin via un champ invisible
         yield FormField::addPanel('')

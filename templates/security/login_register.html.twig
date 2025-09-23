@@ -4,14 +4,263 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Accès à la plateforme</title>
-    <link rel="stylesheet" href="{{ asset('utils/css/style.css') }}">
+    
+    <!-- Importation des polices et icônes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+    
+    <style>
+        /* === DÉFINITION DU THÈME DU LOGO === */
+        :root {
+            --primary-color: #0C3B49; /* Bleu-vert foncé du logo */
+            --accent-color: #C89F6B;  /* Or / Camel du logo */
+            --white-color: #FFFFFF;
+            --light-gray: #f6f5f7;    /* Gris très clair pour les fonds des inputs */
+            --font-family: 'Montserrat', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        /* === MISE À JOUR DU FOND DE PAGE === */
+        body {
+            background: var(--primary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;    
+            flex-direction: column;
+            font-family: var(--font-family);
+            height: 100vh;
+            margin: -20px 0 50px;
+        }
+
+        h1 {
+            font-weight: bold;
+            margin: 0;
+            color: var(--primary-color);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        p {
+            font-size: 14px;
+            font-weight: 300;
+            line-height: 20px;
+            letter-spacing: 0.5px;
+            margin: 20px 0 30px;
+        }
+
+        /* === MISE À JOUR DES BOUTONS === */
+        button {
+            border-radius: 25px;
+            border: 1px solid var(--accent-color);
+            background-color: var(--accent-color);
+            color: var(--white-color);
+            font-size: 12px;
+            font-weight: bold;
+            padding: 12px 45px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            transition: transform 80ms ease-in, background-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:focus {
+            outline: none;
+        }
+
+        button.ghost {
+            background-color: transparent;
+            border-color: var(--white-color);
+        }
+        button.ghost:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        form {
+            background-color: var(--white-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 0 50px;
+            height: 100%;
+            text-align: center;
+        }
+
+        /* === MISE À JOUR DES CHAMPS DE FORMULAIRE === */
+        input, select {
+            background-color: var(--light-gray);
+            border: none;
+            padding: 12px 15px;
+            margin: 8px 0;
+            width: 100%;
+            border-radius: 5px;
+        }
+        input:focus, select:focus {
+            outline: 2px solid var(--accent-color);
+        }
+
+        /* === NOUVEAU STYLE POUR LE LOGO === */
+        .form-logo {
+            width: 100px; /* Ajustez la taille si besoin */
+            height: auto;
+            margin-bottom: 20px;
+        }
+
+        .container {
+            background-color: var(--white-color);
+            border-radius: 10px;
+            box-shadow: 0 14px 28px rgba(0,0,0,0.25), 
+                        0 10px 10px rgba(0,0,0,0.22);
+            position: relative;
+            overflow: hidden;
+            width: 768px;
+            max-width: 100%;
+            min-height: 480px;
+        }
+
+        .form-container {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            transition: all 0.6s ease-in-out;
+        }
+        
+        /* Personnalisation pour formulaires Symfony */
+        .form-container form > div { width: 100%; }
+        .form-container label { display: none; }
+
+        .sign-in-container {
+            left: 0;
+            width: 50%;
+            z-index: 2;
+        }
+
+        .sign-up-container {
+            left: 0;
+            width: 50%;
+            opacity: 0;
+            z-index: 1;
+        }
+
+        .overlay-container {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 50%;
+            height: 100%;
+            overflow: hidden;
+            transition: transform 0.6s ease-in-out;
+            z-index: 100;
+        }
+
+        /* === MISE À JOUR DE L'OVERLAY AVEC LE THÈME DU LOGO === */
+        .overlay {
+            background: var(--accent-color);
+            background: linear-gradient(to right, var(--accent-color), var(--primary-color));
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-position: 0 0;
+            color: var(--white-color);
+            position: relative;
+            left: -100%;
+            height: 100%;
+            width: 200%;
+            transform: translateX(0);
+            transition: transform 0.6s ease-in-out;
+        }
+        .overlay h1 {
+            color: var(--white-color); /* Titres en blanc sur l'overlay */
+        }
+
+        .overlay-panel {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 0 40px;
+            text-align: center;
+            top: 0;
+            height: 100%;
+            width: 50%;
+            transform: translateX(0);
+            transition: transform 0.6s ease-in-out;
+        }
+
+        .overlay-left { transform: translateX(-20%); }
+        .overlay-right { right: 0; transform: translateX(0); }
+
+        /* === ANIMATIONS DE TRANSITION === */
+        .container.right-panel-active .sign-in-container { transform: translateX(100%); }
+        .container.right-panel-active .sign-up-container {
+            transform: translateX(100%);
+            opacity: 1;
+            z-index: 5;
+            animation: show 0.6s;
+        }
+        .container.right-panel-active .overlay-container{ transform: translateX(-100%); }
+        .container.right-panel-active .overlay { transform: translateX(50%); }
+        .container.right-panel-active .overlay-left { transform: translateX(0); }
+        .container.right-panel-active .overlay-right { transform: translateX(20%); }
+
+        @keyframes show {
+            0%, 49.99% { opacity: 0; z-index: 1; }
+            50%, 100% { opacity: 1; z-index: 5; }
+        }
+
+        /* === STYLES POUR LES MESSAGES FLASH === */
+        #flash-messages-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: auto;
+        }
+        .alert {
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: var(--white-color);
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            min-width: 300px;
+        }
+        .alert-success { background-color: #28a745; }
+        .alert-danger { background-color: #dc3545; }
+        .alert-warning { background-color: #ffc107; color: #333;}
+        .alert-info { background-color: #17a2b8; }
+        .alert-close {
+            background: none; border: none; color: inherit;
+            font-size: 16px; margin-left: auto; padding-left: 20px;
+            cursor: pointer; opacity: 0.7;
+        }
+        .alert-close:hover { opacity: 1; }
+        @keyframes slideOutToTop {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-20px); }
+        }
+    </style>
 </head>
 <body>
+
     <div id="flash-messages-container">
         {% for label, messages in app.flashes %}
             {% for message in messages %}
-                <div class="alert alert-{{ label }} alert-center flash-overlay" data-auto-dismiss="6000">
+                <div class="alert alert-{{ label }}" data-auto-dismiss="6000">
                     {{ message }}
                     <button type="button" class="alert-close" onclick="closeAlert(this)" aria-label="Fermer">
                         <i class="fas fa-times"></i>
@@ -20,29 +269,35 @@
             {% endfor %}
         {% endfor %}
     </div>
-    {# AJOUT DE LA CLASSE CONDITIONNELLE #}
+    
     <div class="container {% if show_signup_panel is defined and show_signup_panel %}right-panel-active{% endif %}" id="container">
-        {# FORMULAIRE DE DEMANDE DE COMPTE #}
+        
+        <!-- FORMULAIRE DE DEMANDE DE COMPTE -->
         <div class="form-container sign-up-container">
-            {{ form_start(registrationForm, {'action': path('app_register')}) }}
+            {{ form_start(registrationForm, {'action': path('app_register'), 'attr': {'novalidate': 'novalidate'}}) }}
+                <!-- LOGO AJOUTÉ ICI -->
+                <img src="{{ asset('utils/logo/forever-removebg-preview.png') }}" alt="Logo Forever" class="form-logo">
+                
                 <h1>Demande de compte</h1>
                 <br>
-                {{ form_row(registrationForm.username) }}
-                {{ form_row(registrationForm.password) }}
-                {{ form_row(registrationForm.roleDemander) }}
-
+                {{ form_row(registrationForm.username, { 'attr': {'placeholder': 'Nom d\'utilisateur'} }) }}
+                {{ form_row(registrationForm.password, { 'attr': {'placeholder': 'Mot de passe'} }) }}
+                {{ form_row(registrationForm.roleDemander, { 'attr': {'placeholder': 'Rôle demandé'} }) }}
+                <br>
                 <button type="submit">Envoyer la demande</button>
             {{ form_end(registrationForm) }}
         </div>
 
-        {# FORMULAIRE DE CONNEXION #}
+        <!-- FORMULAIRE DE CONNEXION -->
         <div class="form-container sign-in-container">
             <form method="post" action="{{ path('app_login') }}">
+                <img src="{{ asset('utils/logo/forever-removebg-preview.png') }}" alt="Logo Forever" class="form-logo">
+
                 <h1>Connexion</h1>
                 
                 {% if error %}
-                    <div class="alert alert-danger alert-center">
-                        <i class="fas fa-exclamation-circle"></i>
+                    <div class="alert alert-danger" style="width: 100%; margin: 15px 0; color: var(--white-color);">
+                        <i class="fas fa-exclamation-circle" style="margin-right: 8px;"></i>
                         {{ error.messageKey|trans(error.messageData, 'security') }}
                     </div>
                 {% endif %}
@@ -56,7 +311,7 @@
             </form>
         </div>
 
-        {# BOUTONS POUR CHANGER DE FORMULAIRE (overlay animé) #}
+        <!-- PANNEAU SUPERPOSÉ (OVERLAY) -->
         <div class="overlay-container">
             <div class="overlay">
                 <div class="overlay-panel overlay-left">
@@ -73,59 +328,51 @@
         </div>
     </div>
 
-    <script src="{{ asset('utils/js/scripts.js') }}"></script>
     <script>
-        // Script pour gérer la fermeture et l'auto-disparition des alertes
-        function closeAlert(button) {
-            const alert = button.parentNode;
-            alert.style.animation = 'slideOutToTop 0.5s ease-in';
-            setTimeout(() => {
-                alert.remove();
-            }, 500);
+        // --- Script pour le switch entre les panneaux ---
+        const signUpButton = document.getElementById('signUp');
+        const signInButton = document.getElementById('signIn');
+        const container = document.getElementById('container');
+
+        if(signUpButton) {
+            signUpButton.addEventListener('click', () => container.classList.add("right-panel-active"));
         }
 
-        // Auto-disparition des messages après 6 secondes
+        if(signInButton) {
+            signInButton.addEventListener('click', () => container.classList.remove("right-panel-active"));
+        }
+
+        // --- Script pour gérer la fermeture et l'auto-disparition des alertes ---
+        function closeAlert(button) {
+            const alert = button.closest('.alert');
+            if (alert) {
+                alert.style.animation = 'slideOutToTop 0.5s ease-out forwards';
+                setTimeout(() => alert.remove(), 500);
+            }
+        }
+        
         document.addEventListener('DOMContentLoaded', function() {
-            const alerts = document.querySelectorAll('[data-auto-dismiss]');
-            alerts.forEach(alert => {
-                const dismissTime = parseInt(alert.getAttribute('data-auto-dismiss'));
-                if (dismissTime > 0) {
+            // Auto-disparition des messages flash
+            document.querySelectorAll('[data-auto-dismiss]').forEach(alert => {
+                const dismissTime = parseInt(alert.getAttribute('data-auto-dismiss'), 10);
+                if (!isNaN(dismissTime) && dismissTime > 0) {
                     setTimeout(() => {
-                        if (alert.parentNode) {
-                            alert.style.animation = 'slideOutToTop 0.5s ease-in';
-                            setTimeout(() => {
-                                alert.remove();
-                            }, 500);
-                        }
+                        const closeButton = alert.querySelector('.alert-close');
+                        if (closeButton) closeAlert(closeButton);
                     }, dismissTime);
                 }
             });
-        });
 
-        // IMPORTANT: Force l'affichage du panneau d'inscription si il y a des messages flash
-        document.addEventListener('DOMContentLoaded', function() {
-            const container = document.getElementById('container');
-            const hasFlashMessages = document.querySelectorAll('.alert').length > 0;
+            // Gérer l'affichage du panneau d'inscription en cas d'erreur de formulaire
+            const registrationForm = document.querySelector('.sign-up-container form');
+            const hasRegistrationErrors = registrationForm && registrationForm.querySelectorAll('.is-invalid, .form-error-message').length > 0;
+            const hasRegistrationFlash = {{ app.flashes('success') is not empty or app.flashes('error') is not empty ? 'true' : 'false' }};
             
-            // Si il y a des messages flash, afficher le panneau d'inscription
-            if (hasFlashMessages) {
-                container.classList.add('right-panel-active');
+            if (hasRegistrationErrors || (hasRegistrationFlash && '{{ app.request.attributes.get("_route") }}' === 'app_register')) {
+                 container.classList.add('right-panel-active');
             }
         });
     </script>
 
-    <style>
-        /* Animation de sortie pour les alertes */
-        @keyframes slideOutToTop {
-            0% {
-                opacity: 1;
-                transform: translateY(0);
-            }
-            100% {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-        }
-    </style>
 </body>
 </html>
