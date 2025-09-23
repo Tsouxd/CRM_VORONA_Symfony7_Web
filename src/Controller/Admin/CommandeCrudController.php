@@ -460,6 +460,18 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         yield BooleanField::new('paoModif2Ok', 'Modif 2 Faite')->setFormTypeOption('disabled', true);
         yield BooleanField::new('paoModif3Ok', 'Modif 3 Faite')->setFormTypeOption('disabled', true);
 
+        yield ChoiceField::new('paoBatValidation', 'Statut PAO')
+            ->setChoices([
+                'En attente de validation' => Commande::BAT_EN_ATTENTE,
+                'Modification à faire' => Commande::BAT_MODIFICATION,
+                'Valider pour la production' => Commande::BAT_PRODUCTION,
+            ])
+            ->renderAsBadges([
+                Commande::BAT_EN_ATTENTE => 'secondary',
+                Commande::BAT_MODIFICATION => 'danger',
+                Commande::BAT_PRODUCTION => 'success',
+            ]);
+            
         // Champ de SAISIE pour la PROCHAINE modification
         yield TextareaField::new('paoMotifModification', 'Motif de la modification à faire')
             ->setHelp('À remplir OBLIGATOIREMENT si vous demandez une modification.')
@@ -488,18 +500,6 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             })  
             ->hideOnForm()
             ->renderAsHtml();
-            
-        yield ChoiceField::new('paoBatValidation', 'Statut PAO')
-            ->setChoices([
-                'En attente de validation' => Commande::BAT_EN_ATTENTE,
-                'Modification à faire' => Commande::BAT_MODIFICATION,
-                'Valider pour la production' => Commande::BAT_PRODUCTION,
-            ])
-            ->renderAsBadges([
-                Commande::BAT_EN_ATTENTE => 'secondary',
-                Commande::BAT_MODIFICATION => 'danger',
-                Commande::BAT_PRODUCTION => 'success',
-            ]);
 
         // Script pour afficher/cacher le champ motif
         yield FormField::addPanel('')->setHelp(<<<HTML
