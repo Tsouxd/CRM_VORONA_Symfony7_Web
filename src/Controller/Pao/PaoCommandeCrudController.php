@@ -40,18 +40,61 @@ class PaoCommandeCrudController extends AbstractCrudController
         // Panneau 2: Travail du PAO
         yield FormField::addPanel('Suivi de Production PAO')->collapsible();
         yield BooleanField::new('paoFichierOk', 'Fichier Source OK ?')
-            ->setFormTypeOption('mapped', true)
             ->setFormTypeOption('required', false)
-            ->setFormTypeOption('attr', ['data-ea-ajax' => 'false']);
+            ->setFormTypeOption('mapped', true)
+            ->setFormTypeOption('attr', ['data-ea-ajax' => 'false'])
+            ->onlyOnForms(); // dans les formulaires, il est modifiable
+
+        yield BooleanField::new('paoFichierOk', 'Fichier Source OK ?')
+            ->setFormTypeOption('disabled', true) // affichage désactivé
+            ->onlyOnIndex(); // uniquement dans l’index
 
         yield BooleanField::new('paoBatOk', 'BAT Préparé ?')
-            ->setFormTypeOption('mapped', true)
             ->setFormTypeOption('required', false)
-            ->setFormTypeOption('attr', ['data-ea-ajax' => 'false']);
-        
-        // Panneau 3: Validation (le PAO voit et peut resoumettre)
+            ->setFormTypeOption('mapped', true)
+            ->setFormTypeOption('attr', ['data-ea-ajax' => 'false'])
+            ->onlyOnForms();
+
+        yield BooleanField::new('paoBatOk', 'BAT Préparé ?')
+            ->setFormTypeOption('disabled', true)
+            ->onlyOnIndex();
+
+        // Panneau: Suivi des modifications
+        yield FormField::addPanel('Suivi des Modifications Effectuées')->collapsible()
+            ->setHelp('Cochez la case correspondante UNIQUEMENT après avoir effectué la modification. Le statut sera mis à jour automatiquement.');
+        yield BooleanField::new('paoModif1Ok', 'Modification n°1 Faite')->hideOnIndex();
+        yield BooleanField::new('paoModif2Ok', 'Modification n°2 Faite')->hideOnIndex();
+        yield BooleanField::new('paoModif3Ok', 'Modification n°3 Faite')->hideOnIndex();
+
+        yield BooleanField::new('paoModif1Ok', 'Modification n°1 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoModif2Ok', 'Modification n°2 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoModif3Ok', 'Modification n°3 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
+
+        yield TextareaField::new('paoMotifModification', 'Motif de modification à traiter')
+            ->setFormTypeOption('disabled', true);
+
+        // Affiche l'historique
+        yield TextareaField::new('paoMotifM1', 'Historique Motif 1')->setFormTypeOption('disabled', true);
+        yield TextareaField::new('paoMotifM2', 'Historique Motif 2')->setFormTypeOption('disabled', true);
+        yield TextareaField::new('paoMotifM3', 'Historique Motif 3')->setFormTypeOption('disabled', true);
+
+        // Panneau: Validation (le PAO voit et peut resoumettre)
         yield FormField::addPanel('Cycle de Validation')->collapsible();
         
+        yield ChoiceField::new('statutPao', 'Statut PAO')
+            ->setFormTypeOption('disabled', true)
+            ->setChoices([
+                'En attente' => Commande::STATUT_PAO_ATTENTE,
+                'En cours' => Commande::STATUT_PAO_EN_COURS,
+                'Fait (BAT Validé)' => Commande::STATUT_PAO_FAIT,
+                'Modification requise' => Commande::STATUT_PAO_MODIFICATION,
+            ])
+            ->renderAsBadges([
+                Commande::STATUT_PAO_ATTENTE => 'secondary',
+                Commande::STATUT_PAO_EN_COURS => 'primary',
+                Commande::STATUT_PAO_FAIT => 'success',
+                Commande::STATUT_PAO_MODIFICATION => 'danger',
+            ]);
         yield ChoiceField::new('paoBatValidation', 'Statut du BAT')
             ->setChoices([
                 'En attente de validation' => Commande::BAT_EN_ATTENTE,
@@ -66,46 +109,5 @@ class PaoCommandeCrudController extends AbstractCrudController
             // Le PAO n'a plus à le faire manuellement, on désactive le champ.
             ->setFormTypeOption('disabled', true)
             ->setHelp("Ce statut se mettra à jour automatiquement lorsque vous cocherez une case 'Modif Faite'.");
-        
-            yield ChoiceField::new('statutPao', 'Statut PAO')
-            ->setChoices([
-                'En attente' => Commande::STATUT_PAO_ATTENTE,
-                'En cours' => Commande::STATUT_PAO_EN_COURS,
-                'Fait (BAT Validé)' => Commande::STATUT_PAO_FAIT,
-                'Modification requise' => Commande::STATUT_PAO_MODIFICATION,
-            ])
-            ->renderAsBadges([
-                Commande::STATUT_PAO_ATTENTE => 'secondary',
-                Commande::STATUT_PAO_EN_COURS => 'primary',
-                Commande::STATUT_PAO_FAIT => 'success',
-                Commande::STATUT_PAO_MODIFICATION => 'danger',
-            ]);
-
-        yield TextareaField::new('paoMotifModification', 'Motif de modification à traiter')
-            ->setFormTypeOption('disabled', true);
-
-        // Affiche l'historique
-        yield TextareaField::new('paoMotifM1', 'Historique Motif 1')->setFormTypeOption('disabled', true);
-        yield TextareaField::new('paoMotifM2', 'Historique Motif 2')->setFormTypeOption('disabled', true);
-        yield TextareaField::new('paoMotifM3', 'Historique Motif 3')->setFormTypeOption('disabled', true);
-        
-        // Panneau 4: Suivi des modifications
-        yield FormField::addPanel('Suivi des Modifications Effectuées')->collapsible()
-            ->setHelp('Cochez la case correspondante UNIQUEMENT après avoir effectué la modification. Le statut sera mis à jour automatiquement.');
-        
-        yield BooleanField::new('paoModif1Ok', 'Modification n°1 Faite')
-            ->hideOnIndex()
-            ->setFormTypeOption('attr', ['data-ea-ajax' => 'false']);
-
-        yield BooleanField::new('paoModif2Ok', 'Modification n°2 Faite')
-            ->hideOnIndex()
-            ->setFormTypeOption('attr', ['data-ea-ajax' => 'false']);
-
-        yield BooleanField::new('paoModif3Ok', 'Modification n°3 Faite')
-            ->hideOnIndex()
-            ->setFormTypeOption('attr', ['data-ea-ajax' => 'false']);
-
-        // Panneau 5: Statut Global
-        yield FormField::addPanel('Statut Global')->collapsible();
     }
 }

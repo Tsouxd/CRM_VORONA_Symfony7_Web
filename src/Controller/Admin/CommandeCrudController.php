@@ -454,17 +454,11 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         // Le commercial voit le travail du PAO en lecture seule
         yield BooleanField::new('paoFichierOk', 'Fichier OK ?')->setFormTypeOption('disabled', true);
         yield BooleanField::new('paoBatOk', 'BAT Prêt ?')->setFormTypeOption('disabled', true);
-        yield ChoiceField::new('paoBatValidation', 'Statut PAO')
-            ->setChoices([
-                'En attente de validation' => Commande::BAT_EN_ATTENTE,
-                'Modification à faire' => Commande::BAT_MODIFICATION,
-                'Valider pour la production' => Commande::BAT_PRODUCTION,
-            ])
-            ->renderAsBadges([
-                Commande::BAT_EN_ATTENTE => 'secondary',
-                Commande::BAT_MODIFICATION => 'danger',
-                Commande::BAT_PRODUCTION => 'success',
-            ]);
+
+        // Suivi des cases cochées par le PAO
+        yield BooleanField::new('paoModif1Ok', 'Modif 1 Faite')->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoModif2Ok', 'Modif 2 Faite')->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoModif3Ok', 'Modif 3 Faite')->setFormTypeOption('disabled', true);
 
         // Champ de SAISIE pour la PROCHAINE modification
         yield TextareaField::new('paoMotifModification', 'Motif de la modification à faire')
@@ -476,10 +470,36 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         yield TextareaField::new('paoMotifM2', 'Motif Modif. 2')->setFormTypeOption('disabled', true);
         yield TextareaField::new('paoMotifM3', 'Motif Modif. 3')->setFormTypeOption('disabled', true);
 
-        // Suivi des cases cochées par le PAO
-        yield BooleanField::new('paoModif1Ok', 'Modif 1 Faite')->setFormTypeOption('disabled', true);
-        yield BooleanField::new('paoModif2Ok', 'Modif 2 Faite')->setFormTypeOption('disabled', true);
-        yield BooleanField::new('paoModif3Ok', 'Modif 3 Faite')->setFormTypeOption('disabled', true);
+        // Upload (formulaire)
+        yield TextField::new('pieceJointeFile')
+            ->setFormType(VichFileType::class)
+            ->onlyOnForms();
+
+        // Affichage (index/detail) → lien cliquable
+        yield TextField::new('pieceJointe')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/pieces/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })  
+            ->hideOnForm()
+            ->renderAsHtml();
+            
+        yield ChoiceField::new('paoBatValidation', 'Statut PAO')
+            ->setChoices([
+                'En attente de validation' => Commande::BAT_EN_ATTENTE,
+                'Modification à faire' => Commande::BAT_MODIFICATION,
+                'Valider pour la production' => Commande::BAT_PRODUCTION,
+            ])
+            ->renderAsBadges([
+                Commande::BAT_EN_ATTENTE => 'secondary',
+                Commande::BAT_MODIFICATION => 'danger',
+                Commande::BAT_PRODUCTION => 'success',
+            ]);
 
         // Script pour afficher/cacher le champ motif
         yield FormField::addPanel('')->setHelp(<<<HTML
@@ -561,25 +581,6 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         HTML
         )->onlyOnForms();
 
-        // Upload (formulaire)
-        yield TextField::new('pieceJointeFile')
-            ->setFormType(VichFileType::class)
-            ->onlyOnForms();
-
-        // Affichage (index/detail) → lien cliquable
-        yield TextField::new('pieceJointe')
-            ->formatValue(function ($value, $entity) {
-                if (!$value) {
-                    return null;
-                }
-                return sprintf(
-                    '<a href="/uploads/pieces/%s" target="_blank">📂 Voir le fichier</a>',
-                    $value
-                );
-            })  
-            ->hideOnForm()
-            ->renderAsHtml();
-            
         // Assurez-vous d'avoir les nouveaux statuts danDes le ChoiceField
         yield ChoiceField::new('statut')
             ->setChoices([
