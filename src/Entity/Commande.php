@@ -23,7 +23,16 @@ class Commande
     public const BAT_MODIFICATION = 'Modification demandée';
     public const BAT_PRODUCTION = 'Validé pour production';
 
+    public const STATUT_PRODUCTION_ATTENTE = 'En attente';
+    public const STATUT_PRODUCTION_EN_COURS = 'En cours de production';
+    public const STATUT_PRODUCTION_POUR_LIVRAISON = 'Prêt pour livraison';
+
     public const PRIORITES = ['urgent', 'normal', 'faible'];
+
+    public const STATUT_LIVRAISON_ATTENTE = 'Prêt pour livraison';
+    public const STATUT_LIVRAISON_LIVREE = 'Livrée';
+    public const STATUT_LIVRAISON_RETOUR = 'Retournée';
+    public const STATUT_LIVRAISON_ANNULEE = 'Annulée';
 
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     private ?int $id = null;
@@ -113,6 +122,21 @@ class Commande
 
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $paoMotifM3 = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $statutProduction = self::STATUT_PRODUCTION_ATTENTE; // Statut par défaut
+
+    #[ORM\Column(type: 'boolean')]
+    private bool $productionTermineeOk = false; // La case à cocher par la production
+
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $nomLivreur = null;
+
+    #[ORM\Column(length: 50, nullable: true)]
+    private ?string $statutLivraison = self::STATUT_LIVRAISON_ATTENTE;
+
+    #[ORM\Column(type: "datetime", nullable: true)]
+    private ?\DateTimeInterface $dateDeLivraison = null;
 
     public function __construct()
     {
@@ -317,6 +341,30 @@ class Commande
 
     public function getPaoMotifM3(): ?string { return $this->paoMotifM3; }
     public function setPaoMotifM3(?string $paoMotifM3): self { $this->paoMotifM3 = $paoMotifM3; return $this; }
+
+    public function getStatutProduction(): ?string { return $this->statutProduction; }
+    public function setStatutProduction(?string $statutProduction): self { $this->statutProduction = $statutProduction; return $this; }
+
+    public function isProductionTermineeOk(): bool { return $this->productionTermineeOk; }
+    public function setProductionTermineeOk(bool $productionTermineeOk): self { $this->productionTermineeOk = $productionTermineeOk; return $this; }
+
+    public function getNomLivreur(): ?string { return $this->nomLivreur; }
+    public function setNomLivreur(?string $nomLivreur): self { $this->nomLivreur = $nomLivreur; return $this; }
+
+    public function getStatutLivraison(): ?string { return $this->statutLivraison; }
+    public function setStatutLivraison(?string $statutLivraison): self { $this->statutLivraison = $statutLivraison; return $this; }
+
+    public function getDateDeLivraison(): ?\DateTimeInterface
+    {
+        return $this->dateDeLivraison;
+    }
+
+    public function setDateDeLivraison(?\DateTimeInterface $dateDeLivraison): static
+    {
+        $this->dateDeLivraison = $dateDeLivraison;
+
+        return $this;
+    }
 
     public function __toString(): string
     {

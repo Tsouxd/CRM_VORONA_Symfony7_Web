@@ -77,6 +77,10 @@ class PaoWorkflowSubscriber implements EventSubscriberInterface
         if ($entity->getPaoBatValidation() === Commande::BAT_PRODUCTION) {
             $entity->setStatutPao(Commande::STATUT_PAO_FAIT);
             $entity->setPaoMotifModification(null);
+            
+            // === NOUVELLE LOGIQUE D'AUTOMATISATION ===
+            // Si le BAT est validé, on lance la production !
+            $entity->setStatutProduction(Commande::STATUT_PRODUCTION_EN_COURS);
         }
     }
 }

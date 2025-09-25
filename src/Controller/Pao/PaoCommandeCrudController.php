@@ -109,5 +109,19 @@ class PaoCommandeCrudController extends AbstractCrudController
             // Le PAO n'a plus à le faire manuellement, on désactive le champ.
             ->setFormTypeOption('disabled', true)
             ->setHelp("Ce statut se mettra à jour automatiquement lorsque vous cocherez une case 'Modif Faite'.");
+
+        yield FormField::addPanel('Suivi de Production')->collapsible();
+        yield ChoiceField::new('statutProduction', 'Statut de la Production')
+            ->setChoices([ // Il faut lister tous les choix pour qu'EasyAdmin sache comment l'afficher
+                'En attente' => Commande::STATUT_PRODUCTION_ATTENTE,
+                'En cours de production' => Commande::STATUT_PRODUCTION_EN_COURS,
+                'Prêt pour livraison' => Commande::STATUT_PRODUCTION_POUR_LIVRAISON,
+            ])
+            ->setFormTypeOption('disabled', true) // Lecture seule
+            ->renderAsBadges([
+                Commande::STATUT_PRODUCTION_ATTENTE => 'secondary',
+                Commande::STATUT_PRODUCTION_EN_COURS => 'primary',
+                Commande::STATUT_PRODUCTION_POUR_LIVRAISON => 'success',
+            ]);
     }
 }
