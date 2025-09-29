@@ -8,6 +8,7 @@ use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\MoneyType;
+use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -17,35 +18,24 @@ class DevisLigneType extends AbstractType
     public function buildForm(FormBuilderInterface $builder, array $options)
     {
         $builder
-            ->add('produit', EntityType::class, [
-                'class' => Produit::class,
-                'choice_label' => 'nom',
-                'placeholder' => 'Choisissez un produit',
-                'attr' => ['class' => 'devis-produit-select'],
-                'choice_attr' => function(?Produit $produit) {
-                    return $produit ? ['data-prix' => $produit->getPrix()] : [];
-                },
+            // On remplace le champ 'produit' (EntityType) par un champ texte
+            ->add('descriptionProduit', TextType::class, [
+                'label' => 'Produit / Service',
             ])
             ->add('quantite', IntegerType::class, [
-                'attr' => ['min' => 1, 'class' => 'devis-quantite']
+                'attr' => ['class' => 'devis-quantite', 'min' => 1], // On ajoute la classe pour le JS
             ])
             ->add('prixUnitaire', MoneyType::class, [
-                'label' => 'Prix Unitaire',
                 'currency' => 'MGA',
                 'divisor' => 1,
-                'mapped' => false,
                 'scale' => 0,
-                'disabled' => true,
-                'attr' => ['class' => 'devis-prix-unitaire'],
+                'attr' => ['class' => 'devis-prix-unitaire'], // On ajoute la classe pour le JS
             ])
-            ->add('total', MoneyType::class, [
-                'label' => 'Total',
+            ->add('prixTotal', MoneyType::class, [
                 'currency' => 'MGA',
                 'divisor' => 1,
-                'mapped' => false,
                 'scale' => 0,
-                'disabled' => true,
-                'attr' => ['class' => 'devis-total'],
+                'attr' => ['class' => 'devis-prix-total', 'readonly' => true], // Total non modifiable
             ]);
     }
 

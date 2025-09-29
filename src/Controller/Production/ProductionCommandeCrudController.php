@@ -96,7 +96,14 @@ class ProductionCommandeCrudController extends AbstractCrudController
             
         yield BooleanField::new('productionTermineeOk', 'Marquer comme "Production Terminée"')
             ->setHelp('Cochez cette case lorsque la commande est entièrement produite et prête à être livrée. Le statut changera automatiquement.')
-            ->setFormTypeOption('attr', ['class' => 'autosubmit-checkbox']);
+            ->setFormTypeOption('attr', ['class' => 'autosubmit-checkbox'])
+            ->onlyOnForms();
+
+        yield BooleanField::new('productionTermineeOk', 'Marquer comme "Production Terminée"')
+            ->setHelp('Cochez cette case lorsque la commande est entièrement produite et prête à être livrée. Le statut changera automatiquement.')
+            ->setFormTypeOption('attr', ['class' => 'autosubmit-checkbox'])
+            ->setFormTypeOption('disabled', true) // AUTOMATIQUE
+            ->onlyOnIndex();
 
         // Le script JS pour l'auto-soumission reste à la fin, c'est parfait
         yield FormField::addPanel('')->setHelp(<<<HTML

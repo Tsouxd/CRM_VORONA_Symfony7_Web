@@ -9,9 +9,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use App\Controller\Admin\CommandeCrudController;
+use App\Controller\Admin\FactureCrudController;
+use App\Controller\Admin\DevisCrudController;
 use App\Entity\User;
 use App\Entity\Client;
 use App\Entity\Produit;
+use App\Entity\Facture;
+use App\Entity\Devis;
 use App\Entity\Commande;
 use App\Entity\Fournisseur;
 use App\Entity\CommandeProduit;
@@ -48,6 +52,10 @@ final class CommercialDashboardController extends AbstractDashboardController
         yield MenuItem::linkToCrud('Produits', 'fas fa-box', Produit::class);
         yield MenuItem::linkToCrud('Commandes', 'fas fa-shopping-cart', Commande::class)
             ->setController(CommandeCrudController::class); 
+        yield MenuItem::linkToCrud('Devis', 'fas fa-file-pdf', Devis::class)
+            ->setController(DevisCrudController::class); 
+        yield MenuItem::linkToCrud('Factures', 'fas fa-file-invoice', Facture::class)
+            ->setController(FactureCrudController::class); 
         /*  
         'fas fa-users' : Icône des utilisateurs.
         'fas fa-cogs' : Icône d'engrenages ou de réglages.

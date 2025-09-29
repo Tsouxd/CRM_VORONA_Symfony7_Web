@@ -34,6 +34,9 @@ class Commande
     public const STATUT_LIVRAISON_RETOUR = 'Retournée';
     public const STATUT_LIVRAISON_ANNULEE = 'Annulée';
 
+    public const STATUT_DEVIS_VALIDEE = 'Validée';
+    public const STATUT_DEVIS_NON_VALIDEE = 'Non validée';
+
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     private ?int $id = null;
 
@@ -137,6 +140,12 @@ class Commande
 
     #[ORM\Column(type: "datetime", nullable: true)]
     private ?\DateTimeInterface $dateDeLivraison = null;
+
+    #[ORM\Column(type: "string", length: 50, nullable: true)]
+    private ?string $statutDevis = null;
+
+    #[ORM\OneToOne(inversedBy: 'commandeGeneree', cascade: ['persist', 'remove'])]
+    private ?Devis $devisOrigine = null;
 
     public function __construct()
     {
@@ -362,6 +371,31 @@ class Commande
     public function setDateDeLivraison(?\DateTimeInterface $dateDeLivraison): static
     {
         $this->dateDeLivraison = $dateDeLivraison;
+
+        return $this;
+    }
+
+    public function getStatutDevis(): ?string
+    {
+        return $this->statutDevis;
+    }
+
+    public function setStatutDevis(string $statutDevis): self
+    {
+        $this->statutDevis = $statutDevis;
+        return $this;
+    }
+
+    // Getter
+    public function getDevisOrigine(): ?Devis
+    {
+        return $this->devisOrigine;
+    }
+
+    // Setter
+    public function setDevisOrigine(?Devis $devisOrigine): self
+    {
+        $this->devisOrigine = $devisOrigine;
 
         return $this;
     }

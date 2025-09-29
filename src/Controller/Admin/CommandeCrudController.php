@@ -46,6 +46,10 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use Symfony\Bundle\SecurityBundle\Security;
 
+use App\Entity\Devis;
+use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\QueryBuilder;
+
 class CommandeCrudController extends AbstractCrudController implements EventSubscriberInterface
 {
     private $requestStack;
@@ -134,6 +138,12 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         $commande = $event->getEntityInstance();
         if (!$commande instanceof Commande) {
             return;
+        }
+
+        if ($commande->getDevisOrigine() !== null) {
+            $commande->setStatutDevis(Commande::STATUT_DEVIS_VALIDEE);
+        } else {
+            $commande->setStatutDevis(Commande::STATUT_DEVIS_NON_VALIDEE);
         }
 
         $em  = $this->entityManager;
@@ -288,6 +298,13 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         if (!$commande instanceof Commande) return;
 
         $entity = $event->getEntityInstance();
+
+        // Si un devis est sélectionné, statutDevis = Validée
+        if ($commande->getDevisOrigine() !== null) {
+            $commande->setStatutDevis(Commande::STATUT_DEVIS_VALIDEE);
+        } else {
+            $commande->setStatutDevis(Commande::STATUT_DEVIS_NON_VALIDEE);
+        }
         
         if (!$entity instanceof Commande) {
             return;
@@ -653,6 +670,26 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 Commande::STATUT_PRODUCTION_ATTENTE => 'secondary',
                 Commande::STATUT_PRODUCTION_EN_COURS => 'primary',
                 Commande::STATUT_PRODUCTION_POUR_LIVRAISON => 'success',
+            ]);
+
+        yield AssociationField::new('devisOrigine', 'Devis (BAT/Production)')
+            ->setFormTypeOption('required', false)
+            ->setFormTypeOption('placeholder', 'Sélectionnez un devis BAT/Production')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                return $qb->andWhere('entity.statut = :statut')
+                        ->setParameter('statut', Devis::STATUT_BAT_PRODUCTION);
+            });
+
+        yield ChoiceField::new('statutDevis', 'Statut Devis')
+            ->setChoices([
+                'Validée' => Commande::STATUT_DEVIS_VALIDEE,
+                'Non validée' => Commande::STATUT_DEVIS_NON_VALIDEE,
+            ])
+            ->setDisabled(true)
+            ->hideOnForm()
+            ->renderAsBadges([
+                Commande::STATUT_DEVIS_NON_VALIDEE => 'danger',
+                Commande::STATUT_DEVIS_VALIDEE => 'success',
             ]);
 
         // ✅ Injection du JS directement dans EasyAdmin via un champ invisible

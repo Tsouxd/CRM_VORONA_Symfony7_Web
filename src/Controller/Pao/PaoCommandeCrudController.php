@@ -62,13 +62,13 @@ class PaoCommandeCrudController extends AbstractCrudController
         // Panneau: Suivi des modifications
         yield FormField::addPanel('Suivi des Modifications Effectuées')->collapsible()
             ->setHelp('Cochez la case correspondante UNIQUEMENT après avoir effectué la modification. Le statut sera mis à jour automatiquement.');
-        yield BooleanField::new('paoModif1Ok', 'Modification n°1 Faite')->hideOnIndex();
-        yield BooleanField::new('paoModif2Ok', 'Modification n°2 Faite')->hideOnIndex();
-        yield BooleanField::new('paoModif3Ok', 'Modification n°3 Faite')->hideOnIndex();
+        yield BooleanField::new('paoModif1Ok', 'M n°1 Faite')->hideOnIndex();
+        yield BooleanField::new('paoModif2Ok', 'M n°2 Faite')->hideOnIndex();
+        yield BooleanField::new('paoModif3Ok', 'M n°3 Faite')->hideOnIndex();
 
-        yield BooleanField::new('paoModif1Ok', 'Modification n°1 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
-        yield BooleanField::new('paoModif2Ok', 'Modification n°2 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
-        yield BooleanField::new('paoModif3Ok', 'Modification n°3 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoModif1Ok', 'M n°1 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoModif2Ok', 'M n°2 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
+        yield BooleanField::new('paoModif3Ok', 'M n°3 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
 
         yield TextareaField::new('paoMotifModification', 'Motif de modification à traiter')
             ->setFormTypeOption('disabled', true);
