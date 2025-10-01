@@ -385,6 +385,14 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->hideOnForm();
 
         yield AssociationField::new('pao', 'Responsable PAO')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                $alias = $qb->getRootAliases()[0];
+                return $qb
+                    ->andWhere(sprintf('%s.roles LIKE :role', $alias))
+                    ->setParameter('role', '%"ROLE_PAO"%')
+                    // On remplace 'email' par 'username' pour le tri
+                    ->orderBy(sprintf('%s.username', $alias), 'ASC');
+            })
             ->hideOnIndex();
 
         // SI on est sur la page de CRÉATION (new)

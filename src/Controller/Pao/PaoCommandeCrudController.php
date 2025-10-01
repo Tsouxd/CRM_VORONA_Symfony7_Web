@@ -11,6 +11,11 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
+use Doctrine\ORM\QueryBuilder;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 
 class PaoCommandeCrudController extends AbstractCrudController
 {
@@ -28,6 +33,30 @@ class PaoCommandeCrudController extends AbstractCrudController
         return $actions
             ->disable(Action::NEW, Action::DELETE)
             ->add(Crud::PAGE_INDEX, Action::DETAIL);
+    }
+
+    // === C'EST LA MÉTHODE LA PLUS IMPORTANTE ===
+    /**
+     * Cette méthode est appelée par EasyAdmin pour construire la requête
+     * qui récupère les éléments à afficher dans la page 'index' (la liste).
+     * On va la surcharger pour y ajouter notre filtre de sécurité.
+     */
+    public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
+    {
+        // 1. On récupère le QueryBuilder par défaut d'EasyAdmin
+        $qb = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
+
+        // 2. On récupère l'utilisateur actuellement connecté
+        $user = $this->getUser();
+
+        // 3. On ajoute notre condition : ne montrer que les commandes
+        //    où le champ 'pao' est égal à l'utilisateur connecté.
+        // 'entity' est l'alias par défaut pour la table principale dans EasyAdmin.
+        $qb->andWhere('entity.pao = :currentUser')
+           ->setParameter('currentUser', $user);
+
+        // 4. On retourne le QueryBuilder modifié
+        return $qb;
     }
 
     public function configureFields(string $pageName): iterable

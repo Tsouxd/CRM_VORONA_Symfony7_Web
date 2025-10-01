@@ -48,10 +48,14 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private bool $isVerified = false;
 
+    #[ORM\OneToMany(mappedBy: 'pao', targetEntity: Commande::class)]
+    private Collection $commandesPao;
+
     public function __construct()
     {
         $this->notes = new ArrayCollection();
         $this->plannings = new ArrayCollection();
+        $this->commandesPao = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -145,6 +149,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
         return $this;
     }
+
+    /** @return Collection<int, Commande> */
+    public function getCommandesPao(): Collection { return $this->commandesPao; }
 
     public function __toString(): string
     {

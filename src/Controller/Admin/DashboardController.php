@@ -167,7 +167,6 @@ class DashboardController extends AbstractDashboardController
             ->setCssClass('text-warning')
             ->setPermission('ROLE_ADMIN');*/
         /* yield MenuItem::linkToCrud('Paiement', 'fas fa-briefcase', Paiement::class);*/   
-        yield MenuItem::linkToCrud('PAO', 'fa fa-pencil-ruler', Pao::class);
         yield MenuItem::linkToCrud('Devis', 'fas fa-file-pdf', Devis::class)
             ->setController(DevisCrudController::class);
         // ✅ Facture au-dessus de Devis

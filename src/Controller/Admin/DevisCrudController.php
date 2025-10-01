@@ -22,6 +22,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField; // <- NOUVEAU
 use EasyCorp\Bundle\EasyAdminBundle\Field\Field;       // <- NOUVEAU
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;     // <- NOUVEAU
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
+use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\QueryBuilder;
 
 class DevisCrudController extends AbstractCrudController
 {
@@ -76,8 +78,16 @@ class DevisCrudController extends AbstractCrudController
             ->setFormTypeOption('disabled', true)
             ->setFormTypeOption('attr', ['class' => 'autosubmit-checkbox']); // Pour l'auto-soumission
 
+        yield AssociationField::new('pao', 'PAO en charge')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                $alias = $qb->getRootAliases()[0];
+                return $qb
+                    ->andWhere(sprintf('%s.roles LIKE :role', $alias))
+                    ->setParameter('role', '%"ROLE_PAO"%')
+                    // === LA MÊME CORRECTION ICI ===
+                    ->orderBy(sprintf('%s.username', $alias), 'ASC');
+            });
 
-        yield AssociationField::new('pao', 'PAO en charge');
         yield TextField::new('modeDePaiement', 'Mode de paiement');
         yield ChoiceField::new('statut', 'Statut du devis')
             ->setChoices([
@@ -93,6 +103,22 @@ class DevisCrudController extends AbstractCrudController
                 Devis::STATUT_PERDU => 'danger',
             ]);
         
+        yield FormField::addPanel('Totalisation');
+
+        yield MoneyField::new('acompte', 'Acompte Versé')
+            ->setCurrency('MGA')
+            ->setNumDecimals(0)
+            ->setFormTypeOption('divisor', 1)
+            ->setHelp('Montant de l\'acompte déjà payé par le client.');
+
+        // === LE NOUVEAU CHAMP RESTE À PAYER ===
+        yield MoneyField::new('resteAPayer', 'Reste à Payer')
+            ->setCurrency('MGA')
+            ->setNumDecimals(0)
+            ->setFormTypeOption('divisor', 1)
+            ->setFormTypeOption('attr', ['readonly' => true]) // Non modifiable
+            ->hideOnIndex(); // Optionnel : ne pas l'afficher dans la liste
+
         // --- Total (calculé par JS) ---
         yield MoneyField::new('total', 'Total')
             ->setCurrency('MGA')
@@ -188,53 +214,90 @@ class DevisCrudController extends AbstractCrudController
                 </script>
             HTML);
 
-        // --- Script JavaScript pour les calculs automatiques ---
+        // --- Script JavaScript pour les calculs automatiques ET l'auto-soumission ---
         yield FormField::addPanel('')->setHelp(<<<HTML
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const container = document.querySelector('#Devis_lignes');
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // --- 1. On sélectionne tous les éléments du formulaire dont on a besoin ---
+                const linesContainer = document.querySelector('#Devis_lignes');
+                const acompteInput = document.querySelector('#Devis_acompte');
+                const grandTotalInput = document.querySelector('#Devis_total');
+                const resteAPayerInput = document.querySelector('#Devis_resteAPayer');
 
-                    function updateGrandTotal() {
-                        let grandTotal = 0;
-                        container.querySelectorAll('.devis-prix-total').forEach(totalInput => {
-                            grandTotal += parseFloat(totalInput.value) || 0;
-                        });
-                        document.querySelector('#Devis_total').value = grandTotal;
-                    }
+                // Sécurité : si un des éléments n'est pas trouvé, on arrête pour éviter des erreurs.
+                if (!linesContainer || !acompteInput || !grandTotalInput || !resteAPayerInput) {
+                    console.error('Un ou plusieurs champs (lignes, total, acompte, resteAPayer) sont manquants dans le DOM.');
+                    return;
+                }
 
-                    function updateLine(lineElement) {
-                        const quantiteInput = lineElement.querySelector('.devis-quantite');
-                        const prixUnitaireInput = lineElement.querySelector('.devis-prix-unitaire');
-                        const prixTotalInput = lineElement.querySelector('.devis-prix-total');
+                // --- 2. On définit nos fonctions de calcul ---
 
-                        const quantite = parseInt(quantiteInput.value) || 0;
-                        const prixUnitaire = parseFloat(prixUnitaireInput.value) || 0;
+                // Fonction A : Calcule le "Reste à payer" (Total - Acompte)
+                function updateFinalTotals() {
+                    const grandTotal = parseFloat(grandTotalInput.value) || 0;
+                    const acompte = parseFloat(acompteInput.value) || 0;
+                    resteAPayerInput.value = (grandTotal - acompte).toFixed(0);
+                }
 
-                        prixTotalInput.value = (quantite * prixUnitaire).toFixed(0);
-                        updateGrandTotal();
-                    }
-
-                    function attachListeners(lineElement) {
-                        lineElement.querySelector('.devis-quantite').addEventListener('input', () => updateLine(lineElement));
-                        lineElement.querySelector('.devis-prix-unitaire').addEventListener('input', () => updateLine(lineElement));
-                    }
+                // Fonction B : Calcule le "Total" en additionnant toutes les lignes
+                function updateGrandTotal() {
+                    let currentGrandTotal = 0;
+                    linesContainer.querySelectorAll('.devis-prix-total').forEach(lineTotalInput => {
+                        currentGrandTotal += parseFloat(lineTotalInput.value) || 0;
+                    });
+                    grandTotalInput.value = currentGrandTotal.toFixed(0);
                     
-                    // Pour les lignes existantes et les nouvelles
-                    container.addEventListener('ea.collection.item-added', (e) => attachListeners(e.detail.item));
-                    container.querySelectorAll('.form-widget-compound').forEach(attachListeners);
-                    
-                    // Pour la suppression
-                    container.addEventListener('ea.collection.item-removed', updateGrandTotal);
-                    
-                    updateGrandTotal(); // Calcul initial
+                    // TRES IMPORTANT : une fois le total calculé, on met à jour le reste à payer.
+                    updateFinalTotals();
+                }
 
-                    document.querySelectorAll('.autosubmit-checkbox input[type=checkbox]').forEach(checkbox => {
-                        checkbox.addEventListener('change', function() {
-                            this.closest('form').submit();
-                        });
+                // Fonction C : Calcule le total d'UNE seule ligne (Quantité * Prix Unitaire)
+                function updateLine(lineElement) {
+                    const quantiteInput = lineElement.querySelector('.devis-quantite');
+                    const prixUnitaireInput = lineElement.querySelector('.devis-prix-unitaire');
+                    const prixTotalInput = lineElement.querySelector('.devis-prix-total');
+
+                    const quantite = parseInt(quantiteInput.value) || 0;
+                    const prixUnitaire = parseFloat(prixUnitaireInput.value) || 0;
+
+                    prixTotalInput.value = (quantite * prixUnitaire).toFixed(0);
+                    
+                    // Chaque fois qu'une ligne change, on doit recalculer le grand total.
+                    updateGrandTotal();
+                }
+
+                // Fonction D : Attache les écouteurs d'événements à une ligne de devis
+                function attachLineListeners(lineElement) {
+                    lineElement.querySelector('.devis-quantite').addEventListener('input', () => updateLine(lineElement));
+                    lineElement.querySelector('.devis-prix-unitaire').addEventListener('input', () => updateLine(lineElement));
+                }
+
+                // --- 3. On connecte nos fonctions aux événements du formulaire ---
+
+                // Pour les lignes déjà présentes au chargement de la page
+                linesContainer.querySelectorAll('.form-widget-compound').forEach(attachLineListeners);
+                
+                // Pour les nouvelles lignes ajoutées via le bouton "Ajouter"
+                linesContainer.addEventListener('ea.collection.item-added', (e) => attachLineListeners(e.detail.item));
+                
+                // Pour les lignes supprimées, on recalcule le total
+                linesContainer.addEventListener('ea.collection.item-removed', updateGrandTotal);
+                
+                // Pour le champ "Acompte"
+                acompteInput.addEventListener('input', updateFinalTotals);
+
+                // Pour l'auto-soumission de la case "BAT OK ?"
+                document.querySelectorAll('.autosubmit-checkbox input[type=checkbox]').forEach(checkbox => {
+                    checkbox.addEventListener('change', function() {
+                        this.closest('form').submit();
                     });
                 });
-            </script>
+
+                // --- 4. On lance un calcul initial pour remplir les champs au chargement ---
+                updateGrandTotal();
+
+            });
+        </script>
         HTML)->setCssClass('d-none');
     }
 

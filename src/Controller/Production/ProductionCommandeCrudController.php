@@ -78,6 +78,11 @@ class ProductionCommandeCrudController extends AbstractCrudController
         /** @var Commande $commande */
         $commande = $context->getEntity()->getInstance();
         $isProductionFinished = ($commande && $commande->getStatutProduction() === Commande::STATUT_PRODUCTION_POUR_LIVRAISON);
+
+        yield TextField::new('lieuDeLivraison', 'Lieu de Livraison')
+            ->setFormTypeOption('disabled', !$isProductionFinished)
+            ->setHelp($isProductionFinished ? '' : 'Ce champ sera disponible une fois la production terminée.');
+
         yield TextField::new('nomLivreur', 'Nom du Livreur')
             //->setFormTypeOption('disabled', !$isProductionFinished)
             ->setHelp($isProductionFinished ? '' : 'Ce champ sera disponible une fois la production terminée.');
@@ -91,7 +96,12 @@ class ProductionCommandeCrudController extends AbstractCrudController
                 'Retournée' => Commande::STATUT_LIVRAISON_RETOUR,
                 'Annulée' => Commande::STATUT_LIVRAISON_ANNULEE,
             ])
-            ->renderAsBadges();
+            ->renderAsBadges([
+                Commande::STATUT_LIVRAISON_ATTENTE => 'primary',
+                Commande::STATUT_LIVRAISON_RETOUR => 'warning',
+                Commande::STATUT_LIVRAISON_LIVREE => 'success',
+                Commande::STATUT_LIVRAISON_ANNULEE => 'danger',
+            ]);
             //->setFormTypeOption('disabled', !$isProductionFinished);
             
         yield BooleanField::new('productionTermineeOk', 'Marquer comme "Production Terminée"')

@@ -5,6 +5,7 @@ use App\Repository\DevisRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use App\Entity\User; 
 
 #[ORM\Entity(repositoryClass: DevisRepository::class)]
 class Devis
@@ -35,8 +36,9 @@ class Devis
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $modeDePaiement = null;
 
-    #[ORM\ManyToOne(targetEntity: Pao::class, cascade: ["persist"])]
-    private ?Pao $pao = null;
+    #[ORM\ManyToOne(targetEntity: User::class)] // On pointe vers l'entité User
+    #[ORM\JoinColumn(nullable: true)] // On la rend nullable si un devis n'a pas de PAO
+    private ?User $pao = null; // Le nom de la propriété peut rester 'pao'
 
     #[ORM\Column(length: 50)]
     private ?string $statut = self::STATUT_ENVOYE; // Statut par défaut
@@ -46,6 +48,9 @@ class Devis
 
     #[ORM\OneToOne(mappedBy: 'devisOrigine', targetEntity: Commande::class)]
     private ?Commande $commandeGeneree = null;
+
+    #[ORM\Column(type: 'float')]
+    private float $acompte = 0;
 
     public function __construct()
     {
@@ -68,8 +73,15 @@ class Devis
     public function getModeDePaiement(): ?string { return $this->modeDePaiement; }
     public function setModeDePaiement(?string $modeDePaiement): static { $this->modeDePaiement = $modeDePaiement; return $this; }
 
-    public function getPao(): ?Pao { return $this->pao; }
-    public function setPao(?Pao $pao): static { $this->pao = $pao; return $this; }
+    public function getPao(): ?User // Le type de retour change
+    { 
+        return $this->pao; 
+    }
+    public function setPao(?User $pao): static // Le type de l'argument change
+    { 
+        $this->pao = $pao; 
+        return $this; 
+    }
     
     public function getStatut(): ?string { return $this->statut; }
     public function setStatut(string $statut): static { $this->statut = $statut; return $this; }
@@ -86,6 +98,15 @@ class Devis
     {
         $this->commandeGeneree = $commande;
         return $this;
+    }
+
+    public function getAcompte(): float { return $this->acompte; }
+    public function setAcompte(float $acompte): static { $this->acompte = $acompte; return $this; }
+    
+    // === AJOUTE UNE MÉTHODE UTILE POUR LE RESTE À PAYER ===
+    public function getResteAPayer(): float
+    {
+        return $this->getTotal() - $this->getAcompte();
     }
 
     public function __toString(): string

@@ -9,6 +9,7 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
+use App\Entity\User;
 
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
 #[Vich\Uploadable]
@@ -86,10 +87,6 @@ class Commande
     #[ORM\Column(type: 'string', length: 20, nullable: true)]
     private ?string $priorite = null;
 
-    #[ORM\ManyToOne(inversedBy: 'commandes', cascade: ['persist'])]
-    #[ORM\JoinColumn(nullable: true)] // Rendu nullable pour ne pas bloquer les anciennes commandes
-    private ?Pao $pao = null;
-
     #[ORM\Column(type: 'string', length: 50, nullable: true)]
     private ?string $statutPao = self::STATUT_PAO_ATTENTE;
 
@@ -146,6 +143,13 @@ class Commande
 
     #[ORM\OneToOne(inversedBy: 'commandeGeneree', cascade: ['persist', 'remove'])]
     private ?Devis $devisOrigine = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'commandesPao')] // On pointe vers User
+    #[ORM\JoinColumn(nullable: true)] // On la rend nullable pour ne pas casser les commandes sans PAO
+    private ?User $pao = null; // On peut garder le nom 'pao' pour la clarté
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $lieuDeLivraison = null;
 
     public function __construct()
     {
@@ -296,12 +300,12 @@ class Commande
         return $this;
     }
 
-    public function getPao(): ?Pao
+    public function getPao(): ?User // <-- Le type de retour change en User
     {
         return $this->pao;
     }
 
-    public function setPao(?Pao $pao): self
+    public function setPao(?User $pao): self // <-- Le type de l'argument change en User
     {
         $this->pao = $pao;
         return $this;
@@ -399,6 +403,9 @@ class Commande
 
         return $this;
     }
+
+    public function getLieuDeLivraison(): ?string { return $this->lieuDeLivraison; }
+    public function setLieuDeLivraison(?string $lieuDeLivraison): static { $this->lieuDeLivraison = $lieuDeLivraison; return $this; }
 
     public function __toString(): string
     {
