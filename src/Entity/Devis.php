@@ -36,6 +36,12 @@ class Devis
     #[ORM\Column(length: 100, nullable: true)]
     private ?string $modeDePaiement = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $detailsPaiement = null; // Pour la référence
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $methodePaiement = null; // Pour les conditions
+
     #[ORM\ManyToOne(targetEntity: User::class)] // On pointe vers l'entité User
     #[ORM\JoinColumn(nullable: true)] // On la rend nullable si un devis n'a pas de PAO
     private ?User $pao = null; // Le nom de la propriété peut rester 'pao'
@@ -108,6 +114,12 @@ class Devis
     {
         return $this->getTotal() - $this->getAcompte();
     }
+
+    public function getDetailsPaiement(): ?string { return $this->detailsPaiement; }
+    public function setDetailsPaiement(?string $detailsPaiement): static { $this->detailsPaiement = $detailsPaiement; return $this; }
+    
+    public function getMethodePaiement(): ?string { return $this->methodePaiement; }
+    public function setMethodePaiement(?string $methodePaiement): static { $this->methodePaiement = $methodePaiement; return $this; }
 
     public function __toString(): string
     {

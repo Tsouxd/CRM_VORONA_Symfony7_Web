@@ -15,6 +15,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 // On ajoute le 'use' pour TextareaField
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
+use Symfony\Component\HttpFoundation\Response;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use Doctrine\ORM\EntityManagerInterface;
+use App\Entity\BonDeLivraison;
+use App\Entity\BonDeLivraisonLigne;
 
 class ProductionCommandeCrudController extends AbstractCrudController
 {
@@ -32,9 +39,112 @@ class ProductionCommandeCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
+        // 1. On crée notre nouvelle action personnalisée
+        $imprimerFiche = Action::new('imprimerFiche', 'Imprimer Fiche', 'fa fa-print')
+            ->linkToCrudAction('genererFicheTravailPdf') // Le nom de la méthode qu'on va créer
+            ->setCssClass('btn btn-primary')
+            ->setHtmlAttributes(['target' => '_blank']); // Ouvre dans un nouvel onglet
+
+        $genererBl = Action::new('genererBl', 'Générer BL', 'fa fa-truck')
+            ->linkToCrudAction('genererBlAction')
+            ->setCssClass('btn btn-primary') // Le BL est l'action principale
+            ->setHtmlAttributes(['target' => '_blank'])
+            // On l'affiche seulement si la production est prête ET qu'aucun BL n'existe déjà
+            ->displayIf(fn (Commande $c) => 
+                $c->getStatutProduction() === Commande::STATUT_PRODUCTION_POUR_LIVRAISON && 
+                $c->getBonsDeLivraison()->isEmpty()
+            );
+
         return $actions
             ->disable(Action::NEW, Action::DELETE)
-            ->add(Crud::PAGE_INDEX, Action::DETAIL);
+            ->add(Crud::PAGE_INDEX, Action::DETAIL)
+
+            // 2. On ajoute notre bouton à la liste et à la page de détail
+            ->add(Crud::PAGE_INDEX, $imprimerFiche)
+            ->add(Crud::PAGE_DETAIL, $imprimerFiche)
+
+            ->add(Crud::PAGE_INDEX, $genererBl) // On l'ajoute à l'index
+            ->add(Crud::PAGE_DETAIL, $genererBl); // Et au détail
+    }
+
+    public function genererBlAction(AdminContext $context, EntityManagerInterface $em): Response
+    {
+        /** @var Commande $commande */
+        $commande = $context->getEntity()->getInstance();
+        
+        // Sécurité : on vérifie à nouveau qu'aucun BL n'existe
+        if (!$commande->getBonsDeLivraison()->isEmpty()) {
+            $this->addFlash('warning', 'Un Bon de Livraison existe déjà pour cette commande.');
+            // Idéalement, on redirigerait vers le PDF du BL existant, mais pour l'instant on retourne en arrière.
+            return $this->redirect($context->getReferrer());
+        }
+
+        // 1. Créer les objets en base de données
+        $bonDeLivraison = new BonDeLivraison($commande);
+        foreach ($commande->getCommandeProduits() as $commandeLigne) {
+            $blLigne = new BonDeLivraisonLigne();
+            $blLigne->setDescriptionProduit($commandeLigne->getProduit()->getNom());
+            $blLigne->setQuantite($commandeLigne->getQuantite());
+            $bonDeLivraison->addLigne($blLigne);
+        }
+        $em->persist($bonDeLivraison);
+        $em->flush();
+        
+        // 2. Générer le PDF
+        $options = new Options();
+        $options->set('defaultFont', 'Arial');
+        $dompdf = new Dompdf($options);
+        $html = $this->renderView('production/bon_de_livraison_pdf.html.twig', [
+            'commande' => $commande, // On passe la commande pour avoir toutes les infos
+        ]);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return new Response(
+            $dompdf->output(),
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="BL-'.$commande->getId().'.pdf"',
+            ]
+        );
+    }
+
+    // 3. On crée la méthode qui va générer le PDF
+    public function genererFicheTravailPdf(AdminContext $context, EntityManagerInterface $entityManager): Response
+    {
+        /** @var Commande $commande */
+        $commande = $context->getEntity()->getInstance();
+
+        if (!$commande) {
+            throw $this->createNotFoundException("Commande non trouvée");
+        }
+
+        // Configuration de Dompdf
+        $options = new Options();
+        $options->set('defaultFont', 'Arial');
+        $dompdf = new Dompdf($options);
+
+        // On rend notre template Twig en HTML
+        $html = $this->renderView('production/fiche_travail_pdf.html.twig', [
+            'commande' => $commande,
+        ]);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        // On envoie le PDF au navigateur
+        return new Response(
+            $dompdf->output(),
+            Response::HTTP_OK,
+            [
+                'Content-Type' => 'application/pdf',
+                // 'inline' affiche le PDF dans le navigateur, 'attachment' le télécharge
+                'Content-Disposition' => 'inline; filename="fiche-travail-'.$commande->getId().'.pdf"',
+            ]
+        );
     }
 
     public function configureFields(string $pageName): iterable

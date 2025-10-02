@@ -88,7 +88,28 @@ class DevisCrudController extends AbstractCrudController
                     ->orderBy(sprintf('%s.username', $alias), 'ASC');
             });
 
-        yield TextField::new('modeDePaiement', 'Mode de paiement');
+        yield ChoiceField::new('modeDePaiement', 'Mode de paiement')
+            ->setChoices([
+                'Chèque' => 'Chèque',
+                'Espèce' => 'Espèce',
+                'Virement bancaire' => 'Virement bancaire',
+                'Carte bancaire' => 'Carte bancaire',
+                'Mobile Money' => 'Mobile Money',
+            ])
+            ->setHelp('Choisissez le moyen de paiement principal.');
+
+        yield TextField::new('detailsPaiement', 'Détails / Références')
+            ->setHelp('Ex: MVola, numéro de chèque, référence de virement...');
+
+        yield ChoiceField::new('methodePaiement', 'Méthode de paiement')
+            ->setChoices([
+                '50% à la commande, 50% à la livraison' => '50% commande, 50% livraison',
+                '100% à la livraison' => '100% livraison',
+                '30 jours après réception de la facture' => '30 jours fin de mois',
+                '100% à la commande' => '100% commande', // Optionnel, mais souvent utile
+            ])
+            ->setHelp('Choisissez les conditions de règlement.');
+
         yield ChoiceField::new('statut', 'Statut du devis')
             ->setChoices([
                 'Envoyé' => Devis::STATUT_ENVOYE,
@@ -117,6 +138,7 @@ class DevisCrudController extends AbstractCrudController
             ->setNumDecimals(0)
             ->setFormTypeOption('divisor', 1)
             ->setFormTypeOption('attr', ['readonly' => true]) // Non modifiable
+            ->setFormTypeOption('mapped', false)
             ->hideOnIndex(); // Optionnel : ne pas l'afficher dans la liste
 
         // --- Total (calculé par JS) ---

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Bon de Livraison - Commande #{{ commande.id }}</title>
+    <style>
+        body { font-family: sans-serif; font-size: 12px; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+        .info-box { border: 1px solid #ccc; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .signature-box { border: 1px solid #333; padding: 10px; margin-top: 40px; height: 100px; }
+        .footer { position: fixed; bottom: 0; width: 100%; text-align: center; font-size: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>BON DE LIVRAISON</h1>
+        <p>Commande Réf : #{{ commande.id }} | Date : {{ "now"|date('d/m/Y') }}</p>
+    </div>
+    <div class="info-box" style="margin-bottom:20px;">
+        <h3>Client et Livraison</h3>
+        <p><strong>Client :</strong> {{ commande.client.nom }}</p>
+        <p><strong>Téléphone :</strong> {{ commande.client.telephone }}</p>
+        <p><strong>Adresse de Livraison :</strong> {{ commande.lieuDeLivraison | default(commande.client.adresse) }}</p>
+    </div>
+
+    <h3>Marchandises Livrées</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width:15%;">Quantité</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in commande.commandeProduits %}
+                <tr>
+                    <td>{{ ligne.quantite }}</td>
+                    <td>{{ ligne.produit.nom }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="2">Aucun produit listé.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="signature-box">
+        <p>Reçu en bon état, le : ____ / ____ / ________</p>
+        <p>Nom et Signature du Client (précédé de "Lu et approuvé") :</p>
+    </div>
+
+    <div class="footer">
+        Merci de votre confiance.
+    </div>
+</body>
+</html>

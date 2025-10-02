@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Fiche de Travail - Commande #{{ commande.id }}</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { margin: 0; }
+        .details { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; border-radius: 5px; }
+        .details p { margin: 5px 0; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .notes { border: 1px dashed #ccc; padding: 10px; min-height: 100px; }
+        .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #777; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>FICHE DE TRAVAIL</h1>
+        <p>Commande N° {{ commande.id }}</p>
+    </div>
+
+    <div class="details">
+        <p><strong>Client :</strong> {{ commande.client.nom }}</p>
+        <p><strong>Date de la commande :</strong> {{ commande.dateCommande|date('d/m/Y') }}</p>
+        <p><strong>Responsable PAO :</strong> {{ commande.pao ? commande.pao.username : 'N/A' }}</p>
+    </div>
+
+    <h2>Produits à Fabriquer</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Quantité</th>
+                <th>Description du Produit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ligne in commande.commandeProduits %}
+                <tr>
+                    <td>{{ ligne.quantite }}</td>
+                    <td>{{ ligne.produit.nom }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <h2>Détails Techniques / Modèle</h2>
+        <p>
+            <strong>Fichier modèle validé :</strong> 
+            {% if commande.pieceJointe %}
+                <strong>OUI</strong> - Se référer au fichier numérique attaché à la commande n°{{ commande.id }} dans le système.
+            {% else %}
+                NON - Aucun fichier modèle n'est attaché.
+            {% endif %}
+        </p>
+
+    <h2>Notes de Production</h2>
+    <div class="notes">
+        
+    </div>
+
+    <div class="footer">
+        Fiche générée le {{ "now"|date('d/m/Y H:i') }}
+    </div>
+
+</body>
+</html>

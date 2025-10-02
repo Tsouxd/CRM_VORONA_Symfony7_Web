@@ -151,11 +151,15 @@ class Commande
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $lieuDeLivraison = null;
 
+    #[ORM\OneToMany(mappedBy: 'commande', targetEntity: BonDeLivraison::class)]
+    private Collection $bonsDeLivraison;
+
     public function __construct()
     {
         $this->commandeProduits = new ArrayCollection();
         $this->paiements = new ArrayCollection();
         $this->dateCommande = new \DateTime(); 
+        $this->bonsDeLivraison = new ArrayCollection();
     }
 
     public function __clone()
@@ -406,6 +410,9 @@ class Commande
 
     public function getLieuDeLivraison(): ?string { return $this->lieuDeLivraison; }
     public function setLieuDeLivraison(?string $lieuDeLivraison): static { $this->lieuDeLivraison = $lieuDeLivraison; return $this; }
+
+    /** @return Collection<int, BonDeLivraison> */
+    public function getBonsDeLivraison(): Collection { return $this->bonsDeLivraison; }
 
     public function __toString(): string
     {
