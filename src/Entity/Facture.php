@@ -29,6 +29,15 @@ class Facture
     #[ORM\Column(type:"string", length:255, nullable:true)]
     private ?string $livreur = null;
 
+    #[ORM\Column(length: 100, nullable: true)]
+    private ?string $modeDePaiement = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $detailsPaiement = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $methodePaiement = null;
+
     #[ORM\Column(type:"datetime")]
     private \DateTimeInterface $dateCreation;
 
@@ -53,4 +62,13 @@ class Facture
     public function setLivreur(?string $livreur): self { $this->livreur = $livreur; return $this; }
     public function getDateCreation(): \DateTimeInterface { return $this->dateCreation; }
     public function setDateCreation(\DateTimeInterface $dateCreation): self { $this->dateCreation = $dateCreation; return $this; }
+    
+    public function getModeDePaiement(): ?string { return $this->modeDePaiement; }
+    public function setModeDePaiement(?string $modeDePaiement): static { $this->modeDePaiement = $modeDePaiement; return $this; }
+    
+    public function getDetailsPaiement(): ?string { return $this->detailsPaiement; }
+    public function setDetailsPaiement(?string $detailsPaiement): static { $this->detailsPaiement = $detailsPaiement; return $this; }
+    
+    public function getMethodePaiement(): ?string { return $this->methodePaiement; }
+    public function setMethodePaiement(?string $methodePaiement): static { $this->methodePaiement = $methodePaiement; return $this; }
 }

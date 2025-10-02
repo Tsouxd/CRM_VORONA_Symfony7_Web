@@ -18,6 +18,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use Symfony\Component\HttpFoundation\Response;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 
 class FactureCrudController extends AbstractCrudController
 {
@@ -45,6 +46,30 @@ class FactureCrudController extends AbstractCrudController
                 ->setFormTypeOption('attr', ['class' => 'facture-frais-livraison']),
 
             TextField::new('livreur', 'Nom du livreur'),
+
+            FormField::addPanel('Conditions de Paiement'),
+
+            ChoiceField::new('modeDePaiement', 'Mode de paiement')
+                ->setChoices([
+                    'Chèque' => 'Chèque',
+                    'Espèce' => 'Espèce',
+                    'Virement bancaire' => 'Virement bancaire',
+                    'Carte bancaire' => 'Carte bancaire',
+                    'Mobile Money' => 'Mobile Money',
+                ])
+                ->setHelp('Choisissez le moyen de paiement principal.'),
+
+            TextField::new('detailsPaiement', 'Détails / Références')
+                ->setHelp('Ex: MVola, numéro de chèque, référence de virement...'),
+
+            ChoiceField::new('methodePaiement', 'Méthode de paiement')
+                ->setChoices([
+                    '50% à la commande, 50% à la livraison' => '50% commande, 50% livraison',
+                    '100% à la livraison' => '100% livraison',
+                    '30 jours après réception de la facture' => '30 jours fin de mois',
+                    '100% à la commande' => '100% commande',
+                ])
+                ->setHelp('Choisissez les conditions de règlement.'),
 
             MoneyField::new('total', 'Total')
                 ->setCurrency('MGA')

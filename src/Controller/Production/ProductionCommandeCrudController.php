@@ -2,6 +2,7 @@
 namespace App\Controller\Production;
 
 use App\Entity\Commande;
+use App\Repository\CommandeRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
@@ -12,7 +13,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
-// On ajoute le 'use' pour TextareaField
+
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
@@ -22,6 +23,7 @@ use Dompdf\Options;
 use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\BonDeLivraison;
 use App\Entity\BonDeLivraisonLigne;
+use App\Repository\BonDeLivraisonRepository; 
 
 class ProductionCommandeCrudController extends AbstractCrudController
 {
@@ -45,15 +47,15 @@ class ProductionCommandeCrudController extends AbstractCrudController
             ->setCssClass('btn btn-primary')
             ->setHtmlAttributes(['target' => '_blank']); // Ouvre dans un nouvel onglet
 
-        $genererBl = Action::new('genererBl', 'Générer BL', 'fa fa-truck')
-            ->linkToCrudAction('genererBlAction')
-            ->setCssClass('btn btn-primary') // Le BL est l'action principale
-            ->setHtmlAttributes(['target' => '_blank'])
-            // On l'affiche seulement si la production est prête ET qu'aucun BL n'existe déjà
-            ->displayIf(fn (Commande $c) => 
-                $c->getStatutProduction() === Commande::STATUT_PRODUCTION_POUR_LIVRAISON && 
-                $c->getBonsDeLivraison()->isEmpty()
-            );
+        $genererOuVoirBl = Action::new('genererBl', 'Générer / Voir BL', 'fa fa-truck')
+                    ->linkToCrudAction('genererOuVoirBlAction') // On change le nom de la méthode cible
+                    ->setCssClass('btn btn-primary')
+                    // La condition d'affichage est maintenant plus simple :
+                    // On affiche le bouton dès que la production est marquée comme terminée.
+                    ->displayIf(fn (Commande $c) => $c->isProductionTermineeOk() === true)
+                    // On change le label du bouton dynamiquement !
+                    ->setLabel(fn (Commande $c) => $c->isBlGenere() ? 'Voir le BL' : 'Générer le BL')
+                    ->setHtmlAttributes(['target' => '_blank']);
 
         return $actions
             ->disable(Action::NEW, Action::DELETE)
@@ -63,39 +65,61 @@ class ProductionCommandeCrudController extends AbstractCrudController
             ->add(Crud::PAGE_INDEX, $imprimerFiche)
             ->add(Crud::PAGE_DETAIL, $imprimerFiche)
 
-            ->add(Crud::PAGE_INDEX, $genererBl) // On l'ajoute à l'index
-            ->add(Crud::PAGE_DETAIL, $genererBl); // Et au détail
+            ->add(Crud::PAGE_INDEX, $genererOuVoirBl)
+            ->add(Crud::PAGE_DETAIL, $genererOuVoirBl);
     }
 
-    public function genererBlAction(AdminContext $context, EntityManagerInterface $em): Response
+    // === LA MÉTHODE CORRIGÉE ===
+    public function genererOuVoirBlAction(
+        AdminContext $context,
+        EntityManagerInterface $em,
+        BonDeLivraisonRepository $blRepository,
+        CommandeRepository $commandeRepository // <-- On injecte le repository de Commande
+    ): Response
     {
-        /** @var Commande $commande */
-        $commande = $context->getEntity()->getInstance();
+        // On récupère l'ID de la commande depuis le contexte
+        $commandeId = $context->getEntity()->getPrimaryKeyValue();
         
-        // Sécurité : on vérifie à nouveau qu'aucun BL n'existe
-        if (!$commande->getBonsDeLivraison()->isEmpty()) {
-            $this->addFlash('warning', 'Un Bon de Livraison existe déjà pour cette commande.');
-            // Idéalement, on redirigerait vers le PDF du BL existant, mais pour l'instant on retourne en arrière.
+        // IMPORTANT : On recharge l'entité depuis la base de données via son repository.
+        // Cela garantit qu'on travaille sur une entité "fraîche" et gérée par Doctrine.
+        $commande = $commandeRepository->find($commandeId);
+
+        if (!$commande) {
+            $this->addFlash('danger', 'Commande introuvable.');
             return $this->redirect($context->getReferrer());
         }
-
-        // 1. Créer les objets en base de données
-        $bonDeLivraison = new BonDeLivraison($commande);
-        foreach ($commande->getCommandeProduits() as $commandeLigne) {
-            $blLigne = new BonDeLivraisonLigne();
-            $blLigne->setDescriptionProduit($commandeLigne->getProduit()->getNom());
-            $blLigne->setQuantite($commandeLigne->getQuantite());
-            $bonDeLivraison->addLigne($blLigne);
-        }
-        $em->persist($bonDeLivraison);
-        $em->flush();
         
-        // 2. Générer le PDF
+        // On cherche s'il existe déjà un BL pour cette commande
+        $bonDeLivraison = $blRepository->findOneBy(['commande' => $commande]);
+
+        if ($bonDeLivraison === null) {
+            // --- CAS 1 : Le BL n'existe pas, on le CRÉE ---
+            $bonDeLivraison = new BonDeLivraison($commande);
+            foreach ($commande->getCommandeProduits() as $commandeLigne) {
+                $blLigne = new BonDeLivraisonLigne();
+                $blLigne->setDescriptionProduit($commandeLigne->getProduit()->getNom());
+                $blLigne->setQuantite($commandeLigne->getQuantite());
+                $bonDeLivraison->addLigne($blLigne);
+            }
+            
+            // On met à jour le statut sur notre entité Commande fraîchement chargée
+            $commande->setBlGenere(true);
+
+            // Pas besoin de faire persist($commande), Doctrine le suit déjà.
+            // Il suffit de persister le NOUVEL objet.
+            $em->persist($bonDeLivraison);
+            $em->flush(); // Le flush va sauvegarder le NOUVEAU BL ET la modification sur la Commande.
+            
+            //$this->addFlash('success', 'Le Bon de Livraison a été généré avec succès.');
+        }
+
+        // --- CAS 2 : Le BL existe déjà (ou vient d'être créé), on l'AFFICHE ---
+        
         $options = new Options();
         $options->set('defaultFont', 'Arial');
         $dompdf = new Dompdf($options);
         $html = $this->renderView('production/bon_de_livraison_pdf.html.twig', [
-            'commande' => $commande, // On passe la commande pour avoir toutes les infos
+            'commande' => $commande,
         ]);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');

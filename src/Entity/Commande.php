@@ -154,6 +154,9 @@ class Commande
     #[ORM\OneToMany(mappedBy: 'commande', targetEntity: BonDeLivraison::class)]
     private Collection $bonsDeLivraison;
 
+    #[ORM\Column]
+    private bool $blGenere = false;
+
     public function __construct()
     {
         $this->commandeProduits = new ArrayCollection();
@@ -413,6 +416,9 @@ class Commande
 
     /** @return Collection<int, BonDeLivraison> */
     public function getBonsDeLivraison(): Collection { return $this->bonsDeLivraison; }
+
+    public function isBlGenere(): bool { return $this->blGenere; }
+    public function setBlGenere(bool $blGenere): static { $this->blGenere = $blGenere; return $this; }
 
     public function __toString(): string
     {
