@@ -50,6 +50,11 @@ use App\Entity\Devis;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
 
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
+
 class CommandeCrudController extends AbstractCrudController implements EventSubscriberInterface
 {
     private $requestStack;
@@ -366,6 +371,31 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         }
         $entityManager->flush();
         parent::deleteEntity($entityManager, $entityInstance);
+    }
+
+        public function createEntity(string $entityFqcn)
+    {
+        $commande = new Commande();
+        // On assigne l'utilisateur actuellement connecté comme commercial
+        $commande->setCommercial($this->getUser());
+        
+        return $commande;
+    }
+
+    // === ON AJOUTE LE FILTRAGE DE LA LISTE ===
+    public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
+    {
+        $qb = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
+
+        // Si l'utilisateur est un commercial (et pas un admin), on applique le filtre.
+        // L'admin, lui, doit tout voir.
+        if ($this->isGranted('ROLE_COMMERCIAL') && !$this->isGranted('ROLE_ADMIN')) {
+            $user = $this->getUser();
+            $qb->andWhere('entity.commercial = :currentUser')
+               ->setParameter('currentUser', $user);
+        }
+
+        return $qb;
     }
     
     public function configureFields(string $pageName): iterable

@@ -1,5 +1,98 @@
 {% extends '@EasyAdmin/page/content.html.twig' %}
 
 {% block content %}
-    <h1>Bienvenue dans l'espace de gestion de Production</h1>
+
+  <style>
+    .ea-content, .ea-content .content, .ea-content .content-panel { width: 100% !important; display:block !important; }
+    .content-sidebar, .ea-aside, .aside { display:none !important; }
+    .section-card .card-header { display:flex; align-items:center; justify-content:flex-start; }
+    .section-card .card-header h3{ margin:0; font-weight:600; }
+    .chart-container{ height:360px; }
+
+    .content-wrapper {
+      display: block;
+    }
+
+    .resizer-handler {
+        display: none; 
+    }
+    
+  </style>
+
+  <h1 class="mb-4">Tableau de bord Production</h1>
+
+  <div class="row">
+    <div class="col-md-6">
+      <div class="card bg-warning text-dark shadow mb-4">
+        <div class="card-body">
+          <h5>Travaux du jour</h5>
+          <p class="h3">{{ workInProgressToday }}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card bg-info text-dark shadow mb-4">
+        <div class="card-body">
+          <h5>Travaux livree (aujourd’hui)</h5>
+          <p class="h3">{{ workReadyForDeliveryToday }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-card card shadow mb-4">
+    <div class="card-header">
+      <h3>Travaux livree — par jour sur le mois</h3>
+    </div>
+    <div class="card-body">
+      <form method="get" action="{{ path('production_dashboard') }}" class="row g-3 align-items-end mb-3">
+        <div class="col-auto">
+          <label class="form-label">Mois</label>
+          <input type="month" name="month" class="form-control" value="{{ selectedMonth }}">
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-primary">Appliquer</button>
+        </div>
+      </form>
+
+      <div class="chart-container">
+        <canvas id="readyChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    (function () {
+      const labels = {{ chartLabels|json_encode|raw }};
+      const values = {{ chartValues|json_encode|raw }};
+      const ctx = document.getElementById('readyChart');
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Prêts pour livraison / jour',
+            data: values
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: 'top' },
+            tooltip: { callbacks: { label: (c) => `${c.parsed.y} commandes` } }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    })();
+  </script>
+
 {% endblock %}

@@ -28,7 +28,7 @@
         <tbody>
             {% for ligne in devis.lignes %}
                 <tr>
-                    <td>{{ ligne.produit.nom }}</td>
+                    <td>{{ ligne.descriptionProduit }}</td>
                     <td class="right">{{ ligne.quantite }}</td>
                     <td class="right">{{ ligne.prixUnitaire|number_format(0, ',', ' ') }}</td>
                     <td class="right">{{ ligne.prixTotal|number_format(0, ',', ' ') }}</td>

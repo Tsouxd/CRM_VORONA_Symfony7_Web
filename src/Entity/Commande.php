@@ -151,8 +151,12 @@ class Commande
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $lieuDeLivraison = null;
 
-    #[ORM\OneToMany(mappedBy: 'commande', targetEntity: BonDeLivraison::class)]
+    #[ORM\OneToMany(mappedBy: 'commande', targetEntity: BonDeLivraison::class, cascade: ['remove'], orphanRemoval: true)]
     private Collection $bonsDeLivraison;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false)] // Une commande a toujours un créateur
+    private ?User $commercial = null;
 
     #[ORM\Column]
     private bool $blGenere = false;
@@ -419,6 +423,9 @@ class Commande
 
     public function isBlGenere(): bool { return $this->blGenere; }
     public function setBlGenere(bool $blGenere): static { $this->blGenere = $blGenere; return $this; }
+
+    public function getCommercial(): ?User { return $this->commercial; }
+    public function setCommercial(?User $commercial): static { $this->commercial = $commercial; return $this; }
 
     public function __toString(): string
     {

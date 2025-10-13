@@ -2,37 +2,136 @@
 
 namespace App\Controller\Commercial;
 
-use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
+use App\Entity\Client;
+use App\Entity\Commande;
+use App\Entity\Devis as DevisEntity;
+use App\Entity\Facture;
+use App\Entity\Fournisseur;
+use App\Entity\Produit;
+use App\Entity\Devis;
+use App\Repository\DevisRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
-use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use App\Controller\Admin\CommandeCrudController;
-use App\Controller\Admin\FactureCrudController;
-use App\Controller\Admin\DevisCrudController;
-use App\Entity\User;
-use App\Entity\Client;
-use App\Entity\Produit;
-use App\Entity\Facture;
-use App\Entity\Devis;
-use App\Entity\Commande;
-use App\Entity\Fournisseur;
-use App\Entity\CommandeProduit;
-use App\Entity\CategorieDepense;
-use App\Entity\CategorieRevenu;
-use App\Entity\Paiement;
-use App\Repository\CommandeRepository;
-use App\Repository\CommandeProduitRepository;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-#[IsGranted('ROLE_COMMERCIAL')]
+use App\Controller\Admin\CommandeCrudController;
+use App\Controller\Admin\DevisCrudController;
+use App\Controller\Admin\FactureCrudController;
 
+#[IsGranted('ROLE_COMMERCIAL')]
 final class CommercialDashboardController extends AbstractDashboardController
 {
+    private DevisRepository $devisRepository;
+    private RequestStack $requestStack;
+
+    public function __construct(
+        DevisRepository $devisRepository,
+        RequestStack $requestStack
+    ) {
+        $this->devisRepository = $devisRepository;
+        $this->requestStack    = $requestStack;
+    }
+
     #[Route('/commercial/gestion', name: 'commercial_dashboard')]
     public function index(): Response
     {
-        return $this->render('commercial/dashboard.html.twig');
+        // ===== 1) Lire le paramètre de filtre mois via RequestStack =====
+        $request    = $this->requestStack->getCurrentRequest();
+        $monthParam = $request?->query->get('month');
+
+        if (is_string($monthParam) && preg_match('/^\d{4}-\d{2}$/', $monthParam)) {
+            [$y, $m] = explode('-', $monthParam);
+            $year  = (int) $y;
+            $month = (int) $m;
+        } else {
+            $now   = new \DateTimeImmutable('now');
+            $year  = (int) $now->format('Y');
+            $month = (int) $now->format('m');
+            $monthParam = sprintf('%04d-%02d', $year, $month);
+        }
+
+        $startOfMonth = (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)))->setTime(0, 0, 0);
+        $endOfMonth   = $startOfMonth->modify('last day of this month')->setTime(23, 59, 59);
+
+        // ===== 2) Compteurs par statut =====
+        $trackedStatuses = [
+            Devis::STATUT_ENVOYE,
+            Devis::STATUT_BAT_PRODUCTION,
+            Devis::STATUT_RELANCE,
+            Devis::STATUT_PERDU,
+        ];
+
+        $devisCounts = [];
+        foreach ($trackedStatuses as $status) {
+            $count = (int) $this->devisRepository
+                ->createQueryBuilder('d')
+                ->select('COUNT(d.id)')
+                ->where('d.statut = :status')
+                ->andWhere('d.dateCreation BETWEEN :start AND :end')
+                ->setParameter('status', $status)
+                ->setParameter('start', new \DateTime($startOfMonth->format('Y-m-d H:i:s')))
+                ->setParameter('end',   new \DateTime($endOfMonth->format('Y-m-d H:i:s')))
+                ->getQuery()
+                ->getSingleScalarResult();
+
+            $devisCounts[$status] = $count;
+        }
+
+        // ===== 3) Séries journalières par statut pour le graphe =====
+        $rows = $this->devisRepository
+            ->createQueryBuilder('d')
+            ->select('d.id, d.dateCreation, d.statut')
+            ->where('d.statut IN (:statuses)')
+            ->andWhere('d.dateCreation BETWEEN :start AND :end')
+            ->setParameter('statuses', $trackedStatuses)
+            ->setParameter('start', new \DateTime($startOfMonth->format('Y-m-d H:i:s')))
+            ->setParameter('end',   new \DateTime($endOfMonth->format('Y-m-d H:i:s')))
+            ->getQuery()
+            ->getArrayResult();
+
+        $daysInMonth = (int) $startOfMonth->format('t');
+        $chartLabels = [];
+        for ($i = 1; $i <= $daysInMonth; $i++) {
+            $chartLabels[] = sprintf('%02d', $i);
+        }
+
+        $chartDataByStatus = [];
+        foreach ($trackedStatuses as $status) {
+            $chartDataByStatus[$status] = array_fill(1, $daysInMonth, 0);
+        }
+
+        foreach ($rows as $r) {
+            $rawDate = $r['dateCreation'] ?? null;
+
+            if ($rawDate instanceof \DateTimeInterface) {
+                $dt = \DateTime::createFromFormat('Y-m-d H:i:s', $rawDate->format('Y-m-d H:i:s'));
+            } else {
+                $dt = new \DateTime(is_array($rawDate) && isset($rawDate['date']) ? $rawDate['date'] : (string)$rawDate);
+            }
+            if (!$dt || is_nan($dt->getTimestamp())) {
+                continue;
+            }
+
+            $day    = (int) $dt->format('j');
+            $status = (string) $r['statut'];
+            if (isset($chartDataByStatus[$status][$day])) {
+                $chartDataByStatus[$status][$day]++;
+            }
+        }
+
+        foreach ($chartDataByStatus as $status => $series) {
+            $chartDataByStatus[$status] = array_values($series);
+        }
+
+        return $this->render('commercial/dashboard.html.twig', [
+            'selectedMonth'      => $monthParam,
+            'devisCounts'        => $devisCounts,
+            'chartLabels'        => $chartLabels,
+            'chartDataByStatus'  => $chartDataByStatus,
+        ]);
     }
 
     public function configureDashboard(): Dashboard
@@ -43,50 +142,21 @@ final class CommercialDashboardController extends AbstractDashboardController
                         </div>');
     }
 
-    
     public function configureMenuItems(): iterable
     {
         yield MenuItem::linktoDashboard('Tableau de bord', 'fa fa-home');
+
         yield MenuItem::linkToCrud('Clients', 'fas fa-users', Client::class);
         yield MenuItem::linkToCrud('Fournisseurs', 'fas fa-thumbs-up', Fournisseur::class);
         yield MenuItem::linkToCrud('Produits', 'fas fa-box', Produit::class);
+
         yield MenuItem::linkToCrud('Commandes', 'fas fa-shopping-cart', Commande::class)
-            ->setController(CommandeCrudController::class); 
-        yield MenuItem::linkToCrud('Devis', 'fas fa-file-pdf', Devis::class)
-            ->setController(DevisCrudController::class); 
+            ->setController(CommandeCrudController::class);
+
+        yield MenuItem::linkToCrud('Devis', 'fas fa-file-pdf', DevisEntity::class)
+            ->setController(DevisCrudController::class);
+
         yield MenuItem::linkToCrud('Factures', 'fas fa-file-invoice', Facture::class)
-            ->setController(FactureCrudController::class); 
-        /*  
-        'fas fa-users' : Icône des utilisateurs.
-        'fas fa-cogs' : Icône d'engrenages ou de réglages.
-        'fas fa-folder' : Icône de dossier.
-        'fas fa-book' : Icône de livre.
-        'fas fa-briefcase' : Icône de mallette.
-        'fas fa-chart-bar' : Icône de graphique en barres.
-        'fas fa-calendar' : Icône de calendrier.
-        'fas fa-pen' : Icône de stylo.
-        'fas fa-shopping-cart' : Icône de panier d'achat.
-        'fas fa-envelope' : Icône d'enveloppe. 
-        fas fa-home : Icône de maison
-        fas fa-user : Icône d'utilisateur
-        fas fa-cog : Icône d'engrenage
-        fas fa-search : Icône de recherche
-        fas fa-envelope : Icône d'enveloppe
-        fas fa-star : Icône d'étoile
-        fas fa-cloud : Icône de nuage
-        fas fa-trash : Icône de corbeille
-        fas fa-folder : Icône de dossier
-        fas fa-calendar : Icône de calendrier
-        fas fa-bar-chart : Icône de graphique à barres
-        fas fa-camera : Icône d'appareil photo
-        fas fa-lock : Icône de cadenas
-        fas fa-bell : Icône de cloche
-        fas fa-map-marker : Icône de marqueur de carte
-        fas fa-money-bill : Icône de billet de banque
-        fas fa-phone : Icône de téléphone
-        fas fa-code : Icône de code
-        fas fa-file-pdf : Icône de fichier PDF
-        fas fa-thumbs-up : Icône de pouce en l'air
-        */
+            ->setController(FactureCrudController::class);
     }
 }
