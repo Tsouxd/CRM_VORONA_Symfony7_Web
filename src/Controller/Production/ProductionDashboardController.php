@@ -12,26 +12,29 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\HttpFoundation\RequestStack;
 
+
 class ProductionDashboardController extends AbstractDashboardController
 {
     private CommandeRepository $commandeRepository;
     private CommandeProduitRepository $commandeProduitRepository;
+    private RequestStack $requestStack;
+
 
     public function __construct(
         CommandeRepository $commandeRepository,
-        CommandeProduitRepository $commandeProduitRepository
+        CommandeProduitRepository $commandeProduitRepository,
+        RequestStack $requestStack
+
     ) {
         $this->commandeRepository = $commandeRepository;
         $this->commandeProduitRepository = $commandeProduitRepository;
+        $this->requestStack = $requestStack;
+
     }
 
     #[Route('/production', name: 'production_dashboard')]
     public function index(): Response
     {
-        /** @var RequestStack $requestStack */
-        $requestStack = $this->container->get('request_stack');
-        $request = $requestStack->getCurrentRequest();
-
         // ===== Fenêtre "aujourd'hui" (sur la base de dateCommande) =====
         $today      = new \DateTimeImmutable('today');
         $startOfDay = $today->setTime(0, 0, 0);
@@ -42,7 +45,7 @@ class ProductionDashboardController extends AbstractDashboardController
             ->createQueryBuilder('c')
             ->select('COUNT(c.id)')
             ->where('c.statutProduction = :status')
-            ->andWhere('c.dateCommande BETWEEN :start AND :end')
+            ->andWhere('c.updatedAt BETWEEN :start AND :end')
             ->setParameter('status', Commande::STATUT_PRODUCTION_EN_COURS)
             ->setParameter('start', new \DateTime($startOfDay->format('Y-m-d H:i:s')))
             ->setParameter('end',   new \DateTime($endOfDay->format('Y-m-d H:i:s')))
@@ -54,7 +57,7 @@ class ProductionDashboardController extends AbstractDashboardController
             ->createQueryBuilder('c')
             ->select('COUNT(c.id)')
             ->where('c.statutProduction = :status')
-            ->andWhere('c.dateCommande BETWEEN :start AND :end')
+            ->andWhere('c.updatedAt BETWEEN :start AND :end')
             ->setParameter('status', Commande::STATUT_PRODUCTION_POUR_LIVRAISON)
             ->setParameter('start', new \DateTime($startOfDay->format('Y-m-d H:i:s')))
             ->setParameter('end',   new \DateTime($endOfDay->format('Y-m-d H:i:s')))
@@ -63,7 +66,8 @@ class ProductionDashboardController extends AbstractDashboardController
 
         // ===== 3) Graph mensuel : "PRÊT POUR LIVRAISON" par jour =====
         // ?month=YYYY-MM, ex: 2025-10 ; défaut = mois courant
-        $monthParam = $request->query->get('month');
+        $request    = $this->requestStack->getCurrentRequest();
+        $monthParam = $request?->query->get('month');
         if (is_string($monthParam) && preg_match('/^\d{4}-\d{2}$/', $monthParam)) {
             [$y, $m]   = explode('-', $monthParam);
             $year      = (int) $y;
