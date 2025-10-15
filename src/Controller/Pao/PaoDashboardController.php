@@ -209,7 +209,14 @@ class PaoDashboardController extends AbstractDashboardController
     public function configureMenuItems(): iterable
     {
         yield MenuItem::linktoDashboard('Tableau de bord', 'fa fa-home');
-        yield MenuItem::linkToCrud('PAO à traiter', 'fa fa-pencil-ruler', Commande::class)
+        // Lien n°1 : La liste des tâches actives pour le PAO
+        yield MenuItem::linkToCrud('Travaux à Faire', 'fa fa-tasks', Commande::class)
+            ->setController(PaoCommandeCrudController::class)
+            // On ajoute notre paramètre de filtre
+            ->setQueryParameter('filtre', 'a_faire');
+
+        // Lien n°2 : L'archive complète de toutes les commandes du PAO
+        yield MenuItem::linkToCrud('Toutes les Commandes', 'fa fa-archive', Commande::class)
             ->setController(PaoCommandeCrudController::class);
     }
 }

@@ -1,0 +1,33 @@
+{# templates/admin/partials/_commercial_dashboard.html.twig #}
+{# Ce template attend les variables 'salesToday' et 'bestProductsToday' #}
+
+<div class="row">
+    {# --- KPI : VENTES DU JOUR --- #}
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4 kpi-card">
+            <div class="card-body text-center">
+                <div class="label">Chiffre d'Affaires du Jour</div>
+                <div class="value text-success">{{ salesToday|number_format(0, ',', ' ') }} MGA</div>
+            </div>
+        </div>
+    </div>
+
+    {# --- LISTE : MEILLEURS PRODUITS DU JOUR --- #}
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <strong>Meilleurs Produits Vendus Aujourd'hui</strong>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for product in bestProductsToday|slice(0, 5) %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ product.nom }}
+                        <span class="badge bg-primary rounded-pill">{{ product.total_quantity }}</span>
+                    </li>
+                {% else %}
+                    <li class="list-group-item text-muted">Aucune vente enregistrée aujourd'hui.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>

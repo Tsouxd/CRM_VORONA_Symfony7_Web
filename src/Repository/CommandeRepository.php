@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\Commande;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use App\Entity\User;
 
 class CommandeRepository extends ServiceEntityRepository
 {
@@ -121,38 +122,56 @@ class CommandeRepository extends ServiceEntityRepository
         return array_values($results);
     }
 
-    public function findTotalSalesBetweenDates(\DateTime $start, \DateTime $end, ?int $userId = null): float
+    public function findTotalSalesBetweenDates(\DateTime $start, \DateTime $end, ?User $user = null, string $userField = 'commercial'): float
     {
-        // Total produits
+        // --- PARTIE 1 : Calcul du total des produits ---
         $qbProduits = $this->getEntityManager()->createQueryBuilder()
             ->select('COALESCE(SUM(cp.quantite * p.prix), 0)')
             ->from('App\Entity\CommandeProduit', 'cp')
-            ->join('cp.commande', 'c_sub')
+            ->join('cp.commande', 'c') // On joint sur Commande pour pouvoir filtrer
             ->join('cp.produit', 'p')
-            ->where('c_sub.dateCommande BETWEEN :start AND :end')
-            ->andWhere("c_sub.statut != 'annulée'")
+            ->where('c.dateCommande BETWEEN :start AND :end')
+            ->andWhere("c.statut != 'annulée'")
             ->setParameter('start', $start)->setParameter('end', $end);
 
-        if ($userId !== null) {
-            $qbProduits->andWhere('IDENTITY(c_sub.pao) = :userId')->setParameter('userId', $userId);
+        // On applique le filtre utilisateur si nécessaire
+        if ($user !== null && in_array($userField, ['commercial', 'pao'])) {
+            $qbProduits->andWhere(sprintf('c.%s = :user', $userField))->setParameter('user', $user);
         }
-
         $totalProduits = (float) $qbProduits->getQuery()->getSingleScalarResult();
 
-        // Total frais livraison
+
+        // --- PARTIE 2 : Calcul du total des frais de livraison ---
         $qbFrais = $this->createQueryBuilder('c')
             ->select('COALESCE(SUM(c.fraisLivraison), 0)')
             ->where('c.dateCommande BETWEEN :start AND :end')
             ->andWhere("c.statut != 'annulée'")
             ->setParameter('start', $start)->setParameter('end', $end);
 
-        if ($userId !== null) {
-            $qbFrais->andWhere('IDENTITY(c.pao) = :userId')->setParameter('userId', $userId);
+        // On applique le filtre utilisateur ici aussi
+        if ($user !== null && in_array($userField, ['commercial', 'pao'])) {
+            $qbFrais->andWhere(sprintf('c.%s = :user', $userField))->setParameter('user', $user);
         }
-
         $totalFrais = (float) $qbFrais->getQuery()->getSingleScalarResult();
 
+        // On retourne la somme des deux, ce qui équivaut à totalAvecFrais
         return $totalProduits + $totalFrais;
+    }
+    
+    /**
+     * NOUVELLE MÉTHODE pour compter les stats PAO.
+     */
+    public function countCommandsByPaoStatusForUser(User $paoUser): array
+    {
+        $results = $this->createQueryBuilder('c')
+            ->select('c.statutPao, COUNT(c.id) as count')
+            ->where('c.pao = :user')
+            ->setParameter('user', $paoUser)
+            ->groupBy('c.statutPao')
+            ->getQuery()
+            ->getResult();
+            
+        return array_column($results, 'count', 'statutPao');
     }
 
     public function findAvailableYears(?int $userId = null): array

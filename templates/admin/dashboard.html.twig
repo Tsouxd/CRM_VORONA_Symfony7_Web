@@ -495,6 +495,83 @@
             </div>
         </div>
     </div>
+
+    <hr class="my-4">
+
+    {# ================================================================== #}
+    {# SECTION 4 : SUPERVISION DES DÉPARTEMENTS                        #}
+    {# ================================================================== #}
+    <hr class="section-divider">
+    <h4 class="section-title">Supervision des Départements</h4>
+
+    {# --- SUPERVISION COMMERCIALE --- #}
+    <div class="mb-4">
+        <h5 class="mb-3"><i class="fas fa-dollar-sign me-2"></i>Supervision Commerciale</h5>
+        <form method="get" class="mb-3">
+            {# On ajoute des champs cachés pour ne pas perdre les autres filtres #}
+            <input type="hidden" name="pao_id" value="{{ selectedPaoId }}">
+            <div class="input-group">
+                <select name="commercial_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Sélectionner un commercial --</option>
+                    {% for commercial in commerciaux %}
+                        <option value="{{ commercial.id }}" {{ commercial.id == selectedCommercialId ? 'selected' }}>
+                            {{ commercial.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+        
+        {% if commercialData %}
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    Tableau de bord de : <strong>{{ commercialData.user.username }}</strong>
+                </div>
+                <div class="card-body">
+                    {# === ON INCLUT LE FRAGMENT ICI === #}
+                    {% include 'admin/partials/_commercial_dashboard.html.twig' with {
+                        salesToday: commercialData.salesToday,
+                        bestProductsToday: commercialData.bestProductsToday
+                    } %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
+    {# --- SUPERVISION PAO --- #}
+    <div class="mb-4">
+        <h5 class="mb-3"><i class="fas fa-pencil-ruler me-2"></i>Supervision PAO</h5>
+        <form method="get" class="mb-3">
+            <input type="hidden" name="commercial_id" value="{{ selectedCommercialId }}">
+            <div class="input-group">
+                <select name="pao_id" class="form-select" onchange="this.form.submit()">
+                    <option value="">-- Sélectionner un PAO --</option>
+                    {% for pao in paos %}
+                        <option value="{{ pao.id }}" {{ pao.id == selectedPaoId ? 'selected' }}>
+                            {{ pao.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+        
+        {% if paoData %}
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    Tableau de bord de : <strong>{{ paoData.user.username }}</strong>
+                </div>
+                <div class="card-body">
+                    {# === ON INCLUT LE FRAGMENT ICI === #}
+                    {% include 'admin/partials/_pao_dashboard.html.twig' with {
+                        enAttente: paoData.enAttente,
+                        enCours: paoData.enCours,
+                        enModification: paoData.enModification
+                    } %}
+                </div>
+            </div>
+        {% endif %}
+    </div>
+
 {% endblock %}
 
 {% block body_javascript %}

@@ -24,9 +24,23 @@ use Doctrine\ORM\EntityManagerInterface;
 use App\Entity\BonDeLivraison;
 use App\Entity\BonDeLivraisonLigne;
 use App\Repository\BonDeLivraisonRepository; 
+use Doctrine\ORM\QueryBuilder;
+use Symfony\Component\HttpFoundation\RequestStack;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 
 class ProductionCommandeCrudController extends AbstractCrudController
 {
+    private RequestStack $requestStack;
+
+    // On injecte RequestStack pour pouvoir lire les paramètres de l'URL
+    public function __construct(RequestStack $requestStack)
+    {
+        $this->requestStack = $requestStack;
+    }
+
     public static function getEntityFqcn(): string
     {
         return Commande::class;
@@ -169,6 +183,28 @@ class ProductionCommandeCrudController extends AbstractCrudController
                 'Content-Disposition' => 'inline; filename="fiche-travail-'.$commande->getId().'.pdf"',
             ]
         );
+    }
+
+    // === C'EST LA MÉTHODE QUI APPLIQUE LE FILTRE ===
+    public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
+    {
+        // On récupère le QueryBuilder par défaut
+        $qb = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
+        
+        // On récupère la requête actuelle pour lire l'URL
+        $request = $this->requestStack->getCurrentRequest();
+        
+        // On vérifie si le paramètre 'filtre=a_faire' est présent dans l'URL
+        if ($request->query->get('filtre') === 'a_faire') {
+            
+            // === LA NOUVELLE LOGIQUE EST ICI ===
+            // On ajoute la condition : ne montrer que les commandes où
+            // le statut de production est exactement 'En cours de production'.
+            $qb->andWhere('entity.statutProduction = :status')
+               ->setParameter('status', Commande::STATUT_PRODUCTION_EN_COURS);
+        }
+        
+        return $qb;
     }
 
     public function configureFields(string $pageName): iterable

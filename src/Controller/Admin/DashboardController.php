@@ -1,7 +1,6 @@
 <?php
 namespace App\Controller\Admin;
 
-use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
@@ -9,24 +8,34 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpFoundation\Request;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+
+// --- Imports des Entités ---
 use App\Entity\User;
-use App\Entity\Pao;
 use App\Entity\Client;
 use App\Entity\UserRequest;
 use App\Entity\Produit;
 use App\Entity\Commande;
 use App\Entity\Fournisseur;
-use App\Entity\CommandeProduit;
-use App\Entity\CategorieDepense;
-use App\Entity\CategorieRevenu;
-use App\Entity\Paiement;
+use App\Entity\Facture;
+use App\Entity\Devis;
+
+// --- Imports des Repositories (pour la logique du dashboard) ---
 use App\Repository\CommandeRepository;
 use App\Repository\CommandeProduitRepository;
-use Symfony\Component\HttpFoundation\Request;
-use App\Entity\Facture;
+
+// --- Imports des Dashboards et CRUDs Externes ---
+use App\Controller\Commercial\CommercialDashboardController;
+use App\Controller\Pao\PaoDashboardController;
+use App\Controller\Production\ProductionDashboardController;
+use App\Controller\Admin\CommandeCrudController; // Le CRUD "global" de l'admin
 use App\Controller\Admin\FactureCrudController;
-use App\Entity\Devis;
 use App\Controller\Admin\DevisCrudController;
+// On utilise le chemin complet pour éviter toute ambiguïté
+use App\Controller\Pao\PaoCommandeCrudController as PaoCrudController;
+use App\Controller\Production\ProductionCommandeCrudController as ProductionCrudController;
+use App\Repository\UserRepository;
 
 #[AdminDashboard(routePath: '/admin', routeName: 'admin')]
 class DashboardController extends AbstractDashboardController
@@ -34,15 +43,22 @@ class DashboardController extends AbstractDashboardController
     private CommandeRepository $commandeRepository;
     private CommandeProduitRepository $commandeProduitRepository;
     private RequestStack $requestStack;
+    private AdminUrlGenerator $adminUrlGenerator;
+    private UserRepository $userRepository; 
 
     public function __construct(
         CommandeRepository $commandeRepository,
         CommandeProduitRepository $commandeProduitRepository,
-        RequestStack $requestStack
+        RequestStack $requestStack,
+        AdminUrlGenerator $adminUrlGenerator,
+        UserRepository $userRepository
+        
     ) {
         $this->commandeRepository = $commandeRepository;
         $this->commandeProduitRepository = $commandeProduitRepository;
         $this->requestStack = $requestStack;
+        $this->adminUrlGenerator = $adminUrlGenerator;
+        $this->userRepository = $userRepository;
     }
 
     #[Route('/admin', name: 'admin')]
@@ -93,6 +109,46 @@ class DashboardController extends AbstractDashboardController
         $monthlyData = $this->commandeRepository->getMonthlyStatistics();
         $yearlyData = $this->commandeRepository->getYearlyStatistics();
         
+        // 5. Récupérer les listes d'utilisateurs
+        $commerciaux = $this->userRepository->findByRole('ROLE_COMMERCIAL');
+        $paos = $this->userRepository->findByRole('ROLE_PAO');
+
+        // 6. Vérifier si un utilisateur a été sélectionné dans l'URL
+        $selectedCommercialId = $request->query->get('commercial_id');
+        $selectedPaoId = $request->query->get('pao_id');
+        
+        $commercialData = null;
+        if ($selectedCommercialId) {
+            $commercial = $this->userRepository->find($selectedCommercialId);
+            if ($commercial) {
+                $today = new \DateTime();
+                $startOfDay = (clone $today)->setTime(0, 0, 0);
+                $endOfDay = (clone $today)->setTime(23, 59, 59);
+
+                // On appelle les nouvelles méthodes dédiées au commercial
+                $commercialData = [
+                    'user' => $commercial,
+                    'salesToday' => $this->commandeRepository->findTotalSalesBetweenDates($startOfDay, $endOfDay, $commercial, 'commercial'),
+                    'bestProductsToday' => $this->commandeProduitRepository->findBestSellingProducts($startOfDay, $endOfDay, $commercial, 'commercial'),
+                ];
+            }
+        }
+        
+        $paoData = null;
+        if ($selectedPaoId) {
+            $pao = $this->userRepository->find($selectedPaoId);
+            if ($pao) {
+                // On appelle la nouvelle méthode claire pour les stats PAO
+                $stats = $this->commandeRepository->countCommandsByPaoStatusForUser($pao);
+                $paoData = [
+                    'user' => $pao,
+                    'enAttente' => $stats[Commande::STATUT_PAO_ATTENTE] ?? 0,
+                    'enCours' => $stats[Commande::STATUT_PAO_EN_COURS] ?? 0,
+                    'enModification' => $stats[Commande::STATUT_PAO_MODIFICATION] ?? 0,
+                ];
+            }
+        }
+
         // --- 5. ENVOI DE TOUTES LES DONNÉES AU TEMPLATE ---
         return $this->render('admin/dashboard.html.twig', [
             // Pour le filtre par période
@@ -111,6 +167,12 @@ class DashboardController extends AbstractDashboardController
             'bestProductsThisYear' => $bestProductsThisYear,
             // Pour les graphiques et tableaux historiques
             'monthlyData' => $monthlyData, 'yearlyData' => $yearlyData,
+            'commerciaux' => $commerciaux,
+            'paos' => $paos,
+            'selectedCommercialId' => $selectedCommercialId,
+            'selectedPaoId' => $selectedPaoId,
+            'commercialData' => $commercialData,
+            'paoData' => $paoData,
         ]);
     }
 
@@ -154,57 +216,48 @@ class DashboardController extends AbstractDashboardController
 
     public function configureMenuItems(): iterable
     {
-        yield MenuItem::linktoDashboard('Tableau de bord', 'fa fa-home');
-        yield MenuItem::linkToCrud('Utilisateurs', 'fas fa-camera', User::class);
+        // === SECTION 1 : LIENS PRINCIPAUX DE L'ADMIN ===
+        yield MenuItem::linkToDashboard('Tableau de bord Admin', 'fa fa-home');
+        
+        yield MenuItem::section('Gestion Principale');
+        yield MenuItem::linkToCrud('Utilisateurs', 'fas fa-users', User::class);
         yield MenuItem::linkToCrud('Demandes Utilisateurs', 'fa fa-user-plus', UserRequest::class);
-        yield MenuItem::linkToCrud('Clients', 'fas fa-users', Client::class);
-        yield MenuItem::linkToCrud('Fournisseurs', 'fas fa-thumbs-up', Fournisseur::class);
+        yield MenuItem::linkToCrud('Clients', 'fas fa-id-card', Client::class);
+        yield MenuItem::linkToCrud('Fournisseurs', 'fas fa-truck-moving', Fournisseur::class);
         yield MenuItem::linkToCrud('Produits', 'fas fa-box', Produit::class);
-        yield MenuItem::linkToCrud('Commandes', 'fas fa-shopping-cart', Commande::class)
-            ->setController(CommandeCrudController::class); 
-        /*yield MenuItem::linkToCrud('Demandes de Modif.', 'fa fa-key', Commande::class)
-            ->setQueryParameter('filters[demandeModificationStatut][value]', 'requested')
-            ->setCssClass('text-warning')
-            ->setPermission('ROLE_ADMIN');*/
-        /* yield MenuItem::linkToCrud('Paiement', 'fas fa-briefcase', Paiement::class);*/   
-        yield MenuItem::linkToCrud('Devis', 'fas fa-file-pdf', Devis::class)
-            ->setController(DevisCrudController::class);
-        // ✅ Facture au-dessus de Devis
-        yield MenuItem::linkToCrud('Factures', 'fas fa-file-invoice', Facture::class)
-            ->setController(FactureCrudController::class);
-        /*yield MenuItem::linkToCrud('Catégorie des dépenses', 'fas fa-cog', CategorieDepense::class);
-        yield MenuItem::linkToCrud('Catégorie des révenus', 'fas fa-money-bill', CategorieRevenu::class);*/
-        /*  
-        'fas fa-users' : Icône des utilisateurs.
-        'fas fa-cogs' : Icône d'engrenages ou de réglages.
-        'fas fa-folder' : Icône de dossier.
-        'fas fa-book' : Icône de livre.
-        'fas fa-briefcase' : Icône de mallette.
-        'fas fa-chart-bar' : Icône de graphique en barres.
-        'fas fa-calendar' : Icône de calendrier.
-        'fas fa-pen' : Icône de stylo.
-        'fas fa-shopping-cart' : Icône de panier d'achat.
-        'fas fa-envelope' : Icône d'enveloppe. 
-        fas fa-home : Icône de maison
-        fas fa-user : Icône d'utilisateur
-        fas fa-cog : Icône d'engrenage
-        fas fa-search : Icône de recherche
-        fas fa-envelope : Icône d'enveloppe
-        fas fa-star : Icône d'étoile
-        fas fa-cloud : Icône de nuage
-        fas fa-trash : Icône de corbeille
-        fas fa-folder : Icône de dossier
-        fas fa-calendar : Icône de calendrier
-        fas fa-bar-chart : Icône de graphique à barres
-        fas fa-camera : Icône d'appareil photo
-        fas fa-lock : Icône de cadenas
-        fas fa-bell : Icône de cloche
-        fas fa-map-marker : Icône de marqueur de carte
-        fas fa-money-bill : Icône de billet de banque
-        fas fa-phone : Icône de téléphone
-        fas fa-code : Icône de code
-        fas fa-file-pdf : Icône de fichier PDF
-        fas fa-thumbs-up : Icône de pouce en l'air
-        */
+
+        yield MenuItem::section('Suivi des Départements');
+
+        // === SECTION 2 : SOUS-MENU POUR LE SUIVI COMMERCIAL (CORRIGÉ) ===
+        yield MenuItem::subMenu('Suivi Commercial', 'fa fa-dollar-sign')->setSubItems([
+            //MenuItem::linkToRoute('Dashboard Commercial', 'fa fa-chart-line', 'commercial_dashboard'),
+            MenuItem::linkToCrud('Toutes les Commandes', 'fas fa-shopping-cart', Commande::class)
+                ->setController(CommandeCrudController::class),
+            MenuItem::linkToCrud('Tous les Devis', 'fas fa-file-alt', Devis::class)
+                ->setController(DevisCrudController::class),
+            MenuItem::linkToCrud('Toutes les Factures', 'fas fa-file-invoice', Facture::class)
+                ->setController(FactureCrudController::class),
+        ]);
+
+        // === SECTION 3 : SOUS-MENU POUR LE SUIVI PAO (CORRIGÉ) ===
+        yield MenuItem::subMenu('Suivi PAO', 'fa fa-pencil-ruler')->setSubItems([
+            //MenuItem::linkToRoute('Dashboard PAO', 'fa fa-palette', 'pao_dashboard'),
+            MenuItem::linkToCrud('Travaux à Faire', 'fa fa-tasks', Commande::class)
+                ->setController(PaoCrudController::class)
+                ->setQueryParameter('filtre', 'a_faire'),
+            MenuItem::linkToCrud('Toutes les Commandes PAO', 'fa fa-list-alt', Commande::class)
+                ->setController(PaoCrudController::class),
+        ]);
+
+        // === SECTION 4 : SOUS-MENU POUR LE SUIVI PRODUCTION (CORRIGÉ) ===
+        yield MenuItem::subMenu('Suivi Production', 'fa fa-industry')->setSubItems([
+            //MenuItem::linkToRoute('Dashboard Production', 'fa fa-cogs', 'production_dashboard'),
+            MenuItem::linkToCrud('Travaux à Faire', 'fa fa-tasks', Commande::class)
+                ->setController(ProductionCrudController::class)
+                ->setQueryParameter('filtre', 'a_faire'),
+                
+            MenuItem::linkToCrud('Toutes les Commandes Prod.', 'fa fa-archive', Commande::class)
+                ->setController(ProductionCrudController::class),
+        ]);
     }
 }

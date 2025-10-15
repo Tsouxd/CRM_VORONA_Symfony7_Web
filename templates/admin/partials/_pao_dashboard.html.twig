@@ -1,0 +1,35 @@
+{# templates/admin/partials/_pao_dashboard.html.twig #}
+{# Ce template attend les variables 'enAttente', 'enCours', 'enModification' #}
+
+{% set totalAFaire = enAttente + enCours + enModification %}
+<div class="row">
+    {# --- KPI : TOTAL À FAIRE --- #}
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4 kpi-card">
+            <div class="card-body text-center">
+                <div class="label">Total de Travaux à Faire</div>
+                <div class="value text-primary">{{ totalAFaire }}</div>
+            </div>
+        </div>
+    </div>
+    
+    {# --- KPI : MODIFICATIONS DEMANDÉES --- #}
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4 kpi-card">
+            <div class="card-body text-center">
+                <div class="label">Modifications Demandées</div>
+                <div class="value text-danger">{{ enModification }}</div>
+            </div>
+        </div>
+    </div>
+
+    {# --- KPI : NOUVELLES COMMANDES --- #}
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4 kpi-card">
+            <div class="card-body text-center">
+                <div class="label">Nouvelles Commandes (en attente)</div>
+                <div class="value text-secondary">{{ enAttente }}</div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -45,7 +45,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?string $plainPassword = null;
 
 
-    #[ORM\Column]
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
     private bool $isVerified = false;
 
     #[ORM\OneToMany(mappedBy: 'pao', targetEntity: Commande::class)]

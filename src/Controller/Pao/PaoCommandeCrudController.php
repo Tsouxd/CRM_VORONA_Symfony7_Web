@@ -16,9 +16,18 @@ use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 class PaoCommandeCrudController extends AbstractCrudController
 {
+    private RequestStack $requestStack;
+
+    // On injecte RequestStack pour pouvoir lire les paramètres de l'URL
+    public function __construct(RequestStack $requestStack)
+    {
+        $this->requestStack = $requestStack;
+    }
+    
     public static function getEntityFqcn(): string { return Commande::class; }
 
     public function configureCrud(Crud $crud): Crud
@@ -35,27 +44,31 @@ class PaoCommandeCrudController extends AbstractCrudController
             ->add(Crud::PAGE_INDEX, Action::DETAIL);
     }
 
-    // === C'EST LA MÉTHODE LA PLUS IMPORTANTE ===
-    /**
-     * Cette méthode est appelée par EasyAdmin pour construire la requête
-     * qui récupère les éléments à afficher dans la page 'index' (la liste).
-     * On va la surcharger pour y ajouter notre filtre de sécurité.
-     */
     public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
     {
-        // 1. On récupère le QueryBuilder par défaut d'EasyAdmin
         $qb = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
 
-        // 2. On récupère l'utilisateur actuellement connecté
-        $user = $this->getUser();
-
-        // 3. On ajoute notre condition : ne montrer que les commandes
-        //    où le champ 'pao' est égal à l'utilisateur connecté.
-        // 'entity' est l'alias par défaut pour la table principale dans EasyAdmin.
-        $qb->andWhere('entity.pao = :currentUser')
-           ->setParameter('currentUser', $user);
-
-        // 4. On retourne le QueryBuilder modifié
+        // --- Filtre 1 : Restreindre à l'utilisateur PAO connecté (si ce n'est pas un admin) ---
+        if ($this->isGranted('ROLE_PAO') && !$this->isGranted('ROLE_ADMIN')) {
+            $user = $this->getUser();
+            $qb->andWhere('entity.pao = :currentUser')
+               ->setParameter('currentUser', $user);
+        }
+        
+        // --- Filtre 2 : Filtrer par "Travaux à Faire" si le paramètre est dans l'URL ---
+        $request = $this->requestStack->getCurrentRequest();
+        if ($request->query->get('filtre') === 'a_faire') {
+            
+            // LA NOUVELLE LOGIQUE EST ICI :
+            // On ajoute la condition pour ne montrer que les statuts PAO actifs.
+            $qb->andWhere('entity.statutPao IN (:statuses)')
+               ->setParameter('statuses', [
+                   Commande::STATUT_PAO_ATTENTE,
+                   Commande::STATUT_PAO_EN_COURS,
+                   Commande::STATUT_PAO_MODIFICATION,
+               ]);
+        }
+        
         return $qb;
     }
 
