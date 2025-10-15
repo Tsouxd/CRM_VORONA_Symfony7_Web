@@ -206,6 +206,55 @@ class DashboardController extends AbstractDashboardController
         return new Response('', 400);
     }
 
+    // === NOUVELLE MÉTHODE POUR LE DASHBOARD COMMERCIAL EN AJAX ===
+    #[Route('/admin/supervision/commercial-data', name: 'admin_supervision_commercial')]
+    public function getCommercialSupervisionData(Request $request): Response
+    {
+        $commercialId = $request->query->get('commercial_id');
+        if (!$commercialId) {
+            return new Response(''); // Si aucun ID, on renvoie une réponse vide
+        }
+
+        $commercial = $this->userRepository->find($commercialId);
+        if (!$commercial) {
+            return new Response('<div class="alert alert-danger">Commercial introuvable.</div>');
+        }
+
+        $today = new \DateTime();
+        $startOfDay = (clone $today)->setTime(0, 0, 0);
+        $endOfDay = (clone $today)->setTime(23, 59, 59);
+
+        // On rend UNIQUEMENT le fragment avec les données du commercial
+        return $this->render('admin/partials/_commercial_dashboard.html.twig', [
+            'salesToday' => $this->commandeRepository->findTotalSalesBetweenDates($startOfDay, $endOfDay, $commercial, 'commercial'),
+            'bestProductsToday' => $this->commandeProduitRepository->findBestSellingProducts($startOfDay, $endOfDay, $commercial, 'commercial'),
+        ]);
+    }
+
+    // === NOUVELLE MÉTHODE POUR LE DASHBOARD PAO EN AJAX ===
+    #[Route('/admin/supervision/pao-data', name: 'admin_supervision_pao')]
+    public function getPaoSupervisionData(Request $request): Response
+    {
+        $paoId = $request->query->get('pao_id');
+        if (!$paoId) {
+            return new Response('');
+        }
+
+        $pao = $this->userRepository->find($paoId);
+        if (!$pao) {
+            return new Response('<div class="alert alert-danger">Utilisateur PAO introuvable.</div>');
+        }
+
+        $stats = $this->commandeRepository->countCommandsByPaoStatusForUser($pao);
+        
+        // On rend UNIQUEMENT le fragment avec les données du PAO
+        return $this->render('admin/partials/_pao_dashboard.html.twig', [
+            'enAttente' => $stats[Commande::STATUT_PAO_ATTENTE] ?? 0,
+            'enCours' => $stats[Commande::STATUT_PAO_EN_COURS] ?? 0,
+            'enModification' => $stats[Commande::STATUT_PAO_MODIFICATION] ?? 0,
+        ]);
+    }
+
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()

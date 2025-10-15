@@ -266,7 +266,8 @@
                     <ul class="list-group list-group-flush list-group-modern">
                         {% for p in bestProductsForPeriod %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span class="fw-medium">{{ p.product_name }}</span>
+                            {# === LA CORRECTION EST ICI === #}
+                            <span class="fw-medium">{{ p.nom }}</span>
                             <span class="badge badge-modern">{{ p.total_quantity }}</span>
                         </li>
                         {% else %}
@@ -331,7 +332,7 @@
                     <ul class="list-group list-group-flush list-group-modern">
                         {% for p in bestProductsToday %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span class="fw-medium">{{ p.product_name }}</span>
+                            <span class="fw-medium">{{ p.nom }}</span>
                             <span class="badge badge-modern">{{ p.total_quantity }}</span>
                         </li>
                         {% else %}
@@ -504,72 +505,37 @@
     <hr class="section-divider">
     <h4 class="section-title">Supervision des Départements</h4>
 
-    {# --- SUPERVISION COMMERCIALE --- #}
+    {# --- SUPERVISION COMMERCIALE (MODIFIÉE) --- #}
     <div class="mb-4">
         <h5 class="mb-3"><i class="fas fa-dollar-sign me-2"></i>Supervision Commerciale</h5>
-        <form method="get" class="mb-3">
-            {# On ajoute des champs cachés pour ne pas perdre les autres filtres #}
-            <input type="hidden" name="pao_id" value="{{ selectedPaoId }}">
-            <div class="input-group">
-                <select name="commercial_id" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- Sélectionner un commercial --</option>
-                    {% for commercial in commerciaux %}
-                        <option value="{{ commercial.id }}" {{ commercial.id == selectedCommercialId ? 'selected' }}>
-                            {{ commercial.username }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-        </form>
+        {# On enlève le formulaire et l'attribut onchange #}
+        <div class="input-group mb-3">
+            <select id="commercial-selector" class="form-select">
+                <option value="">-- Sélectionner un commercial --</option>
+                {% for commercial in commerciaux %}
+                    <option value="{{ commercial.id }}">{{ commercial.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
         
-        {% if commercialData %}
-            <div class="card border-primary">
-                <div class="card-header bg-primary text-white">
-                    Tableau de bord de : <strong>{{ commercialData.user.username }}</strong>
-                </div>
-                <div class="card-body">
-                    {# === ON INCLUT LE FRAGMENT ICI === #}
-                    {% include 'admin/partials/_commercial_dashboard.html.twig' with {
-                        salesToday: commercialData.salesToday,
-                        bestProductsToday: commercialData.bestProductsToday
-                    } %}
-                </div>
-            </div>
-        {% endif %}
+        {# C'est ici que le dashboard du commercial sera injecté par le JS #}
+        <div id="commercial-dashboard-container"></div>
     </div>
 
-    {# --- SUPERVISION PAO --- #}
+    {# --- SUPERVISION PAO (MODIFIÉE) --- #}
     <div class="mb-4">
         <h5 class="mb-3"><i class="fas fa-pencil-ruler me-2"></i>Supervision PAO</h5>
-        <form method="get" class="mb-3">
-            <input type="hidden" name="commercial_id" value="{{ selectedCommercialId }}">
-            <div class="input-group">
-                <select name="pao_id" class="form-select" onchange="this.form.submit()">
-                    <option value="">-- Sélectionner un PAO --</option>
-                    {% for pao in paos %}
-                        <option value="{{ pao.id }}" {{ pao.id == selectedPaoId ? 'selected' }}>
-                            {{ pao.username }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-        </form>
-        
-        {% if paoData %}
-            <div class="card border-info">
-                <div class="card-header bg-info text-white">
-                    Tableau de bord de : <strong>{{ paoData.user.username }}</strong>
-                </div>
-                <div class="card-body">
-                    {# === ON INCLUT LE FRAGMENT ICI === #}
-                    {% include 'admin/partials/_pao_dashboard.html.twig' with {
-                        enAttente: paoData.enAttente,
-                        enCours: paoData.enCours,
-                        enModification: paoData.enModification
-                    } %}
-                </div>
-            </div>
-        {% endif %}
+        <div class="input-group mb-3">
+            <select id="pao-selector" class="form-select">
+                <option value="">-- Sélectionner un PAO --</option>
+                {% for pao in paos %}
+                    <option value="{{ pao.id }}">{{ pao.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        {# C'est ici que le dashboard du PAO sera injecté par le JS #}
+        <div id="pao-dashboard-container"></div>
     </div>
 
 {% endblock %}
@@ -622,6 +588,56 @@
                     }
                 }
             };
+
+            const commercialSelector = document.getElementById('commercial-selector');
+            const commercialContainer = document.getElementById('commercial-dashboard-container');
+            
+            const paoSelector = document.getElementById('pao-selector');
+            const paoContainer = document.getElementById('pao-dashboard-container');
+
+            // Fonction pour charger le contenu via Fetch (AJAX)
+            async function loadDashboardContent(url, container) {
+                // Affiche un indicateur de chargement
+                container.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau');
+                    }
+                    const html = await response.text();
+                    container.innerHTML = html;
+                } catch (error) {
+                    container.innerHTML = '<div class="alert alert-danger">Erreur de chargement des données.</div>';
+                    console.error('Fetch error:', error);
+                }
+            }
+
+            // Écouteur pour le sélecteur des commerciaux
+            if (commercialSelector) {
+                commercialSelector.addEventListener('change', function() {
+                    const commercialId = this.value;
+                    if (commercialId) {
+                        const url = `{{ path('admin_supervision_commercial') }}?commercial_id=${commercialId}`;
+                        loadDashboardContent(url, commercialContainer);
+                    } else {
+                        commercialContainer.innerHTML = ''; // Vide le conteneur si on dé-sélectionne
+                    }
+                });
+            }
+            
+            // Écouteur pour le sélecteur des PAO
+            if (paoSelector) {
+                paoSelector.addEventListener('change', function() {
+                    const paoId = this.value;
+                    if (paoId) {
+                        const url = `{{ path('admin_supervision_pao') }}?pao_id=${paoId}`;
+                        loadDashboardContent(url, paoContainer);
+                    } else {
+                        paoContainer.innerHTML = '';
+                    }
+                });
+            }
 
             // Graphique des commandes mensuelles
             if (document.getElementById('monthlyOrderChart')) {
