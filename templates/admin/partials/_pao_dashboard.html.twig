@@ -1,20 +1,16 @@
-{# templates/admin/partials/_pao_dashboard.html.twig #}
-{# Ce template attend les variables 'enAttente', 'enCours', 'enModification' #}
-
-{% set totalAFaire = enAttente + enCours + enModification %}
 <div class="row">
     {# --- KPI : TOTAL À FAIRE --- #}
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card shadow-sm mb-4 kpi-card">
             <div class="card-body text-center">
                 <div class="label">Total de Travaux à Faire</div>
-                <div class="value text-primary">{{ totalAFaire }}</div>
+                <div class="value text-primary">{{ enAttente + enCours + enModification }}</div>
             </div>
         </div>
     </div>
-    
+
     {# --- KPI : MODIFICATIONS DEMANDÉES --- #}
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card shadow-sm mb-4 kpi-card">
             <div class="card-body text-center">
                 <div class="label">Modifications Demandées</div>
@@ -24,7 +20,7 @@
     </div>
 
     {# --- KPI : NOUVELLES COMMANDES --- #}
-    <div class="col-md-4">
+    <div class="col-md-3">
         <div class="card shadow-sm mb-4 kpi-card">
             <div class="card-body text-center">
                 <div class="label">Nouvelles Commandes (en attente)</div>
@@ -32,4 +28,48 @@
             </div>
         </div>
     </div>
+
+    {# --- KPI : TRAVAUX FAITS --- #}
+    <div class="col-md-3">
+        <div class="card shadow-sm mb-4 kpi-card">
+            <div class="card-body text-center">
+                <div class="label">Travaux Faits (BAT Validé)</div>
+                <div class="value text-success">{{ faits }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# --- Listes des commandes par statut ---#}
+<div class="row">
+    {% set statutMap = {
+        'En attente': commandesAttente,
+        'En cours': commandesEnCours,
+        'Modification demandée': commandesModification,
+        'Faits': commandesFaits
+    } %}
+
+    {% for label, commandes in statutMap %}
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <strong>{{ label }}</strong> ({{ commandes|length }})
+                </div>
+                <div class="card-body p-2">
+                    {% if commandes is not empty %}
+                        <ul class="list-group list-group-flush">
+                            {% for cmd in commandes %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ cmd.client.nom ?? 'Client inconnu' }} - commande n°{{ cmd.id }}
+                                    <span class="badge bg-primary">{{ cmd.dateCommande|date('d/m/Y') }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-muted text-center py-2">Aucune commande</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endfor %}
 </div>

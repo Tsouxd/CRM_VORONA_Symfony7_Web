@@ -36,6 +36,7 @@ use App\Controller\Admin\DevisCrudController;
 use App\Controller\Pao\PaoCommandeCrudController as PaoCrudController;
 use App\Controller\Production\ProductionCommandeCrudController as ProductionCrudController;
 use App\Repository\UserRepository;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 #[AdminDashboard(routePath: '/admin', routeName: 'admin')]
 class DashboardController extends AbstractDashboardController
@@ -206,53 +207,78 @@ class DashboardController extends AbstractDashboardController
         return new Response('', 400);
     }
 
-    // === NOUVELLE MÉTHODE POUR LE DASHBOARD COMMERCIAL EN AJAX ===
     #[Route('/admin/supervision/commercial-data', name: 'admin_supervision_commercial')]
     public function getCommercialSupervisionData(Request $request): Response
     {
         $commercialId = $request->query->get('commercial_id');
+        $searchDateParam = $request->query->get('search_date');
+
         if (!$commercialId) {
-            return new Response(''); // Si aucun ID, on renvoie une réponse vide
+            return new JsonResponse([
+                'html' => '<div class="alert alert-warning">Veuillez sélectionner un commercial.</div>'
+            ]);
         }
 
         $commercial = $this->userRepository->find($commercialId);
         if (!$commercial) {
-            return new Response('<div class="alert alert-danger">Commercial introuvable.</div>');
+            return new JsonResponse([
+                'html' => '<div class="alert alert-danger">Commercial introuvable.</div>'
+            ]);
         }
 
+        // --- Dates ---
         $today = new \DateTime();
         $startOfDay = (clone $today)->setTime(0, 0, 0);
         $endOfDay = (clone $today)->setTime(23, 59, 59);
+        $searchDate = $searchDateParam ? new \DateTime($searchDateParam) : null;
 
-        // On rend UNIQUEMENT le fragment avec les données du commercial
-        return $this->render('admin/partials/_commercial_dashboard.html.twig', [
+        // --- Récupération des données depuis le Repository ---
+        $summary = $this->commandeRepository->getCommercialSummary($commercial, $searchDate);
+
+        // --- Rendu du fragment Twig ---
+        $html = $this->renderView('admin/partials/_commercial_dashboard.html.twig', [
             'salesToday' => $this->commandeRepository->findTotalSalesBetweenDates($startOfDay, $endOfDay, $commercial, 'commercial'),
             'bestProductsToday' => $this->commandeProduitRepository->findBestSellingProducts($startOfDay, $endOfDay, $commercial, 'commercial'),
+            'totalCommands' => $summary['totalCommands'],
+            'oldestCommands' => $summary['oldestCommands'],
+            'searchDate' => $searchDateParam,
+            'commercialId' => $commercialId,
         ]);
+
+        return new JsonResponse(['html' => $html]);
     }
 
     // === NOUVELLE MÉTHODE POUR LE DASHBOARD PAO EN AJAX ===
     #[Route('/admin/supervision/pao-data', name: 'admin_supervision_pao')]
-    public function getPaoSupervisionData(Request $request): Response
+    public function getPaoSupervisionData(Request $request): JsonResponse
     {
         $paoId = $request->query->get('pao_id');
         if (!$paoId) {
-            return new Response('');
+            return new JsonResponse(['html' => '']);
         }
 
         $pao = $this->userRepository->find($paoId);
         if (!$pao) {
-            return new Response('<div class="alert alert-danger">Utilisateur PAO introuvable.</div>');
+            return new JsonResponse([
+                'html' => '<div class="alert alert-danger">Utilisateur PAO introuvable.</div>'
+            ]);
         }
 
         $stats = $this->commandeRepository->countCommandsByPaoStatusForUser($pao);
-        
-        // On rend UNIQUEMENT le fragment avec les données du PAO
-        return $this->render('admin/partials/_pao_dashboard.html.twig', [
+        $commandes = $this->commandeRepository->findCommandsByPaoGroupedByStatus($pao);
+
+        $html = $this->renderView('admin/partials/_pao_dashboard.html.twig', [
             'enAttente' => $stats[Commande::STATUT_PAO_ATTENTE] ?? 0,
             'enCours' => $stats[Commande::STATUT_PAO_EN_COURS] ?? 0,
             'enModification' => $stats[Commande::STATUT_PAO_MODIFICATION] ?? 0,
+            'faits' => $stats[Commande::STATUT_PAO_FAIT] ?? 0,
+            'commandesAttente' => $commandes[Commande::STATUT_PAO_ATTENTE] ?? [],
+            'commandesEnCours' => $commandes[Commande::STATUT_PAO_EN_COURS] ?? [],
+            'commandesModification' => $commandes[Commande::STATUT_PAO_MODIFICATION] ?? [],
+            'commandesFaits' => $commandes[Commande::STATUT_PAO_FAIT] ?? [],
         ]);
+
+        return new JsonResponse(['html' => $html]);
     }
 
     public function configureDashboard(): Dashboard

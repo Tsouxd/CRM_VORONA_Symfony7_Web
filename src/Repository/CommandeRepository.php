@@ -252,4 +252,79 @@ class CommandeRepository extends ServiceEntityRepository
 
         return $qb->getQuery()->getResult();
     }
+
+    /**
+     * Récupère un résumé des performances pour un commercial donné.
+     */
+    public function getCommercialSummary(User $commercial, ?\DateTime $searchDate = null): array
+    {
+        // Total de commandes
+        $qb = $this->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.commercial = :commercial')
+            ->setParameter('commercial', $commercial);
+
+        if ($searchDate) {
+            $startOfDay = (clone $searchDate)->setTime(0, 0, 0);
+            $endOfDay = (clone $searchDate)->setTime(23, 59, 59);
+
+            $qb->andWhere('c.dateCommande BETWEEN :start AND :end')
+            ->setParameter('start', $startOfDay)
+            ->setParameter('end', $endOfDay);
+        }
+
+        $totalCommands = $qb->getQuery()->getSingleScalarResult();
+
+        // Commandes les plus anciennes
+        $qb2 = $this->createQueryBuilder('c')
+            ->where('c.commercial = :commercial')
+            ->andWhere("c.statut NOT IN ('livrée', 'annulée')")
+            ->setParameter('commercial', $commercial)
+            ->orderBy('c.dateCommande', 'ASC')
+            ->setMaxResults(5);
+
+        if ($searchDate) {
+            $startOfDay = (clone $searchDate)->setTime(0, 0, 0);
+            $endOfDay = (clone $searchDate)->setTime(23, 59, 59);
+
+            $qb2->andWhere('c.dateCommande BETWEEN :start AND :end')
+                ->setParameter('start', $startOfDay)
+                ->setParameter('end', $endOfDay);
+        }
+
+        $oldestCommands = $qb2->getQuery()->getResult();
+
+        return [
+            'totalCommands' => (int) $totalCommands,
+            'oldestCommands' => $oldestCommands,
+        ];
+    }
+
+    /**
+     * Récupère les commandes d'un PAO groupées par statut.
+     */
+    public function findCommandsByPaoGroupedByStatus(User $paoUser): array
+    {
+        $statuses = [
+            Commande::STATUT_PAO_ATTENTE,
+            Commande::STATUT_PAO_EN_COURS,
+            Commande::STATUT_PAO_MODIFICATION,
+            Commande::STATUT_PAO_FAIT,
+        ];
+
+        $results = [];
+        foreach ($statuses as $status) {
+            $results[$status] = $this->createQueryBuilder('c')
+                ->andWhere('c.pao = :pao')
+                ->andWhere('c.statutPao = :status')
+                ->setParameter('pao', $paoUser)
+                ->setParameter('status', $status)
+                ->orderBy('c.dateCommande', 'DESC')
+                ->getQuery()
+                ->getResult();
+        }
+
+        return $results;
+    }
+
 }

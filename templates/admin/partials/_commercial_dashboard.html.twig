@@ -1,9 +1,25 @@
 {# templates/admin/partials/_commercial_dashboard.html.twig #}
-{# Ce template attend les variables 'salesToday' et 'bestProductsToday' #}
+{# Ce template attend maintenant 'salesToday', 'bestProductsToday', 'totalCommands', 'oldestCommands' #}
+<form method="get"
+      action="{{ path('admin_supervision_commercial') }}"
+      class="mb-3 ajax-search-form">
+    <input type="hidden" name="commercial_id" value="{{ commercialId }}">
+    <div class="input-group">
+        <input 
+            type="date" 
+            name="search_date" 
+            class="form-control" 
+            value="{{ searchDate }}"
+            placeholder="Rechercher par date">
+        <button class="btn btn-outline-primary" type="submit">
+            <i class="fas fa-search"></i> Rechercher
+        </button>
+    </div>
+</form>
 
 <div class="row">
     {# --- KPI : VENTES DU JOUR --- #}
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card shadow-sm mb-4 kpi-card">
             <div class="card-body text-center">
                 <div class="label">Chiffre d'Affaires du Jour</div>
@@ -12,6 +28,18 @@
         </div>
     </div>
 
+    {# --- KPI : TOTAL COMMANDES --- #}
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4 kpi-card">
+            <div class="card-body text-center">
+                <div class="label">Total Commandes Créées</div>
+                <div class="value text-primary">{{ totalCommands }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
     {# --- LISTE : MEILLEURS PRODUITS DU JOUR --- #}
     <div class="col-md-6">
         <div class="card shadow-sm mb-4">
@@ -28,6 +56,41 @@
                     <li class="list-group-item text-muted">Aucune vente enregistrée aujourd'hui.</li>
                 {% endfor %}
             </ul>
+        </div>
+    </div>
+    
+    {# --- LISTE : COMMANDES LES PLUS ANCIENNES --- #}
+    <div class="col-md-6">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <strong>Liste des commandes</strong>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Date</th>
+                            <th>Client</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for commande in oldestCommands %}
+                            <tr>
+                                <td>#{{ commande.id }}</td>
+                                <td>{{ commande.dateCommande|date('d/m/Y') }}</td>
+                                <td>{{ commande.client.nom }}</td>
+                                <td><span class="badge bg-secondary">{{ commande.statut }}</span></td>
+                            </tr>
+                        {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">Aucune commande en cours.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

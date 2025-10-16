@@ -517,6 +517,10 @@
                 {% endfor %}
             </select>
         </div>
+
+        <div id="commercial-dashboard">
+            {# Contenu chargé dynamiquement ici #}
+        </div>
         
         {# C'est ici que le dashboard du commercial sera injecté par le JS #}
         <div id="commercial-dashboard-container"></div>
@@ -547,7 +551,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const monthlyData = {{ monthlyData|json_encode|raw }};
             const yearlyData = {{ yearlyData|json_encode|raw }};
-            
+
             const commonOptions = {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -557,63 +561,66 @@
                         position: 'top',
                         labels: {
                             usePointStyle: true,
-                            font: {
-                                family: 'Inter, system-ui, sans-serif',
-                                weight: '500'
-                            }
+                            font: { family: 'Inter, system-ui, sans-serif', weight: '500' }
                         }
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        },
-                        ticks: {
-                            font: {
-                                family: 'Inter, system-ui, sans-serif'
-                            }
-                        }
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                        ticks: { font: { family: 'Inter, system-ui, sans-serif' } }
                     },
                     x: {
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        },
-                        ticks: {
-                            font: {
-                                family: 'Inter, system-ui, sans-serif'
-                            }
-                        }
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                        ticks: { font: { family: 'Inter, system-ui, sans-serif' } }
                     }
                 }
             };
 
             const commercialSelector = document.getElementById('commercial-selector');
             const commercialContainer = document.getElementById('commercial-dashboard-container');
-            
             const paoSelector = document.getElementById('pao-selector');
             const paoContainer = document.getElementById('pao-dashboard-container');
 
-            // Fonction pour charger le contenu via Fetch (AJAX)
+            /** 🔁 Fonction de chargement AJAX **/
             async function loadDashboardContent(url, container) {
-                // Affiche un indicateur de chargement
-                container.innerHTML = '<div class="text-center p-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
-                
+                container.innerHTML = `
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Chargement...</span>
+                        </div>
+                    </div>`;
                 try {
-                    const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error('Erreur réseau');
-                    }
-                    const html = await response.text();
-                    container.innerHTML = html;
+                    const response = await fetch(url, {
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' } // important pour Symfony
+                    });
+                    if (!response.ok) throw new Error('Erreur réseau');
+
+                    const data = await response.json(); // ✅ on parse le JSON
+                    container.innerHTML = data.html;    // ✅ on injecte le HTML
+
+                    // ⚙️ Réinitialise le formulaire de recherche AJAX après rechargement
+                    const form = container.querySelector('.ajax-search-form');
+                    if (form) initAjaxSearchForm(form, container);
                 } catch (error) {
+                    console.error('Erreur Fetch:', error);
                     container.innerHTML = '<div class="alert alert-danger">Erreur de chargement des données.</div>';
-                    console.error('Fetch error:', error);
                 }
             }
 
-            // Écouteur pour le sélecteur des commerciaux
+            /** 🧩 Fonction pour initialiser la recherche dynamique dans le dashboard commercial **/
+            function initAjaxSearchForm(form, container) {
+                form.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(form);
+                    const queryString = new URLSearchParams(formData).toString();
+                    const url = `{{ path('admin_supervision_commercial') }}?${queryString}`;
+                    await loadDashboardContent(url, container);
+                });
+            }
+
+            /** 🧑‍💼 Sélecteur des commerciaux **/
             if (commercialSelector) {
                 commercialSelector.addEventListener('change', function() {
                     const commercialId = this.value;
@@ -621,12 +628,12 @@
                         const url = `{{ path('admin_supervision_commercial') }}?commercial_id=${commercialId}`;
                         loadDashboardContent(url, commercialContainer);
                     } else {
-                        commercialContainer.innerHTML = ''; // Vide le conteneur si on dé-sélectionne
+                        commercialContainer.innerHTML = '';
                     }
                 });
             }
-            
-            // Écouteur pour le sélecteur des PAO
+
+            /** 🎨 Sélecteur des PAO **/
             if (paoSelector) {
                 paoSelector.addEventListener('change', function() {
                     const paoId = this.value;
@@ -639,7 +646,7 @@
                 });
             }
 
-            // Graphique des commandes mensuelles
+            /** 📅 Graphiques Chart.js **/
             if (document.getElementById('monthlyOrderChart')) {
                 new Chart(document.getElementById('monthlyOrderChart'), {
                     type: 'line',
@@ -662,7 +669,6 @@
                 });
             }
 
-            // Graphique des revenus mensuels
             if (document.getElementById('monthlyRevenueChart')) {
                 new Chart(document.getElementById('monthlyRevenueChart'), {
                     type: 'bar',
@@ -672,8 +678,6 @@
                             label: 'Total Ventes (MGA)',
                             data: monthlyData.map(i => i.totalAmount),
                             backgroundColor: 'rgba(54, 162, 235, 0.8)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1,
                             borderRadius: 6,
                             borderSkipped: false
                         }]
@@ -682,7 +686,6 @@
                 });
             }
 
-            // Graphique des commandes annuelles
             if (document.getElementById('yearlyOrderChart')) {
                 new Chart(document.getElementById('yearlyOrderChart'), {
                     type: 'bar',
@@ -692,8 +695,6 @@
                             label: 'Nombre de Commandes',
                             data: yearlyData.map(i => i.orderCount),
                             backgroundColor: 'rgba(255, 99, 132, 0.8)',
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            borderWidth: 1,
                             borderRadius: 6,
                             borderSkipped: false
                         }]
@@ -702,7 +703,6 @@
                 });
             }
 
-            // Graphique des revenus annuels
             if (document.getElementById('yearlyRevenueChart')) {
                 new Chart(document.getElementById('yearlyRevenueChart'), {
                     type: 'line',
@@ -714,39 +714,32 @@
                             borderColor: 'rgb(255, 205, 86)',
                             backgroundColor: 'rgba(255, 205, 86, 0.1)',
                             tension: 0.4,
-                            fill: true,
-                            pointBackgroundColor: 'rgb(255, 205, 86)',
-                            pointBorderColor: '#fff',
-                            pointBorderWidth: 2,
-                            pointRadius: 5
+                            fill: true
                         }]
                     },
                     options: commonOptions
                 });
             }
+
+            /** 📊 Filtres Mois / Année pour les produits **/
+            const monthSelector = document.getElementById('monthSelector');
+            const yearSelector = document.getElementById('yearSelector');
+
+            if (monthSelector) {
+                monthSelector.addEventListener('change', async (e) => {
+                    const month = e.target.value;
+                    const res = await fetch(`/admin/best-products?type=month&month=${month}`);
+                    document.getElementById('best-products-month').innerHTML = await res.text();
+                });
+            }
+
+            if (yearSelector) {
+                yearSelector.addEventListener('change', async (e) => {
+                    const year = e.target.value;
+                    const res = await fetch(`/admin/best-products?type=year&year=${year}`);
+                    document.getElementById('best-products-year').innerHTML = await res.text();
+                });
+            }
         });
-        document.addEventListener('DOMContentLoaded', () => {
-        const monthSelector = document.getElementById('monthSelector');
-        const yearSelector = document.getElementById('yearSelector');
-
-        if (monthSelector) {
-            monthSelector.addEventListener('change', async (e) => {
-                const month = e.target.value;
-                const res = await fetch(`/admin/best-products?type=month&month=${month}`);
-                const html = await res.text();
-                document.getElementById('best-products-month').innerHTML = html;
-            });
-        }
-
-        if (yearSelector) {
-            yearSelector.addEventListener('change', async (e) => {
-                const year = e.target.value;
-                const res = await fetch(`/admin/best-products?type=year&year=${year}`);
-                const html = await res.text();
-                document.getElementById('best-products-year').innerHTML = html;
-            });
-        }
-    });
-
     </script>
 {% endblock %}
