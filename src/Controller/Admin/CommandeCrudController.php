@@ -424,6 +424,17 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     ->orderBy(sprintf('%s.username', $alias), 'ASC');
             })
             ->hideOnIndex();
+        
+        yield AssociationField::new('production', 'Responsable Production')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                // On ne liste que les utilisateurs avec le ROLE_PRODUCTION
+                $alias = $qb->getRootAliases()[0];
+                return $qb
+                    ->andWhere(sprintf('%s.roles LIKE :role', $alias))
+                    ->setParameter('role', '%"ROLE_PRODUCTION"%')
+                    ->orderBy(sprintf('%s.username', $alias), 'ASC');
+            })
+            ->hideOnIndex();
 
         // SI on est sur la page de CRÉATION (new)
         if (Crud::PAGE_NEW === $pageName) {
@@ -862,7 +873,6 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
         return $this->redirect($url);
     }
-
     
     // L'admin refuse
     public function refuseRequest(AdminContext $context, EntityManagerInterface $em): Response

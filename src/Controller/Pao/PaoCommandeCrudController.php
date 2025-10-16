@@ -39,9 +39,15 @@ class PaoCommandeCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        return $actions
-            ->disable(Action::NEW, Action::DELETE)
-            ->add(Crud::PAGE_INDEX, Action::DETAIL);
+        // --- Ajout du bouton Détail pour tout le monde ---
+        $actions->add(Crud::PAGE_INDEX, Action::DETAIL);
+
+        // --- Désactivation des actions NEW et DELETE seulement pour les non-admins ---
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            $actions->disable(Action::NEW, Action::DELETE);
+        }
+
+        return $actions;
     }
 
     public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder

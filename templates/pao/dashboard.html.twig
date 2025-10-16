@@ -79,6 +79,46 @@
     </div>
   </div>
 
+  {# ===== Liste des commandes déjà faites (hors commandes du jour) ===== #}
+<div class="section-card card shadow-sm mt-4 mb-4">
+    <div class="card-header">
+        <h3>Commandes déjà faites</h3>
+    </div>
+    <div class="card-body">
+        {% if doneCommandsPast is not empty %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Client</th>
+                        <th>Date de commande</th>
+                        <th>Date de mise à jour</th>
+                        <th>Produit(s)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cmd in doneCommandsPast %}
+                        <tr>
+                            <td>{{ cmd.id }}</td>
+                            <td>{{ cmd.client.nom }}</td>
+                            <td>{{ cmd.dateCommande ? cmd.dateCommande|date('d/m/Y H:i') : '' }}</td>
+                            <td>{{ cmd.updatedAt ? cmd.updatedAt|date('d/m/Y H:i') : '' }}</td>
+                            <td>
+                                {% for cp in cmd.commandeProduits %}
+                                    {{ cp.produit.nom }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted">Aucune commande passée n’a été trouvée.</p>
+        {% endif %}
+    </div>
+</div>
+
+
   {# ===== Carte semaine ===== #}
   <div class="section-card card shadow-sm mt-4 mb-4">
     <div class="card-header"><h3>Travaux effectués cette semaine</h3></div>

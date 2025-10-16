@@ -158,6 +158,10 @@ class Commande
     #[ORM\JoinColumn(nullable: false)] // Une commande a toujours un créateur
     private ?User $commercial = null;
 
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: true)] // On le met en nullable au cas où
+    private ?User $production = null;
+
     #[ORM\Column]
     private bool $blGenere = false;
 
@@ -426,6 +430,9 @@ class Commande
 
     public function getCommercial(): ?User { return $this->commercial; }
     public function setCommercial(?User $commercial): static { $this->commercial = $commercial; return $this; }
+
+    public function getProduction(): ?User { return $this->production; }
+    public function setProduction(?User $production): static { $this->production = $production; return $this; }
 
     public function __toString(): string
     {

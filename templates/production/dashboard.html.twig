@@ -40,6 +40,46 @@
     </div>
   </div>
 
+  {# ===== Liste des travaux déjà livrés ===== #}
+<div class="section-card card shadow mb-4">
+    <div class="card-header">
+        <h3>Travaux déjà livrés</h3>
+    </div>
+    <div class="card-body">
+        {% if deliveredCommands is not empty %}
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Client</th>
+                        <th>Date de commande</th>
+                        <th>Date de livraison prévue</th>
+                        <th>Produit(s)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cmd in deliveredCommands %}
+                        <tr>
+                            <td>{{ cmd.id }}</td>
+                            <td>{{ cmd.client.nom }}</td>
+                            <td>{{ cmd.dateCommande ? cmd.dateCommande|date('d/m/Y H:i') : '' }}</td>
+                            <td>{{ cmd.updatedAt ? cmd.dateDeLivraison|date('d/m/Y H:i') : '' }}</td>
+                            <td>
+                                {% for cp in cmd.commandeProduits %}
+                                    {{ cp.produit.nom }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted">Aucun travail livré n’a été trouvé.</p>
+        {% endif %}
+    </div>
+</div>
+
+
   <div class="section-card card shadow mb-4">
     <div class="card-header">
       <h3>Travaux livree — par jour sur le mois</h3>

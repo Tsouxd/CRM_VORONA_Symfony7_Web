@@ -94,6 +94,17 @@ class ProductionDashboardController extends AbstractDashboardController
             ->getQuery()
             ->getArrayResult();
 
+        // ===== Liste des travaux déjà livrés =====
+        $deliveredCommands = $this->commandeRepository
+            ->createQueryBuilder('c')
+            ->where('c.statutLivraison = :livree') // ici le statut Livrée
+            ->andWhere('c.updatedAt < :endToday')  // optionnel si tu veux exclure le jour courant
+            ->setParameter('livree', 'Livrée')     // ou Commande::STATUT_LIVREE si tu as une constante
+            ->setParameter('endToday', new \DateTime($endOfDay->format('Y-m-d H:i:s')))
+            ->orderBy('c.updatedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
+
         // Agréger par jour (en PHP)
         $daysInMonth = (int) $startOfTargetMonth->format('t');
         $perDay = array_fill(1, $daysInMonth, 0);
@@ -123,6 +134,7 @@ class ProductionDashboardController extends AbstractDashboardController
             'selectedMonth'             => $monthParam,   // 'YYYY-MM'
             'chartLabels'               => $chartLabels,  // ['01', '02', ...]
             'chartValues'               => $chartValues,  // [0, 1, 0, 2, ...]
+            'deliveredCommands'         => $deliveredCommands,
         ]);
     }
 
@@ -137,7 +149,10 @@ class ProductionDashboardController extends AbstractDashboardController
     public function configureMenuItems(): iterable
     {
         yield MenuItem::linkToDashboard('Tableau de bord', 'fa fa-home');
-        yield MenuItem::linkToCrud('Commandes à traiter', 'fas fa-industry', Commande::class)
+        yield MenuItem::linkToCrud('Commandes à traiter', 'fa fa-industry', Commande::class)
+            ->setController(ProductionCommandeCrudController::class)
+            ->setQueryParameter('filtre', 'a_faire');
+        yield MenuItem::linkToCrud('Toutes les Commandes', 'fa fa-archive', Commande::class)
             ->setController(ProductionCommandeCrudController::class);
     }
 }

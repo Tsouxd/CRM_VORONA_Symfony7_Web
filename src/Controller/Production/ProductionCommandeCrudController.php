@@ -188,18 +188,18 @@ class ProductionCommandeCrudController extends AbstractCrudController
     // === C'EST LA MÉTHODE QUI APPLIQUE LE FILTRE ===
     public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
     {
-        // On récupère le QueryBuilder par défaut
         $qb = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
         
-        // On récupère la requête actuelle pour lire l'URL
+        // --- Filtre 1 : Restreindre à l'utilisateur Production connecté (si ce n'est pas un admin) ---
+        if ($this->isGranted('ROLE_PRODUCTION') && !$this->isGranted('ROLE_ADMIN')) {
+            $user = $this->getUser();
+            $qb->andWhere('entity.production = :currentUser')
+               ->setParameter('currentUser', $user);
+        }
+
+        // --- Filtre 2 : "Travaux à Faire" ---
         $request = $this->requestStack->getCurrentRequest();
-        
-        // On vérifie si le paramètre 'filtre=a_faire' est présent dans l'URL
         if ($request->query->get('filtre') === 'a_faire') {
-            
-            // === LA NOUVELLE LOGIQUE EST ICI ===
-            // On ajoute la condition : ne montrer que les commandes où
-            // le statut de production est exactement 'En cours de production'.
             $qb->andWhere('entity.statutProduction = :status')
                ->setParameter('status', Commande::STATUT_PRODUCTION_EN_COURS);
         }
@@ -216,6 +216,9 @@ class ProductionCommandeCrudController extends AbstractCrudController
         yield CollectionField::new('commandeProduits', 'Produits à produire')->setFormTypeOption('disabled', true);
 
         // === Panneau 2 : Détails PAO (Lecture seule) - C'EST L'AJOUT ===
+        yield AssociationField::new('production', 'Responsable')
+            ->hideOnIndex()
+            ->setFormTypeOption('disabled', true);
         yield FormField::addPanel('Détails Techniques (Validés par PAO)')->collapsible();
         yield BooleanField::new('paoFichierOk', 'Fichier OK ?')->setFormTypeOption('disabled', true);
         yield BooleanField::new('paoBatOk', 'BAT Prêt ?')->setFormTypeOption('disabled', true);

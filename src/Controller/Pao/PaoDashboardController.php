@@ -82,13 +82,13 @@ class PaoDashboardController extends AbstractDashboardController
         $workDoneToday = (int) $this->commandeRepository
             ->createQueryBuilder('c')
             ->select('COUNT(c.id)')
-            ->where('c.statutPao = :status')
+            ->where('c.statutPao = :fait') // <-- uniquement STATUT_PAO_FAIT
             ->andWhere('c.pao = :pao')
             ->andWhere('c.updatedAt >= :start AND c.updatedAt < :next')
-            ->setParameter('status', Commande::STATUT_PAO_FAIT)
+            ->setParameter('fait', Commande::STATUT_PAO_FAIT)
             ->setParameter('pao', $user)
             ->setParameter('start', new \DateTime($startOfDay->format('Y-m-d H:i:s')))
-            ->setParameter('next',  new \DateTime($startOfTomorrow->format('Y-m-d H:i:s')))
+            ->setParameter('next', new \DateTime($startOfTomorrow->format('Y-m-d H:i:s')))
             ->getQuery()
             ->getSingleScalarResult();
 
@@ -122,15 +122,15 @@ class PaoDashboardController extends AbstractDashboardController
         $worksDoneThisWeekCount = (int) $this->commandeRepository
             ->createQueryBuilder('c')
             ->select('COUNT(c.id)')
-            ->where('c.statutPao = :status')
+            ->where('c.statutPao = :fait') // <-- uniquement STATUT_PAO_FAIT
             ->andWhere('c.pao = :pao')
             ->andWhere('c.dateCommande >= :wstart AND c.dateCommande < :wnext')
-            ->setParameter('status', Commande::STATUT_PAO_FAIT)
+            ->setParameter('fait', Commande::STATUT_PAO_FAIT)
             ->setParameter('pao', $user)
             ->setParameter('wstart', new \DateTime($startOfWeek->format('Y-m-d H:i:s')))
-            ->setParameter('wnext',  new \DateTime($startOfNextWeek->format('Y-m-d H:i:s')))
-            ->getQuery()->getSingleScalarResult();
-
+            ->setParameter('wnext', new \DateTime($startOfNextWeek->format('Y-m-d H:i:s')))
+            ->getQuery()
+            ->getSingleScalarResult();
 
         // ===== Graph “PAO FAIT” par jour sur un mois (?month=YYYY-MM) =====
         $request    = $this->requestStack->getCurrentRequest();
@@ -153,14 +153,28 @@ class PaoDashboardController extends AbstractDashboardController
         $paoDoneRows = $this->commandeRepository
             ->createQueryBuilder('c')
             ->select('c.id, c.updatedAt')
-            ->where('c.statutPao = :status')
+            ->where('c.statutPao = :fait') // <-- uniquement STATUT_PAO_FAIT
             ->andWhere('c.pao = :pao')
             ->andWhere('c.updatedAt >= :start AND c.updatedAt < :next')
-            ->setParameter('status', Commande::STATUT_PAO_FAIT)
+            ->setParameter('fait', Commande::STATUT_PAO_FAIT)
             ->setParameter('pao', $user)
             ->setParameter('start', new \DateTime($startOfTargetMonth->format('Y-m-d H:i:s')))
-            ->setParameter('next',  new \DateTime($startOfNextMonth->format('Y-m-d H:i:s')))
-            ->getQuery()->getArrayResult();
+            ->setParameter('next', new \DateTime($startOfNextMonth->format('Y-m-d H:i:s')))
+            ->getQuery()
+            ->getArrayResult();
+
+        // ===== Liste des commandes déjà faites (hors commandes du jour) =====
+        $doneCommandsPast = $this->commandeRepository
+            ->createQueryBuilder('c')
+            ->where('c.statutPao = :fait') // uniquement PAO fait
+            ->andWhere('c.pao = :pao')
+            ->andWhere('c.updatedAt < :startToday') // exclut commandes du jour
+            ->setParameter('fait', Commande::STATUT_PAO_FAIT)
+            ->setParameter('pao', $user)
+            ->setParameter('startToday', new \DateTime($startOfDay->format('Y-m-d H:i:s')))
+            ->orderBy('c.updatedAt', 'DESC')
+            ->getQuery()
+            ->getResult();
 
         // Agrégation par jour
         $daysInMonth = (int) $startOfTargetMonth->format('t');
@@ -195,6 +209,7 @@ class PaoDashboardController extends AbstractDashboardController
             'selectedMonth'          => $monthParam,
             'chartLabels'            => $chartLabels,
             'chartValues'            => $chartValues,
+            'doneCommandsPast'         => $doneCommandsPast,
         ]);
     }
 
