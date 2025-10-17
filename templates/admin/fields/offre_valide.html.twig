@@ -1,0 +1,14 @@
+{% set value = field.formattedValue %}
+{% if value is iterable %}
+    {% if value.status == 'valid' %}
+        <span class="badge bg-success">{{ value.label }}</span>
+    {% elseif value.status == 'expired' %}
+        <span class="badge bg-danger">{{ value.label }}</span>
+    {% elseif value.status == 'none' %}
+        <span class="badge bg-secondary">{{ value.label }}</span>
+    {% else %}
+        <span class="badge bg-light text-dark">Inconnu</span>
+    {% endif %}
+{% else %}
+    <span class="badge bg-secondary">Non définie</span>
+{% endif %}

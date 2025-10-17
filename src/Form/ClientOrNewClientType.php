@@ -96,7 +96,7 @@ class ClientOrNewClientType extends AbstractType
 
             // Si on est en mode édition et qu'un client est déjà associé...
             if ($commande && $commande->getClient() && $commande->getClient()->getId()) {
-                // ... on coche "Client existant" et on sélectionne le bon client dans la liste.
+                // on coche "Client existant" et on sélectionne le bon client dans la liste.
                 $form->get('choice')->setData('existing');
                 $form->get('existingClient')->setData($commande->getClient());
             } else {

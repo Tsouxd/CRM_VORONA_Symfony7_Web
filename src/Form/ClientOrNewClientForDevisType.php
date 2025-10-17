@@ -15,7 +15,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class ClientOrNewClientForDevisType extends AbstractType
 {
-    private $entityManager;
+    private EntityManagerInterface $entityManager;
 
     public function __construct(EntityManagerInterface $entityManager)
     {
@@ -34,7 +34,7 @@ class ClientOrNewClientForDevisType extends AbstractType
                 'expanded' => true,
                 'multiple' => false,
                 'mapped' => false,
-                'data' => 'existing',
+                'data' => 'existing', 
                 'attr' => ['class' => 'client-choice-radio']
             ])
             ->add('existingClient', EntityType::class, [
@@ -52,44 +52,63 @@ class ClientOrNewClientForDevisType extends AbstractType
                 'mapped' => false,
                 'attr' => ['class' => 'new-client-block'],
             ]);
-
-        // Gestion à la soumission
-        $builder->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $event) {
-            $data = $event->getData();
+        
+        // Supprimez ou commentez l'ancien listener PRE_SUBMIT
+        /*
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, function(FormEvent $event) {
+            // ... ancien code ...
+        });
+        */
+        
+        // ✅ NOUVEAU Listener POST_SUBMIT
+        $builder->addEventListener(FormEvents::POST_SUBMIT, function(FormEvent $event) {
             $form = $event->getForm();
 
+            // Récupération du Devis parent
             $devis = $form->getParent()->getData();
-
             if (!$devis instanceof Devis) {
                 return;
             }
 
-            if (isset($data['choice']) && $data['choice'] === 'existing') {
-                if (!empty($data['existingClient'])) {
-                    $client = $this->entityManager->getRepository(Client::class)->find($data['existingClient']);
+            // On récupère la valeur du bouton radio
+            $choice = $form->get('choice')->getData();
+
+            if ($choice === 'existing') {
+                // On récupère l'objet Client directement depuis le champ du formulaire
+                $client = $form->get('existingClient')->getData();
+                if ($client instanceof Client) {
                     $devis->setClient($client);
                 }
-            } elseif (isset($data['choice']) && $data['choice'] === 'new') {
-                $newClientData = $data['newClient'] ?? [];
+            } elseif ($choice === 'new') {
+                // Ici, getData() retourne l'objet Client qui vient d'être créé et hydraté par le formulaire
+                $client = $form->get('newClient')->getData();
 
-                $client = new Client();
-                $client->setNom($newClientData['nom'] ?? null);
-                $client->setEmail($newClientData['email'] ?? null);
-                $client->setTelephone($newClientData['telephone'] ?? null);
-
-                $devis->setClient($client);
+                if ($client instanceof Client) {
+                    // Petite vérification pour ne pas persister un client vide
+                    if ($client->getNom() !== null || $client->getEmail() !== null) {
+                        // Il faut persister le nouveau client car il n'est pas encore géré par Doctrine
+                        $this->entityManager->persist($client);
+                        $devis->setClient($client);
+                    }
+                }
             }
         });
 
-        // Gestion en mode édition
-        $builder->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $event) {
-            $devis = $event->getForm()->getParent()->getData();
-            $form = $event->getForm();
 
+        // Listener PRE_SET_DATA pour l'édition (celui-ci est correct et doit rester)
+        $builder->addEventListener(FormEvents::PRE_SET_DATA, function(FormEvent $event) {
+            $form = $event->getForm();
+            // On récupère l'objet Devis depuis le formulaire parent
+            $devis = $form->getParent()->getData();
+
+            // Si le devis existe et a un client associé
             if ($devis && $devis->getClient() && $devis->getClient()->getId()) {
+                // On pré-sélectionne "Client existant"
                 $form->get('choice')->setData('existing');
+                // On pré-remplit le champ de sélection avec le client du devis
                 $form->get('existingClient')->setData($devis->getClient());
             } else {
+                // Par défaut, on peut laisser sur "Client existant"
                 $form->get('choice')->setData('existing');
             }
         });

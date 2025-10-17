@@ -24,9 +24,18 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;     // <- NOUVEAU
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use Doctrine\ORM\EntityRepository;
 use Doctrine\ORM\QueryBuilder;
+use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
+use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
+use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\HttpFoundation\Session\Flash\FlashBagInterface;
 
 class DevisCrudController extends AbstractCrudController
 {
+    public function __construct(
+        private RequestStack $requestStack,
+    ) {}
+
     public static function getEntityFqcn(): string
     {
         return Devis::class;
@@ -98,6 +107,9 @@ class DevisCrudController extends AbstractCrudController
             ])
             ->setHelp('Choisissez le moyen de paiement principal.');
 
+        yield NumberField::new('remise', 'Remise')
+            ->setFormTypeOption('attr', ['class' => 'remise']);
+
         yield TextField::new('detailsPaiement', 'Détails / Références')
             ->setHelp('Ex: MVola, numéro de chèque, référence de virement...');
 
@@ -149,6 +161,27 @@ class DevisCrudController extends AbstractCrudController
             ->setFormTypeOption('attr', ['readonly' => true]);
 
         yield DateTimeField::new('dateCreation', 'Date de création')->hideOnForm();
+        yield DateTimeField::new('dateExpiration', 'Date d’expiration')
+            ->hideOnForm()
+            ->setHelp('Offre valable 7 jours après création.');
+
+        yield Field::new('offreValide', 'Validité de l’offre')
+            ->onlyOnIndex()
+            ->formatValue(function ($value, $entity) {
+                $now = new \DateTimeImmutable();
+                if (!$entity->getDateExpiration()) {
+                    return ['status' => 'none', 'label' => 'Non définie'];
+                }
+
+                if ($entity->getDateExpiration() > $now) {
+                    $joursRestants = $entity->getDateExpiration()->diff($now)->days;
+                    return ['status' => 'valid', 'label' => "Valide ({$joursRestants} jrs restants)"];
+                } else {
+                    return ['status' => 'expired', 'label' => 'Expirée'];
+                }
+            })
+            ->setTemplatePath('admin/fields/offre_valide.html.twig'); // ✅ custom template
+
 
         // ✅ Injection du JS directement dans EasyAdmin via un champ invisible
         yield FormField::addPanel('')
@@ -334,18 +367,70 @@ class DevisCrudController extends AbstractCrudController
         }
         $devis->setTotal($total);
     }
-    
+
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Devis) return;
+
+        // 🧮 Recalcul des totaux
         $this->recalculateTotals($entityInstance);
+
+        // 🕒 Définir la date de création si non définie
+        if ($entityInstance->getDateCreation() === null) {
+            $entityInstance->setDateCreation(new \DateTimeImmutable());
+        }
+
+        // 🕓 Définir la date d’expiration automatiquement si absente
+        if ($entityInstance->getDateExpiration() === null) {
+            $entityInstance->setDateExpiration(
+                (clone $entityInstance->getDateCreation())->modify('+8 days')
+            );
+        }
+
+        // 🧾 Vérifie si le BAT est validé → changement automatique du statut
+        if (method_exists($entityInstance, 'isBatOk') && $entityInstance->isBatOk()) {
+            $entityInstance->setStatut('BAT/Production');
+        }
+
         parent::persistEntity($entityManager, $entityInstance);
     }
 
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Devis) return;
+
+        $now = new \DateTimeImmutable();
+        $dateExpiration = $entityInstance->getDateExpiration();
+
+        // 🚫 Empêcher la modification d'un devis expiré
+        if ($dateExpiration !== null && $dateExpiration < $now) {
+            $this->requestStack->getSession()->getFlashBag()->add(
+                'danger',
+                '❌ Ce devis est expiré et ne peut plus être modifié.'
+            );
+            $referer = $this->requestStack->getCurrentRequest()->headers->get('referer');
+            $response = new RedirectResponse($referer);
+            $response->send();
+            return;
+        }
+
+        // 🧮 Recalcul des totaux côté serveur
         $this->recalculateTotals($entityInstance);
+
+        // 🕓 Mise à jour automatique de la date d’expiration si la date de création change
+        if ($entityInstance->getDateCreation()) {
+            $newExpiration = (clone $entityInstance->getDateCreation())->modify('+8 days');
+
+            if ($dateExpiration === null || $dateExpiration->format('Y-m-d') !== $newExpiration->format('Y-m-d')) {
+                $entityInstance->setDateExpiration($newExpiration);
+            }
+        }
+
+        // 🧾 Vérifie si le BAT est validé → changement automatique du statut
+        if (method_exists($entityInstance, 'isBatOk') && $entityInstance->isBatOk()) {
+            $entityInstance->setStatut('BAT/Production');
+        }
+
         parent::updateEntity($entityManager, $entityInstance);
     }
 
@@ -364,36 +449,41 @@ class DevisCrudController extends AbstractCrudController
     }
 
     public function exportPdfAction(AdminUrlGenerator $adminUrlGenerator, EntityManagerInterface $entityManager): Response
-{
-    $id = $this->getContext()->getRequest()->query->get('entityId');
+    {
+        $id = $this->getContext()->getRequest()->query->get('entityId');
 
-    // Récupération via EntityManager
-    $devis = $entityManager->getRepository(Devis::class)->find($id);
+        // Récupération via EntityManager
+        $devis = $entityManager->getRepository(Devis::class)->find($id);
 
-    if (!$devis) {
-        throw $this->createNotFoundException("Devis non trouvé");
+        if (!$devis) {
+            throw $this->createNotFoundException("Devis non trouvé");
+        }
+
+        $options = new Options();
+        $options->set('defaultFont', 'Arial');
+        $dompdf = new Dompdf($options);
+
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/forever.jpeg';
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+
+
+        $html = $this->renderView('devis/pdf.html.twig', [
+            'devis' => $devis,
+            'logo' => $logoBase64
+        ]);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return new Response(
+            $dompdf->output(),
+            200,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="devis-'.$devis->getId().'.pdf"',
+            ]
+        );
     }
-
-    $options = new Options();
-    $options->set('defaultFont', 'Arial');
-    $dompdf = new Dompdf($options);
-
-    $html = $this->renderView('devis/pdf.html.twig', [
-        'devis' => $devis,
-    ]);
-
-    $dompdf->loadHtml($html);
-    $dompdf->setPaper('A4', 'portrait');
-    $dompdf->render();
-
-    return new Response(
-        $dompdf->output(),
-        200,
-        [
-            'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'inline; filename="devis-'.$devis->getId().'.pdf"',
-        ]
-    );
-}
 
 }

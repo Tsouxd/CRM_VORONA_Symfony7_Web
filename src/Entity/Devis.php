@@ -58,6 +58,12 @@ class Devis
     #[ORM\Column(type: 'float')]
     private float $acompte = 0;
 
+    #[ORM\Column(type: 'float')]
+    private float $remise = 0; // remise en valeur monétaire
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $dateExpiration = null;
+
     public function __construct()
     {
         $this->lignes = new ArrayCollection();
@@ -120,6 +126,20 @@ class Devis
     
     public function getMethodePaiement(): ?string { return $this->methodePaiement; }
     public function setMethodePaiement(?string $methodePaiement): static { $this->methodePaiement = $methodePaiement; return $this; }
+
+    public function getRemise(): float { return $this->remise; }
+    public function setRemise(float $remise): static { $this->remise = $remise; return $this; }
+
+    public function getDateExpiration(): ?\DateTimeInterface
+    {
+        return $this->dateExpiration;
+    }
+
+    public function setDateExpiration(?\DateTimeInterface $dateExpiration): self
+    {
+        $this->dateExpiration = $dateExpiration;
+        return $this;
+    }
 
     public function __toString(): string
     {

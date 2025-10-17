@@ -1,46 +1,197 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Devis #{{ devis.id }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Devis - FOREVER MG</title>
     <style>
-        body { font-family: Arial, sans-serif; font-size: 12px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #000; padding: 5px; text-align: left; }
-        th { background-color: #f0f0f0; }
-        .right { text-align: right; }
+        @import url('https://fonts.googleapis.com/css2?family=Arial&family=Dancing+Script&display=swap');
+        /* Forcer la page A4 et réduire les paddings pour tenir sur une seule page */
+        html, body { height: 100%; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f0f0f0; font-size: 10pt; }
+    .page {width: 18cm; height: 85%; margin: 20 auto; padding: 10mm; box-sizing: border-box; display:flex; flex-direction:column; position:relative; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid black; padding-bottom: 8px; margin-bottom: 12px; gap:12px; }
+    .company-info { flex:1 1 auto; }
+        .company-info p { margin: 0; line-height: 1.25; }
+        .company-name { font-weight: bold; color: #4A90E2; }
+        /* Placer le logo complètement à droite */
+    /* logo en haut à droite absolu (évite d'être poussé en bas par le flux) */
+    .logo-placeholder { width: 120px; height: 70px; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 9pt; flex:0 0 auto; position:absolute; top:6mm; right:8mm; }
+    .date { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 9pt; flex:0 0 auto; position:absolute; top:48mm; right:12mm; width: 20%; }    
+    .header { padding-right: 140px; }
+        .logo-placeholder-icon { font-size: 30px; font-weight: bold; }
+        .doc-title-section { margin-bottom: 8px; }
+        .doc-title { font-size: 16pt; font-weight: bold; text-decoration: underline; margin: 0 0 10px 0; }
+        .doc-meta { display: flex; justify-content: space-between; flex-direction:"row";}
+        .doc-id, .doc-date { border: 1px solid black; padding: 4px 6px; }
+        .doc-id table, .doc-date table { border-collapse: collapse; }
+        .doc-id td, .doc-date td { padding: 2px 4px; }
+        .doc-date { min-width: 140px; }
+        .client-info { width: 48%; margin-bottom: 15px; border: 1px solid black; margin-top:15px}
+        .client-info table { width: 100%; border-collapse: collapse; }
+        .client-info td { border: 1px solid black; padding: 4px 6px; }
+        .client-info td:first-child { font-weight: bold; width: 90px; }
+    .items-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 9pt; table-layout: fixed; word-wrap: break-word; }
+        .items-table thead { background-color: #e0e0e0; }
+        .items-table th, .items-table td { border: 1px solid black; padding: 6px 6px; text-align: left; }
+    .items-table .col-qtt, .items-table .col-pu, .items-table .col-total { text-align: right; width: 90px; white-space: normal; font-size: 9pt; }
+    .items-table tr { page-break-inside: avoid; }
+    .items-table tbody tr { height: 26px; }
+    .items-table .col-designation { width: calc(100% - 270px); }
+    .items-table td.col-designation { overflow: hidden; }
+    .footer-section { display: flex; justify-content: space-between; align-items: flex-start; margin-top: 6px; margin-top: auto; }
+        .remarks { width: 60%; }
+        .remarks p { margin: 0 0 4px 0; }
+        .totals-and-signature {flex:1; display:flex; flex-direction:row; justify-content:flex-end; }
+        .totals table { border-collapse: collapse; width: 50%;  margin-left: 50%; }
+        .totals td { border: 1px solid black; padding: 6px 6px; width: 25% }
+        .totals td:first-child { background-color: #e0e0e0; font-weight: bold; }
+        .totals td:last-child { text-align: right; }
+        .totals .total-row td { font-weight: bold; }
+        .signature-section { margin-top: 20px; text-align: center; }
+        .signature-placeholder { font-family: 'Dancing Script', cursive; font-size: 20pt; height: 48px; }
+        .signature-section p { margin: 5px 0 0 0; }
+        .placeholder { color: #888; }
     </style>
 </head>
 <body>
-    <h2>Devis #{{ devis.id }}</h2>
-    <p><strong>Client:</strong> {{ devis.client.nom }}</p>
-    <p><strong>Date:</strong> {{ devis.dateCreation|date('d/m/Y H:i') }}</p>
+    <div class="page">
+        <div class="header">
+            <div class="company-info">
+                <p class="company-name">FOREVER MG</p>
+                <p>ANDAFIAVARATRA</p>
+                <p>034 03 767 69 - 038 25 722 47</p>
+                <p>NIF: 3000736044</p>
+                <p>STAT: 90000 11 2012 0 00411</p>
+            </div>
+            <div style="display:flex;align-items:flex-start;justify-content:flex-end;width:34%;">
+                <div style="display:flex;align-items:flex-start;"> 
+                    <div class="logo-placeholder" style="align-self:flex-start;">
+                        <img src="{{ logo }}" alt="Logo Forever" style="width:100px;">
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Produit</th>
-                <th>Quantité</th>
-                <th>Prix Unitaire (MGA)</th>
-                <th>Total (MGA)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for ligne in devis.lignes %}
+        <div class="doc-title-section">
+            <h1 class="doc-title">DEVIS</h1>
+            <div class="doc-meta" style="display:flex; gap: 10px; flex-direction:row; width:25%;">
+                <div class="doc-id" style="border:0.01px solid #000000b4;padding:6px;">
+                    <table><tr><td style="font-weight:bold;padding-right:6px;">N° :</td><td>D-{{ '%06d'|format(devis.id) }}</td></tr></table>
+                </div>
+                <div class="date" style="border:0.01px solid #000000b4;padding:6px;">
+                    <table><tr><td style="font-weight:bold;padding-right:6px;">Date :</td><td>{{ devis.dateCreation ? devis.dateCreation|date('d/m/Y') : '#REF!' }}</td></tr></table>
+                </div>
+            </div>
+        </div>
+
+        <div class="client-info">
+            <table>
+                <tr><td>DOIT :</td><td></td></tr>
+                <tr><td>CLIENT :</td><td>{{ devis.client ? devis.client.nom : '#REF!' }}</td></tr>
+
+                {% if devis.client and devis.client.type == 'professionnel' %}
+                    <tr><td>NIF :</td><td>{{ devis.client.nif }}</td></tr>
+                    <tr><td>STAT :</td><td>{{ devis.client.stat }}</td></tr>
+                {% endif %}
+
+                <tr><td>CONTACT :</td><td>{{ devis.client ? devis.client.telephone : '#REF!' }}</td></tr>
+            </table>
+        </div>
+
+        <table class="items-table">
+            <colgroup>
+                <col class="col-designation">
+                <col style="width:90px">
+                <col style="width:90px">
+                <col style="width:90px">
+            </colgroup>
+            <thead>
                 <tr>
-                    <td>{{ ligne.descriptionProduit }}</td>
-                    <td class="right">{{ ligne.quantite }}</td>
-                    <td class="right">{{ ligne.prixUnitaire|number_format(0, ',', ' ') }}</td>
-                    <td class="right">{{ ligne.prixTotal|number_format(0, ',', ' ') }}</td>
+                    <th class="col-designation">DESIGNATION</th>
+                    <th class="col-qtt">QTT</th>
+                    <th class="col-pu">PU</th>
+                    <th class="col-total">TOTAL</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-        <tfoot>
-            <tr>
-                <th colspan="3" class="right">Total</th>
-                <th class="right">{{ devis.total|number_format(0, ',', ' ') }}</th>
-            </tr>
-        </tfoot>
-    </table>
+            </thead>
+            <tbody>
+                {% for ligne in devis.lignes %}
+                    <tr>
+                        {# Utiliser les getters présents dans l'entité DevisLigne #}
+                        <td class="col-designation">{{ ligne.descriptionProduit ?: '—' }}</td>
+                        <td class="col-qtt">{{ ligne.quantite }}</td>
+                        <td class="col-pu">{{ ligne.prixUnitaire|number_format(0, ',', ' ') }}</td>
+                        <td class="col-total">{{ ligne.prixTotal|number_format(0, ',', ' ') }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="4" class="placeholder">Aucune ligne</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totals-and-signature">
+            <div class="totals">
+                <table>
+                    <tr><td style="background:#e0e0e0;">Sous-total</td><td>{{ devis.total is defined ? devis.total|number_format(0, ',', ' ') : '#REF!' }}</td></tr>
+                    <tr><td style="background:#e0e0e0;">Remise</td><td>{{ devis.remise is defined ? devis.remise|number_format(0, ',', ' ') : '#REF!' }} %</td></tr>
+                    <tr class="total-row"><td style="background:#e0e0e0;">Total</td><td>{{ (devis.total - (devis.total * devis.remise / 100 |default(0)))|number_format(0, ',', ' ') }}</td></tr>
+                </table>
+            </div>       
+        </div>
+
+        <div class="footer-section">
+            <div style="display:flex; width:100%; justify-content:space-between; flex-direction: row;">
+                <div class="remarks">
+                    <h2>Conditions de Paiement</h2>
+
+                    {# === Nouvelle ligne : Validation de l'offre === #}
+                    {% if devis.dateExpiration %}
+                        {% set maintenant = "now"|date("Y-m-d H:i:s") %}
+                        {% if devis.dateExpiration|date("Y-m-d H:i:s") > maintenant %}
+                            {% set joursRestants = devis.dateExpiration.diff(date("now")).days %}
+                            <p>
+                                <strong>Validité de l'offre :</strong> 
+                                <span style="font-weight:bold;">
+                                    Valide ({{ joursRestants }} jour{{ joursRestants > 1 ? 's' : '' }} restant{{ joursRestants > 1 ? 's' : '' }})
+                                </span>
+                            </p>
+                        {% else %}
+                            <p>
+                                <strong>Validité de l'offre :</strong> 
+                                <span style="color:red; font-weight:bold;">Expirée</span>
+                            </p>
+                        {% endif %}
+                    {% else %}
+                        <p><strong>Validité de l'offre :</strong> Non définie</p>
+                    {% endif %}
+
+                    {# === Informations de paiement === #}
+                    {% if devis.modeDePaiement %}
+                        <p><strong>Mode de paiement :</strong> {{ devis.modeDePaiement }}
+                            {% if devis.detailsPaiement %} ({{ devis.detailsPaiement }}){% endif %}
+                        </p>
+                    {% endif %}
+
+                    {% if devis.methodePaiement %}
+                        <p><strong>Conditions de règlement :</strong> {{ devis.methodePaiement }}</p>
+                    {% endif %}
+
+                    {#<p>En cas de retard de paiement, une pénalité de X% sera appliquée.</p>#}
+
+                    {# Texte ancien supprimé : remplacé par la logique réelle ci-dessus #}
+                    {# <p>Devis valable 30 jours à compter de sa date d'émission.</p> #}
+                </div>
+            </div>
+
+            <div style="text-align:right;width:100%">
+                <div class="signature-placeholder">Signature...</div>
+                <p>Le Responsable</p>
+            </div>
+
+            <p style="margin-top: -30px;">
+                {{ devis.client ? devis.client.nom : '#REF!' }}
+            </p>
+        </div>
+    </div>
 </body>
 </html>
