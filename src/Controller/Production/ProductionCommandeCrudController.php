@@ -132,8 +132,14 @@ class ProductionCommandeCrudController extends AbstractCrudController
         $options = new Options();
         $options->set('defaultFont', 'Arial');
         $dompdf = new Dompdf($options);
+                
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/forever.jpeg';
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+
         $html = $this->renderView('production/bon_de_livraison_pdf.html.twig', [
             'commande' => $commande,
+            'logo' => $logoBase64,
+            'bonDeLivraison' => $bonDeLivraison,
         ]);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');

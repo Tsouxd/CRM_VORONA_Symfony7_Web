@@ -107,7 +107,10 @@ class DevisCrudController extends AbstractCrudController
             ])
             ->setHelp('Choisissez le moyen de paiement principal.');
 
-        yield NumberField::new('remise', 'Remise')
+        yield MoneyField::new('remise', 'Remise')
+            ->setCurrency('MGA')
+            ->setNumDecimals(0)
+            ->setFormTypeOption('divisor', 1)
             ->setFormTypeOption('attr', ['class' => 'remise']);
 
         yield TextField::new('detailsPaiement', 'Détails / Références')

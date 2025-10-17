@@ -19,6 +19,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use Symfony\Component\HttpFoundation\Response;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
+use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Config\KeyValueStore;
+use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormEvent;
+use Symfony\Component\Form\FormEvents;
 
 class FactureCrudController extends AbstractCrudController
 {
@@ -29,59 +36,69 @@ class FactureCrudController extends AbstractCrudController
     
     public function configureFields(string $pageName): iterable
     {
-        return [
-            AssociationField::new('client', 'Client'),
+        // ✅ CHANGEMENT: Logique conditionnelle pour afficher le champ 'commande' uniquement à la création
+        if (Crud::PAGE_NEW === $pageName) {
+            yield FormField::addPanel('Source de la Facture (Optionnel)')->collapsible();
 
-            CollectionField::new('lignes', 'Produits')
-                ->setEntryType(FactureLigneType::class)
-                ->setEntryIsComplex(true)
-                ->allowAdd(true)
-                ->allowDelete(true)
-                ->setFormTypeOptions(['by_reference' => false]),
+            yield AssociationField::new('commande', 'Créer à partir d\'une Commande')
+                ->setHelp('Sélectionnez une commande pour pré-remplir la facture.')
+                ->setFormTypeOption('mapped', false)
+                ->setRequired(false);
+        }
+        
+        yield FormField::addPanel('Détails de la Facture');
 
-            MoneyField::new('fraisLivraison', 'Frais de livraison')
-                ->setCurrency('MGA')
-                ->setNumDecimals(0) 
-                ->setFormTypeOption('divisor', 1)
-                ->setFormTypeOption('attr', ['class' => 'facture-frais-livraison']),
+        // ✅ CHANGEMENT: Afficher la commande liée en lecture seule lors de l'édition
+        if (Crud::PAGE_EDIT === $pageName) {
+            yield AssociationField::new('commande', 'Liée à la Commande')
+                ->setRequired(false); // Le champ n'est pas obligatoire
+        }
+        
+        yield AssociationField::new('client', 'Client');
+        // yield TextField::new('numeroBonCommande', 'N° Bon de commande');
 
-            TextField::new('livreur', 'Nom du livreur'),
+        yield CollectionField::new('lignes', 'Produits')
+            ->setEntryType(FactureLigneType::class)
+            ->setEntryIsComplex(true)
+            ->allowAdd(true)
+            ->allowDelete(true)
+            ->setFormTypeOptions(['by_reference' => false]);
 
-            FormField::addPanel('Conditions de Paiement'),
+        yield MoneyField::new('fraisLivraison', 'Frais de livraison')
+            ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
+            ->setFormTypeOption('attr', ['class' => 'facture-frais-livraison']);
 
-            ChoiceField::new('modeDePaiement', 'Mode de paiement')
-                ->setChoices([
-                    'Chèque' => 'Chèque',
-                    'Espèce' => 'Espèce',
-                    'Virement bancaire' => 'Virement bancaire',
-                    'Carte bancaire' => 'Carte bancaire',
-                    'Mobile Money' => 'Mobile Money',
-                ])
-                ->setHelp('Choisissez le moyen de paiement principal.'),
+        yield TextField::new('livreur', 'Nom du livreur');
 
-            TextField::new('detailsPaiement', 'Détails / Références')
-                ->setHelp('Ex: MVola, numéro de chèque, référence de virement...'),
+        yield MoneyField::new('acompte', 'Acompte')
+            ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
+            ->setFormTypeOption('attr', ['class' => 'acompte']);
 
-            ChoiceField::new('methodePaiement', 'Méthode de paiement')
-                ->setChoices([
-                    '50% à la commande, 50% à la livraison' => '50% commande, 50% livraison',
-                    '100% à la livraison' => '100% livraison',
-                    '30 jours après réception de la facture' => '30 jours fin de mois',
-                    '100% à la commande' => '100% commande',
-                ])
-                ->setHelp('Choisissez les conditions de règlement.'),
+        yield NumberField::new('remise', 'Remise')
+            ->setFormTypeOption('attr', ['class' => 'remise']);
 
-            MoneyField::new('total', 'Total')
-                ->setCurrency('MGA')
-                ->setNumDecimals(0) 
-                ->setFormTypeOption('divisor', 1)
-                ->setFormTypeOption('disabled', 'disabled')
-                ->setFormTypeOption('attr', ['class' => 'facture-total-general']),
+        yield FormField::addPanel('Conditions de Paiement');
 
-            DateTimeField::new('dateCreation', 'Date de création')->hideOnForm(),
+        yield ChoiceField::new('modeDePaiement', 'Mode de paiement')
+            ->setChoices(['Chèque' => 'Chèque', 'Espèce' => 'Espèce', 'Virement bancaire' => 'Virement bancaire', 'Carte bancaire' => 'Carte bancaire', 'Mobile Money' => 'Mobile Money'])
+            ->setHelp('Choisissez le moyen de paiement principal.');
+
+        yield TextField::new('detailsPaiement', 'Détails / Références')
+            ->setHelp('Ex: MVola, numéro de chèque, référence de virement...');
+
+        yield ChoiceField::new('methodePaiement', 'Méthode de paiement')
+            ->setChoices(['50% à la commande, 50% à la livraison' => '50% commande, 50% livraison', '100% à la livraison' => '100% livraison', '30 jours après réception de la facture' => '30 jours fin de mois', '100% à la commande' => '100% commande'])
+            ->setHelp('Choisissez les conditions de règlement.');
+
+        yield MoneyField::new('total', 'Total')
+            ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
+            ->setFormTypeOption('disabled', 'disabled')
+            ->setFormTypeOption('attr', ['class' => 'facture-total-general']);
+
+        yield DateTimeField::new('dateCreation', 'Date de création')->hideOnForm();
 
             // === Script dynamique ===
-            FormField::addPanel('')
+        yield FormField::addPanel('')
                 ->setHelp(<<<HTML
                     <script>
                         document.addEventListener('DOMContentLoaded', function() {
@@ -169,48 +186,102 @@ class FactureCrudController extends AbstractCrudController
                         });
                     </script>
                 HTML
-            )->onlyOnForms(),
-        ];
+            )->onlyOnForms();
+    }
+
+    public function createNewFormBuilder(EntityDto $entityDto, KeyValueStore $formOptions, AdminContext $context): FormBuilderInterface
+    {
+        $formBuilder = parent::createNewFormBuilder($entityDto, $formOptions, $context);
+        return $this->addCommandeDataListener($formBuilder);
+    }
+
+    private function addCommandeDataListener(FormBuilderInterface $formBuilder): FormBuilderInterface
+    {
+        $formBuilder->addEventListener(FormEvents::PRE_SUBMIT, function(FormEvent $event) {
+            $data = $event->getData();
+            /** @var Facture $facture */
+            $facture = $event->getForm()->getData();
+
+            $commandeId = $data['commande'] ?? null;
+            if (!$commandeId) {
+                return; // Ne rien faire si aucune commande n'est sélectionnée
+            }
+            
+            $em = $this->container->get('doctrine')->getManager();
+            /** @var Commande|null $commande */
+            $commande = $em->getRepository(Commande::class)->find($commandeId);
+            
+            if (!$commande) {
+                return;
+            }
+
+            // Lier la commande à l'entité facture, qui sera persistée
+            $facture->setCommande($commande);
+
+            // Pré-remplir les données qui seront utilisées par le formulaire
+            $data['client'] = $commande->getClient() ? $commande->getClient()->getId() : null;
+            $data['numeroBonCommande'] = $commande->getNumeroBonCommande();
+
+            // Vider les lignes pour les remplacer par celles de la commande
+            $data['lignes'] = [];
+            foreach ($commande->getCommandeProduits() as $index => $commandeLigne) {
+                if ($commandeLigne->getProduit()) { // S'assurer que le produit existe
+                    $data['lignes'][(string)$index] = [
+                        'produit' => $commandeLigne->getProduit()->getId(),
+                        'quantite' => $commandeLigne->getQuantite(),
+                        // Les prix (unitaire et total) seront calculés par la méthode recalculateTotals
+                    ];
+                }
+            }
+
+            // Mettre à jour les données de l'événement
+            $event->setData($data);
+        });
+        
+        return $formBuilder;
+    }
+
+    private function recalculateTotals(Facture $facture): void
+    {
+        // On commence le total avec les frais de livraison (ou 0 si null)
+        $total = $facture->getFraisLivraison() ?? 0;
+
+        foreach ($facture->getLignes() as $ligne) {
+            $produit = $ligne->getProduit();
+            // S'assurer que le produit et le prix existent
+            if ($produit && $produit->getPrix() !== null) {
+                $ligne->setPrixUnitaire($produit->getPrix());
+                $prixTotalLigne = $produit->getPrix() * $ligne->getQuantite();
+                $ligne->setPrixTotal($prixTotalLigne);
+                
+                // S'assurer que la ligne est bien liée à la facture
+                if ($ligne->getFacture() !== $facture) {
+                    $ligne->setFacture($facture);
+                }
+                
+                $total += $prixTotalLigne;
+            }
+        }
+
+        $facture->setTotal($total);
     }
 
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Facture) return;
-
-        $total = $entityInstance->getFraisLivraison();
-
-        foreach ($entityInstance->getLignes() as $ligne) {
-            $produit = $ligne->getProduit();
-            if ($produit) {
-                $ligne->setPrixUnitaire($produit->getPrix());
-                $ligne->setPrixTotal($produit->getPrix() * $ligne->getQuantite());
-                $ligne->setFacture($entityInstance);
-                $total += $ligne->getPrixTotal();
-            }
-        }
-
-        $entityInstance->setTotal($total);
+        
+        // On appelle notre nouvelle méthode de calcul
+        $this->recalculateTotals($entityInstance);
 
         parent::persistEntity($entityManager, $entityInstance);
     }
 
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
-        if ($entityInstance instanceof Facture) {
-            $total = $entityInstance->getFraisLivraison();
+        if (!$entityInstance instanceof Facture) return;
 
-            foreach ($entityInstance->getLignes() as $ligne) {
-                $produit = $ligne->getProduit();
-                if ($produit) {
-                    $ligne->setPrixUnitaire($produit->getPrix());
-                    $ligne->setPrixTotal($produit->getPrix() * $ligne->getQuantite());
-                    $ligne->setFacture($entityInstance);
-                    $total += $ligne->getPrixTotal();
-                }
-            }
-
-            $entityInstance->setTotal($total);
-        }
+        // On appelle la même méthode ici aussi
+        $this->recalculateTotals($entityInstance);
 
         parent::updateEntity($entityManager, $entityInstance);
     }
@@ -247,7 +318,13 @@ class FactureCrudController extends AbstractCrudController
         $options->set('defaultFont', 'Arial');
         $dompdf = new Dompdf($options);
 
-        $html = $this->renderView('facture/pdf.html.twig', ['facture' => $facture]);
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/forever.jpeg';
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+
+        $html = $this->renderView('facture/pdf.html.twig', [
+            'facture' => $facture,
+            'logo' => $logoBase64,
+        ]);
 
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');

@@ -132,9 +132,27 @@
         <div class="totals-and-signature">
             <div class="totals">
                 <table>
-                    <tr><td style="background:#e0e0e0;">Sous-total</td><td>{{ devis.total is defined ? devis.total|number_format(0, ',', ' ') : '#REF!' }}</td></tr>
-                    <tr><td style="background:#e0e0e0;">Remise</td><td>{{ devis.remise is defined ? devis.remise|number_format(0, ',', ' ') : '#REF!' }} %</td></tr>
-                    <tr class="total-row"><td style="background:#e0e0e0;">Total</td><td>{{ (devis.total - (devis.total * devis.remise / 100 |default(0)))|number_format(0, ',', ' ') }}</td></tr>
+                    <!-- Le Total Brut (ou sous-total) est la somme de toutes les lignes -->
+                    <tr>
+                        <td style="background:#e0e0e0;"><strong>Total Brut</strong></td>
+                        <td><strong>{{ devis.total|number_format(0, ',', ' ') }} Ar</strong></td>
+                    </tr>
+                    
+                    <!-- On affiche la remise SEULEMENT si elle a été saisie (supérieure à 0) -->
+                    {% if devis.remise > 0 %}
+                    <tr>
+                        <td style="background:#e0e0e0;">Remise</td>
+                        <!-- On affiche la remise en tant que montant déduit -->
+                        <td>- {{ devis.remise|number_format(0, ',', ' ') }} Ar</td>
+                    </tr>
+                    {% endif %}
+                    
+                    <!-- Le Total Net est le montant final que le client doit considérer -->
+                    <tr class="total-row">
+                        <td style="background:#e0e0e0;">Total Net</td>
+                        <!-- Le calcul est une simple soustraction -->
+                        <td>{{ (devis.total - (devis.remise|default(0)))|number_format(0, ',', ' ') }} Ar</td>
+                    </tr>
                 </table>
             </div>       
         </div>

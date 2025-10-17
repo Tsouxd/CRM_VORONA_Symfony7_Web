@@ -402,6 +402,8 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
     {
         yield IdField::new('id')->hideOnForm();
 
+        yield TextField::new('numeroBonCommande', 'N° Bon de Commande Client');
+
         yield DateTimeField::new('dateCommande', 'Date de Commande')
             ->setFormat('dd/MM/yyyy HH:mm')
             //->setFormTypeOption('data', new \DateTime()) // valeur par défaut

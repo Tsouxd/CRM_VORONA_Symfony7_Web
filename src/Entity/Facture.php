@@ -38,6 +38,19 @@ class Facture
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $methodePaiement = null;
 
+    #[ORM\Column(type:"float", nullable:true)]
+    private ?float $remise = null;
+
+    #[ORM\Column(type:"float", nullable:true)]
+    private ?float $acompte = null;
+
+    #[ORM\Column(length:255, nullable:true)]
+    private ?string $numeroBonCommande = null;
+
+    #[ORM\OneToOne(targetEntity: Commande::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Commande $commande = null;
+    
     #[ORM\Column(type:"datetime")]
     private \DateTimeInterface $dateCreation;
 
@@ -65,10 +78,22 @@ class Facture
     
     public function getModeDePaiement(): ?string { return $this->modeDePaiement; }
     public function setModeDePaiement(?string $modeDePaiement): static { $this->modeDePaiement = $modeDePaiement; return $this; }
+
+    public function getRemise(): ?float { return $this->remise; }
+    public function setRemise(?float $remise): self { $this->remise = $remise; return $this; }
+    
+    public function getAcompte(): ?float { return $this->acompte; }
+    public function setAcompte(?float $acompte): self { $this->acompte = $acompte; return $this; }
+    
+    public function getNumeroBonCommande(): ?string { return $this->numeroBonCommande; }
+    public function setNumeroBonCommande(?string $numeroBonCommande): self { $this->numeroBonCommande = $numeroBonCommande; return $this; }
     
     public function getDetailsPaiement(): ?string { return $this->detailsPaiement; }
     public function setDetailsPaiement(?string $detailsPaiement): static { $this->detailsPaiement = $detailsPaiement; return $this; }
     
     public function getMethodePaiement(): ?string { return $this->methodePaiement; }
     public function setMethodePaiement(?string $methodePaiement): static { $this->methodePaiement = $methodePaiement; return $this; }
+
+    public function getCommande(): ?Commande { return $this->commande; }
+    public function setCommande(?Commande $commande): self { $this->commande = $commande; return $this; }
 }
