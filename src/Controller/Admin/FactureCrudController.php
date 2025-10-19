@@ -36,27 +36,29 @@ class FactureCrudController extends AbstractCrudController
     
     public function configureFields(string $pageName): iterable
     {
-        // ✅ CHANGEMENT: Logique conditionnelle pour afficher le champ 'commande' uniquement à la création
+        // ✅ CHAMP COMMANDE — création de facture à partir d'une commande
         if (Crud::PAGE_NEW === $pageName) {
             yield FormField::addPanel('Source de la Facture (Optionnel)')->collapsible();
 
             yield AssociationField::new('commande', 'Créer à partir d\'une Commande')
-                ->setHelp('Sélectionnez une commande pour pré-remplir la facture.')
-                ->setFormTypeOption('mapped', false)
-                ->setRequired(false);
+                ->setHelp('Sélectionnez une commande pour lier cette facture à une commande existante.')
+                ->setRequired(false)
+                ->setFormTypeOption('placeholder', 'Aucune commande sélectionnée');
         }
-        
+
         yield FormField::addPanel('Détails de la Facture');
 
-        // ✅ CHANGEMENT: Afficher la commande liée en lecture seule lors de l'édition
+        // ✅ LORS DE L'ÉDITION, on affiche la commande liée, lecture seule
         if (Crud::PAGE_EDIT === $pageName) {
-            yield AssociationField::new('commande', 'Liée à la Commande')
-                ->setRequired(false); // Le champ n'est pas obligatoire
+            yield AssociationField::new('commande', 'Commande liée')
+                ->setFormTypeOption('disabled', true)
+                ->setHelp('La commande liée ne peut pas être modifiée une fois la facture créée.');
         }
-        
-        yield AssociationField::new('client', 'Client');
-        // yield TextField::new('numeroBonCommande', 'N° Bon de commande');
 
+        // ✅ Client
+        yield AssociationField::new('client', 'Client');
+
+        // ✅ Produits de la facture
         yield CollectionField::new('lignes', 'Produits')
             ->setEntryType(FactureLigneType::class)
             ->setEntryIsComplex(true)
@@ -64,12 +66,16 @@ class FactureCrudController extends AbstractCrudController
             ->allowDelete(true)
             ->setFormTypeOptions(['by_reference' => false]);
 
+        // ✅ Frais de livraison
         yield MoneyField::new('fraisLivraison', 'Frais de livraison')
-            ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
+            ->setCurrency('MGA')
+            ->setNumDecimals(0)
+            ->setFormTypeOption('divisor', 1)
             ->setFormTypeOption('attr', ['class' => 'facture-frais-livraison']);
 
         yield TextField::new('livreur', 'Nom du livreur');
 
+        // ✅ Acompte et remise
         yield MoneyField::new('acompte', 'Acompte')
             ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
             ->setFormTypeOption('attr', ['class' => 'acompte']);
@@ -80,112 +86,97 @@ class FactureCrudController extends AbstractCrudController
         yield FormField::addPanel('Conditions de Paiement');
 
         yield ChoiceField::new('modeDePaiement', 'Mode de paiement')
-            ->setChoices(['Chèque' => 'Chèque', 'Espèce' => 'Espèce', 'Virement bancaire' => 'Virement bancaire', 'Carte bancaire' => 'Carte bancaire', 'Mobile Money' => 'Mobile Money'])
+            ->setChoices([
+                'Chèque' => 'Chèque',
+                'Espèce' => 'Espèce',
+                'Virement bancaire' => 'Virement bancaire',
+                'Carte bancaire' => 'Carte bancaire',
+                'Mobile Money' => 'Mobile Money'
+            ])
             ->setHelp('Choisissez le moyen de paiement principal.');
 
         yield TextField::new('detailsPaiement', 'Détails / Références')
             ->setHelp('Ex: MVola, numéro de chèque, référence de virement...');
 
         yield ChoiceField::new('methodePaiement', 'Méthode de paiement')
-            ->setChoices(['50% à la commande, 50% à la livraison' => '50% commande, 50% livraison', '100% à la livraison' => '100% livraison', '30 jours après réception de la facture' => '30 jours fin de mois', '100% à la commande' => '100% commande'])
+            ->setChoices([
+                '50% à la commande, 50% à la livraison' => '50% commande, 50% livraison',
+                '100% à la livraison' => '100% livraison',
+                '30 jours après réception de la facture' => '30 jours fin de mois',
+                '100% à la commande' => '100% commande'
+            ])
             ->setHelp('Choisissez les conditions de règlement.');
 
+        // ✅ Total
         yield MoneyField::new('total', 'Total')
-            ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
+            ->setCurrency('MGA')
+            ->setNumDecimals(0)
+            ->setFormTypeOption('divisor', 1)
             ->setFormTypeOption('disabled', 'disabled')
             ->setFormTypeOption('attr', ['class' => 'facture-total-general']);
 
         yield DateTimeField::new('dateCreation', 'Date de création')->hideOnForm();
 
-            // === Script dynamique ===
+        // === Script dynamique (inchangé) ===
         yield FormField::addPanel('')
-                ->setHelp(<<<HTML
-                    <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            // --- Calcul total général ---
-                            const updateFactureTotal = () => {
-                                let total = 0;
-
-                                // Additionner les prix totaux de chaque ligne
-                                document.querySelectorAll('[id$=_prixTotal]').forEach(input => {
-                                    const val = parseFloat(input.value || 0);
-                                    if (!isNaN(val)) total += val;
-                                });
-
-                                // Ajouter les frais de livraison
-                                const fraisLivraisonInput = document.querySelector('.facture-frais-livraison');
-                                if (fraisLivraisonInput) {
-                                    const frais = parseFloat(fraisLivraisonInput.value || 0);
-                                    if (!isNaN(frais)) total += frais;
-                                }
-
-                                // Afficher le total général
-                                const totalGeneralInput = document.querySelector('.facture-total-general');
-                                if (totalGeneralInput) {
-                                    totalGeneralInput.value = total.toFixed(0);
-                                }
-                            };
-
-                            // --- Mise à jour prix unitaire & total d'une ligne ---
-                            const updateLine = (container) => {
-                                const select = container.querySelector('select');
-                                const qtyInput = container.querySelector('[id$=_quantite]');
-                                const unitInput = container.querySelector('[id$=_prixUnitaire]');
-                                const totalInput = container.querySelector('[id$=_prixTotal]');
-
-                                if (!select || !qtyInput || !unitInput || !totalInput) return;
-
-                                const selectedOption = select.options[select.selectedIndex];
-                                const prix = parseFloat(selectedOption.getAttribute('data-prix') || 0);
-                                const quantite = parseInt(qtyInput.value || 0);
-
-                                if (!isNaN(prix)) {
-                                    unitInput.value = prix.toFixed(0);
-                                }
-                                if (!isNaN(prix) && !isNaN(quantite)) {
-                                    totalInput.value = (prix * quantite).toFixed(0);
-                                }
-
-                                updateFactureTotal();
-                            };
-
-                            // --- Attacher les événements aux lignes existantes ---
-                            const attachListeners = (container) => {
-                                const select = container.querySelector('select');
-                                const qtyInput = container.querySelector('[id$=_quantite]');
-
-                                if (select) {
-                                    select.addEventListener('change', () => updateLine(container));
-                                }
-                                if (qtyInput) {
-                                    qtyInput.addEventListener('input', () => updateLine(container));
-                                }
-                            };
-
-                            document.querySelectorAll('.form-widget-compound').forEach(attachListeners);
-
-                            // --- Gérer l’ajout de nouvelles lignes ---
-                            const addButton = document.querySelector('.field-collection-add-button');
-                            if (addButton) {
-                                addButton.addEventListener('click', function() {
-                                    setTimeout(() => {
-                                        const newContainers = document.querySelectorAll('.form-widget-compound:not(.listening)');
-                                        newContainers.forEach(container => {
-                                            container.classList.add('listening');
-                                            attachListeners(container);
-                                        });
-                                    }, 200);
-                                });
-                            }
-
-                            // --- Frais de livraison change ---
+            ->setHelp(<<<HTML
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const updateFactureTotal = () => {
+                            let total = 0;
+                            document.querySelectorAll('[id$=_prixTotal]').forEach(input => {
+                                const val = parseFloat(input.value || 0);
+                                if (!isNaN(val)) total += val;
+                            });
                             const fraisLivraisonInput = document.querySelector('.facture-frais-livraison');
                             if (fraisLivraisonInput) {
-                                fraisLivraisonInput.addEventListener('input', updateFactureTotal);
+                                const frais = parseFloat(fraisLivraisonInput.value || 0);
+                                if (!isNaN(frais)) total += frais;
                             }
-                        });
-                    </script>
-                HTML
+                            const totalGeneralInput = document.querySelector('.facture-total-general');
+                            if (totalGeneralInput) totalGeneralInput.value = total.toFixed(0);
+                        };
+
+                        const updateLine = (container) => {
+                            const select = container.querySelector('select');
+                            const qtyInput = container.querySelector('[id$=_quantite]');
+                            const unitInput = container.querySelector('[id$=_prixUnitaire]');
+                            const totalInput = container.querySelector('[id$=_prixTotal]');
+                            if (!select || !qtyInput || !unitInput || !totalInput) return;
+                            const selectedOption = select.options[select.selectedIndex];
+                            const prix = parseFloat(selectedOption.getAttribute('data-prix') || 0);
+                            const quantite = parseInt(qtyInput.value || 0);
+                            if (!isNaN(prix)) unitInput.value = prix.toFixed(0);
+                            if (!isNaN(prix) && !isNaN(quantite)) totalInput.value = (prix * quantite).toFixed(0);
+                            updateFactureTotal();
+                        };
+
+                        const attachListeners = (container) => {
+                            const select = container.querySelector('select');
+                            const qtyInput = container.querySelector('[id$=_quantite]');
+                            if (select) select.addEventListener('change', () => updateLine(container));
+                            if (qtyInput) qtyInput.addEventListener('input', () => updateLine(container));
+                        };
+
+                        document.querySelectorAll('.form-widget-compound').forEach(attachListeners);
+                        const addButton = document.querySelector('.field-collection-add-button');
+                        if (addButton) {
+                            addButton.addEventListener('click', function() {
+                                setTimeout(() => {
+                                    const newContainers = document.querySelectorAll('.form-widget-compound:not(.listening)');
+                                    newContainers.forEach(container => {
+                                        container.classList.add('listening');
+                                        attachListeners(container);
+                                    });
+                                }, 200);
+                            });
+                        }
+
+                        const fraisLivraisonInput = document.querySelector('.facture-frais-livraison');
+                        if (fraisLivraisonInput) fraisLivraisonInput.addEventListener('input', updateFactureTotal);
+                    });
+                </script>
+            HTML
             )->onlyOnForms();
     }
 

@@ -55,10 +55,10 @@ class Devis
     #[ORM\OneToOne(mappedBy: 'devisOrigine', targetEntity: Commande::class)]
     private ?Commande $commandeGeneree = null;
 
-    #[ORM\Column(type: 'float')]
+    #[ORM\Column(type: 'float', nullable: true)]
     private float $acompte = 0;
 
-    #[ORM\Column(type: 'float')]
+    #[ORM\Column(type: 'float', nullable: true)]
     private float $remise = 0; // remise en valeur monétaire
 
     #[ORM\Column(type: 'datetime', nullable: true)]

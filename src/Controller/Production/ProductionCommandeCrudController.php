@@ -217,6 +217,9 @@ class ProductionCommandeCrudController extends AbstractCrudController
     {
         // === Panneau 1 : Informations Générales (Lecture seule) ===
         yield FormField::addPanel('Informations sur la Commande')->collapsible();
+        yield CollectionField::new('bonsDeLivraison', 'Bons de Livraison')
+            ->setTemplatePath('admin/fields/bons_de_livraison.html.twig')
+            ->onlyOnDetail();
         yield DateTimeField::new('dateCommande', 'Date de Commande')->setFormTypeOption('disabled', true);
         yield AssociationField::new('client', 'Client')->setFormTypeOption('disabled', true);
         yield CollectionField::new('commandeProduits', 'Produits à produire')->setFormTypeOption('disabled', true);

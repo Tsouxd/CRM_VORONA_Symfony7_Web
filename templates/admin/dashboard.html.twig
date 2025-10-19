@@ -505,43 +505,67 @@
     <hr class="section-divider">
     <h4 class="section-title">Supervision des Départements</h4>
 
-    {# --- SUPERVISION COMMERCIALE (MODIFIÉE) --- #}
-    <div class="mb-4">
-        <h5 class="mb-3"><i class="fas fa-dollar-sign me-2"></i>Supervision Commerciale</h5>
-        {# On enlève le formulaire et l'attribut onchange #}
-        <div class="input-group mb-3">
-            <select id="commercial-selector" class="form-select">
-                <option value="">-- Sélectionner un commercial --</option>
-                {% for commercial in commerciaux %}
-                    <option value="{{ commercial.id }}">{{ commercial.username }}</option>
-                {% endfor %}
-            </select>
+    <!-- SUPERVISION COMMERCIALE (Sur sa propre ligne) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-dollar-sign me-2"></i>Suivi Commercial</h5>
+                    <select id="commercial-selector" class="form-select mt-2">
+                        <option value="">-- Sélectionner un commercial --</option>
+                        {% for commercial in commerciaux %}
+                            <option value="{{ commercial.id }}">{{ commercial.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="card-body" id="commercial-dashboard-container">
+                    <div class="text-center text-muted pt-3">Veuillez sélectionner un commercial pour voir les détails.</div>
+                </div>
+            </div>
         </div>
-
-        <div id="commercial-dashboard">
-            {# Contenu chargé dynamiquement ici #}
-        </div>
-        
-        {# C'est ici que le dashboard du commercial sera injecté par le JS #}
-        <div id="commercial-dashboard-container"></div>
     </div>
 
-    {# --- SUPERVISION PAO (MODIFIÉE) --- #}
-    <div class="mb-4">
-        <h5 class="mb-3"><i class="fas fa-pencil-ruler me-2"></i>Supervision PAO</h5>
-        <div class="input-group mb-3">
-            <select id="pao-selector" class="form-select">
-                <option value="">-- Sélectionner un PAO --</option>
-                {% for pao in paos %}
-                    <option value="{{ pao.id }}">{{ pao.username }}</option>
-                {% endfor %}
-            </select>
+    <!-- SUPERVISION PAO (Sur sa propre ligne) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-pencil-ruler me-2"></i>Suivi PAO</h5>
+                    <select id="pao-selector" class="form-select mt-2">
+                        <option value="">-- Sélectionner un PAO --</option>
+                        {% for pao in paos %}
+                            <option value="{{ pao.id }}">{{ pao.username }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="card-body" id="pao-dashboard-container">
+                    <div class="text-center text-muted pt-3">Veuillez sélectionner un PAO pour voir les détails.</div>
+                </div>
+            </div>
         </div>
-
-        {# C'est ici que le dashboard du PAO sera injecté par le JS #}
-        <div id="pao-dashboard-container"></div>
     </div>
 
+    <!-- SUPERVISION PRODUCTION (Sur sa propre ligne) -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-industry me-2"></i>Suivi Production</h5>
+                    <select id="production-selector" class="form-select mt-2">
+                        <option value="">-- Sélectionner un utilisateur de production --</option>
+                        {% for production in productions %}
+                            <option value="{{ production.id }}" {{ production.id == selectedProductionId ? 'selected' : '' }}>
+                                {{ production.username }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="card-body" id="production-dashboard-container">
+                    <div class="text-center text-muted pt-3">Veuillez sélectionner un utilisateur pour voir ses statistiques.</div>
+                </div>
+            </div>
+        </div>
+    </div>
 {% endblock %}
 
 {% block body_javascript %}
@@ -583,7 +607,7 @@
             const paoSelector = document.getElementById('pao-selector');
             const paoContainer = document.getElementById('pao-dashboard-container');
 
-            /** 🔁 Fonction de chargement AJAX **/
+            /** Fonction de chargement AJAX **/
             async function loadDashboardContent(url, container) {
                 container.innerHTML = `
                     <div class="text-center p-4">
@@ -597,8 +621,8 @@
                     });
                     if (!response.ok) throw new Error('Erreur réseau');
 
-                    const data = await response.json(); // ✅ on parse le JSON
-                    container.innerHTML = data.html;    // ✅ on injecte le HTML
+                    const data = await response.json(); // on parse le JSON
+                    container.innerHTML = data.html;    // on injecte le HTML
 
                     // ⚙️ Réinitialise le formulaire de recherche AJAX après rechargement
                     const form = container.querySelector('.ajax-search-form');
@@ -609,7 +633,7 @@
                 }
             }
 
-            /** 🧩 Fonction pour initialiser la recherche dynamique dans le dashboard commercial **/
+            /** Fonction pour initialiser la recherche dynamique dans le dashboard commercial **/
             function initAjaxSearchForm(form, container) {
                 form.addEventListener('submit', async function(e) {
                     e.preventDefault();
@@ -633,7 +657,7 @@
                 });
             }
 
-            /** 🎨 Sélecteur des PAO **/
+            /** Sélecteur des PAO **/
             if (paoSelector) {
                 paoSelector.addEventListener('change', function() {
                     const paoId = this.value;
@@ -646,7 +670,7 @@
                 });
             }
 
-            /** 📅 Graphiques Chart.js **/
+            /** Graphiques Chart.js **/
             if (document.getElementById('monthlyOrderChart')) {
                 new Chart(document.getElementById('monthlyOrderChart'), {
                     type: 'line',
@@ -721,7 +745,7 @@
                 });
             }
 
-            /** 📊 Filtres Mois / Année pour les produits **/
+            /** Filtres Mois / Année pour les produits **/
             const monthSelector = document.getElementById('monthSelector');
             const yearSelector = document.getElementById('yearSelector');
 
@@ -739,6 +763,41 @@
                     const res = await fetch(`/admin/best-products?type=year&year=${year}`);
                     document.getElementById('best-products-year').innerHTML = await res.text();
                 });
+            }
+
+            // NOUVEAU SCRIPT POUR LA PRODUCTION
+            const productionSelector = document.getElementById('production-selector');
+            const productionContainer = document.getElementById('production-dashboard-container');
+
+            function loadProductionData() {
+                const productionId = productionSelector.value;
+                if (!productionId) {
+                    productionContainer.innerHTML = '<div class="text-center text-muted">Veuillez sélectionner un utilisateur de production pour voir ses statistiques.</div>';
+                    return;
+                }
+                
+                productionContainer.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+
+                const url = `{{ path('admin_supervision_production') }}?production_id=${productionId}`;
+
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        productionContainer.innerHTML = data.html;
+                    })
+                    .catch(error => {
+                        console.error('Error fetching production data:', error);
+                        productionContainer.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des données.</div>';
+                    });
+            }
+
+            if (productionSelector) {
+                productionSelector.addEventListener('change', loadProductionData);
+
+                // Charger les données initialement si un utilisateur est déjà sélectionné
+                if (productionSelector.value) {
+                    loadProductionData();
+                }
             }
         });
     </script>

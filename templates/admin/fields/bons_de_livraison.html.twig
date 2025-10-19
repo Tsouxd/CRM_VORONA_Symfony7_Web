@@ -1,0 +1,9 @@
+<ul>
+    {% for bl in field.value %}
+        <li>
+            Bon #{{ bl.id }} - Créé le {{ bl.dateCreation|date('d/m/Y') }}
+        </li>
+    {% else %}
+        <li>Aucun bon de livraison</li>
+    {% endfor %}
+</ul>

@@ -165,9 +165,6 @@ class Commande
     #[ORM\Column]
     private bool $blGenere = false;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $numeroBonCommande = null;
-
     public function __construct()
     {
         $this->commandeProduits = new ArrayCollection();
@@ -436,17 +433,6 @@ class Commande
 
     public function getProduction(): ?User { return $this->production; }
     public function setProduction(?User $production): static { $this->production = $production; return $this; }
-
-    public function getNumeroBonCommande(): ?string
-    {
-        return $this->numeroBonCommande;
-    }
-
-    public function setNumeroBonCommande(?string $numeroBonCommande): self
-    {
-        $this->numeroBonCommande = $numeroBonCommande;
-        return $this;
-    }
 
     public function __toString(): string
     {

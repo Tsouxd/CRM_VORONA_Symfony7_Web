@@ -79,17 +79,19 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
     public function configureActions(Actions $actions): Actions
     {
         // --- Actions PDF ---
+        /*
         $exportPdf = Action::new('exportPdf', 'PDF', 'fa fa-file-pdf')
             ->linkToUrl(function (Commande $commande) {
                 return $this->generateUrl('admin_export_facture', ['id' => $commande->getId()]);
             })
             ->setHtmlAttributes(['target' => '_blank'])
             ->setCssClass('btn btn-secondary btn-sm');
+        */
 
         $actions = $actions
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
-            ->add(Crud::PAGE_INDEX, $exportPdf)
-            ->add(Crud::PAGE_DETAIL, $exportPdf)
+            //->add(Crud::PAGE_INDEX, $exportPdf)
+            //->add(Crud::PAGE_DETAIL, $exportPdf)
             ->update(Crud::PAGE_INDEX, Action::DELETE, fn (Action $action) =>
                 $action->displayIf(fn () => $this->isGranted('ROLE_ADMIN'))
             )
@@ -401,8 +403,6 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')->hideOnForm();
-
-        yield TextField::new('numeroBonCommande', 'N° Bon de Commande Client');
 
         yield DateTimeField::new('dateCommande', 'Date de Commande')
             ->setFormat('dd/MM/yyyy HH:mm')

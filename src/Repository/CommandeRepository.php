@@ -327,4 +327,53 @@ class CommandeRepository extends ServiceEntityRepository
         return $results;
     }
 
+    /**
+     * Compte les commandes par statut de production pour un utilisateur donné.
+     *
+     * @param User $user L'utilisateur avec le rôle ROLE_PRODUCTION.
+     * @return array Un tableau associatif [statut => nombre].
+     */
+    public function countCommandsByProductionStatusForUser(User $user): array
+    {
+        $results = $this->createQueryBuilder('c')
+            ->select('c.statutProduction as statut, COUNT(c.id) as total')
+            ->where('c.production = :user')
+            ->setParameter('user', $user)
+            ->groupBy('c.statutProduction')
+            ->getQuery()
+            ->getResult();
+
+        // Met en forme le résultat pour un accès facile [statut => total]
+        return array_column($results, 'total', 'statut');
+    }
+
+    /**
+     * Trouve les commandes de production pour un utilisateur, groupées par statut.
+     *
+     * @param User $user L'utilisateur avec le rôle ROLE_PRODUCTION.
+     * @return array Un tableau associatif [statut => array<Commande>].
+     */
+    public function findCommandsByProductionGroupedByStatus(User $user): array
+    {
+        $results = $this->createQueryBuilder('c')
+            ->where('c.production = :user')
+            ->setParameter('user', $user)
+            // Trier pour voir les plus urgentes ou les plus anciennes en premier
+            ->orderBy('c.priorite', 'DESC')
+            ->addOrderBy('c.dateCommande', 'ASC')
+            ->getQuery()
+            ->getResult();
+
+        $groupedCommands = [];
+        foreach ($results as $commande) {
+            $statut = $commande->getStatutProduction();
+            if (!isset($groupedCommands[$statut])) {
+                $groupedCommands[$statut] = [];
+            }
+            $groupedCommands[$statut][] = $commande;
+        }
+
+        return $groupedCommands;
+    }
+
 }

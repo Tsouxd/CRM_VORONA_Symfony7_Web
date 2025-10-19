@@ -1,0 +1,70 @@
+<!-- templates/admin/partials/_production_dashboard.html.twig -->
+
+<div class="row">
+    <!-- Stat Card: En Attente -->
+    <div class="col-md-4">
+        <div class="card text-white bg-secondary mb-3">
+            <div class="card-header">En Attente</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ enAttente }}</h5>
+                <p class="card-text">Commandes prêtes à être lancées.</p>
+            </div>
+        </div>
+    </div>
+    <!-- Stat Card: En Cours -->
+    <div class="col-md-4">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-header">En Cours de Production</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ enCours }}</h5>
+                <p class="card-text">Commandes actuellement en fabrication.</p>
+            </div>
+        </div>
+    </div>
+    <!-- Stat Card: Prêt pour Livraison -->
+    <div class="col-md-4">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-header">Prêt pour Livraison</div>
+            <div class="card-body">
+                <h5 class="card-title">{{ pourLivraison }}</h5>
+                <p class="card-text">Commandes terminées et emballées.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<!-- Listes de commandes -->
+<div class="row">
+    <div class="col-md-6">
+        <h5>En Cours de Production</h5>
+        <ul class="list-group">
+            {% for commande in commandesEnCours|slice(0, 5) %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ ea_url().setController('App\\Controller\\Production\\ProductionCommandeCrudController').setAction('detail').setEntityId(commande.id) }}">
+                        Cmd #{{ commande.id }} - {{ commande.client.nom }}
+                    </a>
+                    <span class="badge bg-primary rounded-pill">{{ commande.dateCommande|date('d/m/Y') }}</span>
+                </li>
+            {% else %}
+                <li class="list-group-item">Aucune commande en cours.</li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <h5>En Attente</h5>
+        <ul class="list-group">
+            {% for commande in commandesAttente|slice(0, 5) %}
+                 <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ ea_url().setController('App\\Controller\\Production\\ProductionCommandeCrudController').setAction('detail').setEntityId(commande.id) }}">
+                        Cmd #{{ commande.id }} - {{ commande.client.nom }}
+                    </a>
+                    <span class="badge bg-secondary rounded-pill">{{ commande.dateCommande|date('d/m/Y') }}</span>
+                </li>
+            {% else %}
+                <li class="list-group-item">Aucune commande en attente.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>

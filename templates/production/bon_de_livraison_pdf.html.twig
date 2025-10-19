@@ -76,13 +76,10 @@
                             <td>{{ '%05d'|format(bonDeLivraison.id) }}</td>
                         </tr>
 
-                        <!-- On vérifie si le champ 'numeroBonCommande' de la commande est rempli -->
-                        {% if commande.numeroBonCommande %}
                         <tr>
                             <td style="font-weight:bold;padding-right:6px;">N° Bon de commande :</td>
-                            <td>BC-{{ '%05d'|format(commande.numeroBonCommande) }}</td>
+                            <td>{{ bonDeLivraison.commande.id is not null ? '%05d'|format(bonDeLivraison.commande.id) : '#REF!' }}</td>
                         </tr>
-                        {% endif %}
                     </table>
                 </div>
                 <div class="date" style="border:0.01px solid #000000b4;padding:6px; height:38px;">

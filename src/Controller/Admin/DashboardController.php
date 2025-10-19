@@ -113,10 +113,12 @@ class DashboardController extends AbstractDashboardController
         // 5. Récupérer les listes d'utilisateurs
         $commerciaux = $this->userRepository->findByRole('ROLE_COMMERCIAL');
         $paos = $this->userRepository->findByRole('ROLE_PAO');
+        $productions = $this->userRepository->findByRole('ROLE_PRODUCTION');
 
         // 6. Vérifier si un utilisateur a été sélectionné dans l'URL
         $selectedCommercialId = $request->query->get('commercial_id');
         $selectedPaoId = $request->query->get('pao_id');
+        $selectedProductionId = $request->query->get('production_id');
         
         $commercialData = null;
         if ($selectedCommercialId) {
@@ -174,6 +176,8 @@ class DashboardController extends AbstractDashboardController
             'selectedPaoId' => $selectedPaoId,
             'commercialData' => $commercialData,
             'paoData' => $paoData,
+            'productions' => $productions,
+            'selectedProductionId' => $selectedProductionId,
         ]);
     }
 
@@ -276,6 +280,37 @@ class DashboardController extends AbstractDashboardController
             'commandesEnCours' => $commandes[Commande::STATUT_PAO_EN_COURS] ?? [],
             'commandesModification' => $commandes[Commande::STATUT_PAO_MODIFICATION] ?? [],
             'commandesFaits' => $commandes[Commande::STATUT_PAO_FAIT] ?? [],
+        ]);
+
+        return new JsonResponse(['html' => $html]);
+    }
+
+    #[Route('/admin/supervision/production-data', name: 'admin_supervision_production')]
+    public function getProductionSupervisionData(Request $request): JsonResponse
+    {
+        $productionId = $request->query->get('production_id');
+        if (!$productionId) {
+            return new JsonResponse(['html' => '']);
+        }
+
+        $productionUser = $this->userRepository->find($productionId);
+        if (!$productionUser) {
+            return new JsonResponse([
+                'html' => '<div class="alert alert-danger">Utilisateur Production introuvable.</div>'
+            ]);
+        }
+
+        // On appelle les nouvelles méthodes du repository
+        $stats = $this->commandeRepository->countCommandsByProductionStatusForUser($productionUser);
+        $commandes = $this->commandeRepository->findCommandsByProductionGroupedByStatus($productionUser);
+
+        $html = $this->renderView('admin/partials/_production_dashboard.html.twig', [
+            'enAttente' => $stats[Commande::STATUT_PRODUCTION_ATTENTE] ?? 0,
+            'enCours' => $stats[Commande::STATUT_PRODUCTION_EN_COURS] ?? 0,
+            'pourLivraison' => $stats[Commande::STATUT_PRODUCTION_POUR_LIVRAISON] ?? 0,
+            'commandesAttente' => $commandes[Commande::STATUT_PRODUCTION_ATTENTE] ?? [],
+            'commandesEnCours' => $commandes[Commande::STATUT_PRODUCTION_EN_COURS] ?? [],
+            'commandesPourLivraison' => $commandes[Commande::STATUT_PRODUCTION_POUR_LIVRAISON] ?? [],
         ]);
 
         return new JsonResponse(['html' => $html]);
