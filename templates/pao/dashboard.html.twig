@@ -1,189 +1,198 @@
+{# templates/pao/dashboard.html.twig #}
 {% extends '@EasyAdmin/page/content.html.twig' %}
 
-{% block content %}
+{# Définir le titre de la page #}
+{% block content_title %}
+    Tableau de bord PAO
+{% endblock %}
 
-  <style>
-    .ea-content, .ea-content .content, .ea-content .content-panel { width: 100% !important; display:block !important; }
-    .content-sidebar, .ea-aside, .aside { display:none !important; }
-    .content-wrapper { display: block; }
-    .resizer-handler { display: none; }
+{# Contenu principal de la page #}
+{% block main %}
 
-    .section-card .card-header {
-      display:flex; align-items:center; justify-content:flex-start;
-    }
-    .section-card .card-header h3 { margin:0; font-weight:600; }
-    .chart-container { height:360px; }
+    {# ================================================================= #}
+    {# 1. Cartes de statistiques principales (KPIs)                       #}
+    {# ================================================================= #}
+    <div class="row">
 
-    /* Cards du haut */
-    .dashboard-card {
-      border: none;
-      border-radius: 12px;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .dashboard-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-    }
-    .dashboard-card h5 {
-      font-weight: 600;
-      font-size: 1.05rem;
-    }
-    .dashboard-card p {
-      font-size: 2rem;
-      font-weight: 700;
-      margin-bottom: 0;
-    }
-  </style>
-
-  <h1 class="mb-4">Tableau de bord PAO</h1>
-
-  {# ===== Cartes du jour ===== #}
-
-  <h2 class="mb-4">Travaux du jour</h2>
-
-  <div class="row g-3">
-    <div class="col-md-3">
-      <div class="card dashboard-card bg-secondary-subtle text-dark shadow-sm">
-        <div class="card-body">
-          <h5>Travaux en attente</h5> 
-          <h3>{{ worksPendingCount }}</h3>
+        {# --- Carte : Travaux en attente (Backlog total) --- #}
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                                Travaux en attente (Total)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ worksPendingCount }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-inbox fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-
-    <div class="col-md-3">
-      <div class="card dashboard-card bg-info-subtle text-dark shadow-sm">
-        <div class="card-body">
-          <h5>Travaux du jour</h5> 
-          <h3>{{ workInProgressToday }}</h3>
+        
+        {# --- Carte : Travaux en cours (Total) --- #}
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Travaux en cours (Total)</div>
+                            {# MISE À JOUR : Utilisation de la nouvelle variable correcte #}
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ workInProgressCount }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-cogs fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
 
-    <div class="col-md-3">
-      <div class="card dashboard-card bg-success-subtle text-dark shadow-sm">
-        <div class="card-body">
-          <h5>Travaux faits</h5>
-          <h3>{{ workDoneToday }}</h3>
+        {# --- Carte : Travaux faits AUJOURD'HUI --- #}
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Faits (Aujourd'hui)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ workDoneToday }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
 
-    <div class="col-md-3">
-      <div class="card dashboard-card bg-warning-subtle text-dark shadow-sm">
-        <div class="card-body">
-          <h5>Travaux en modification</h5>
-          <h3>{{ workModificationToday }}</h3>
+        {# --- Carte : Travaux en modification AUJOURD'HUI --- #}
+        <div class="col-lg-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Modifications (Aujourd'hui)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ workModificationToday }}</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-edit fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  {# ===== Liste des commandes déjà faites (hors commandes du jour) ===== #}
-<div class="section-card card shadow-sm mt-4 mb-4">
-    <div class="card-header">
-        <h3>Commandes déjà faites</h3>
     </div>
-    <div class="card-body">
-        {% if doneCommandsPast is not empty %}
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Client</th>
-                        <th>Date de commande</th>
-                        <th>Date de mise à jour</th>
-                        <th>Produit(s)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for cmd in doneCommandsPast %}
-                        <tr>
-                            <td>{{ cmd.id }}</td>
-                            <td>{{ cmd.client.nom }}</td>
-                            <td>{{ cmd.dateCommande ? cmd.dateCommande|date('d/m/Y H:i') : '' }}</td>
-                            <td>{{ cmd.updatedAt ? cmd.updatedAt|date('d/m/Y H:i') : '' }}</td>
-                            <td>
-                                {% for cp in cmd.commandeProduits %}
-                                    {{ cp.produit.nom }}{% if not loop.last %}, {% endif %}
+
+    {# ================================================================= #}
+    {# 2. Graphique de l'activité mensuelle                            #}
+    {# ================================================================= #}
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                    <h6 class="m-0 font-weight-bold text-primary">PAO terminés par jour pour {{ selectedMonth|date("F Y") }}</h6>
+                    <div>
+                        {% set prevMonth = date(selectedMonth ~ '-01')|date_modify('-1 month')|date('Y-m') %}
+                        {% set nextMonth = date(selectedMonth ~ '-01')|date_modify('+1 month')|date('Y-m') %}
+                        <a href="{{ path('pao_dashboard', {month: prevMonth}) }}" class="btn btn-sm btn-secondary"><i class="fa fa-arrow-left"></i></a>
+                        <a href="{{ path('pao_dashboard', {month: nextMonth}) }}" class="btn btn-sm btn-secondary"><i class="fa fa-arrow-right"></i></a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-area" style="height: 300px;">
+                        <canvas id="paoDoneChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ================================================================= #}
+    {# 3. Tableau de l'historique des commandes terminées              #}
+    {# ================================================================= #}
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Historique des commandes terminées (hors aujourd'hui)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered" width="100%" cellspacing="0">
+                            <thead>
+                                <tr>
+                                    <th># Commande</th>
+                                    <th>Client</th>
+                                    <th>Terminée le</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% if doneCommandsPast is not empty %}
+                                {% for commande in doneCommandsPast %}
+                                    <tr>
+                                        <td><a href="{{ path('admin', {crudAction: 'detail', crudControllerFqcn: 'App\\Controller\\Admin\\CommandeCrudController', entityId: commande.id}) }}">{{ commande.id }}</a></td>
+                                        <td>{{ commande.client.nomSociete ?? 'N/A' }}</td>
+                                        <td>{{ commande.updatedAt|date("d/m/Y à H:i") }}</td>
+                                    </tr>
                                 {% endfor %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p class="text-muted">Aucune commande passée n’a été trouvée.</p>
-        {% endif %}
-    </div>
-</div>
-
-
-  {# ===== Carte semaine ===== #}
-  <div class="section-card card shadow-sm mt-4 mb-4">
-    <div class="card-header"><h3>Travaux effectués cette semaine</h3></div>
-    <div class="card-body">
-      <p class="display-6 mb-0"> {{worksDoneThisWeekCount}}/{{ worksThisWeekCount }}</p>
-    </div>
-  </div>
-
-  {# ===== Graph mensuel PAO FAIT ===== #}
-  <div class="section-card card shadow-sm mb-4">
-    <div class="card-header">
-      <h3>Travaux faits — par jour sur le mois</h3>
-    </div>
-    <div class="card-body">
-      <form method="get" action="{{ path('pao_dashboard') }}" class="row g-3 align-items-end mb-3">
-        <div class="col-auto">
-          <label class="form-label">Mois</label>
-          <input type="month" name="month" class="form-control" value="{{ selectedMonth }}">
+                            {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center">Aucune commande terminée à afficher dans l'historique.</td>
+                                </tr>
+                            {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="col-auto">
-          <button type="submit" class="btn btn-primary">Appliquer</button>
-        </div>
-      </form>
-
-      <div class="chart-container">
-        <canvas id="paoDoneChart"></canvas>
-      </div>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script>
-    (function () {
-      const labels = {{ chartLabels|json_encode|raw }};
-      const values = {{ chartValues|json_encode|raw }};
-      const ctx = document.getElementById('paoDoneChart');
 
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'PAO faits / jour',
-            data: values,
-            backgroundColor: 'rgba(54, 162, 235, 0.5)',
-            borderColor: 'rgba(54, 162, 235, 0.8)',
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: true, position: 'top' },
-            tooltip: { callbacks: { label: (c) => `${c.parsed.y} travaux` } }
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { precision: 0 }
-            }
-          }
-        }
-      });
-    })();
-  </script>
-
+    {# ================================================================= #}
+    {# Script pour initialiser le graphique (Chart.js)                 #}
+    {# N'oubliez pas d'importer Chart.js si ce n'est pas déjà fait     #}
+    {# dans votre layout de base ou via Webpack Encore.                #}
+    {# ================================================================= #}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const ctx = document.getElementById('paoDoneChart').getContext('2d');
+            const paoDoneChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: {{ chartLabels|json_encode|raw }},
+                    datasets: [{
+                        label: 'PAO Terminés',
+                        data: {{ chartValues|json_encode|raw }},
+                        backgroundColor: 'rgba(78, 115, 223, 0.8)',
+                        borderColor: 'rgba(78, 115, 223, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1 // Affiche uniquement des entiers sur l'axe Y
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        });
+    </script>
 {% endblock %}

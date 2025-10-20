@@ -262,7 +262,7 @@ class ProductionCommandeCrudController extends AbstractCrudController
         $isProductionFinished = ($commande && $commande->getStatutProduction() === Commande::STATUT_PRODUCTION_POUR_LIVRAISON);
 
         yield TextField::new('lieuDeLivraison', 'Lieu de Livraison')
-            ->setFormTypeOption('disabled', !$isProductionFinished)
+            //->setFormTypeOption('disabled', !$isProductionFinished)
             ->setHelp($isProductionFinished ? '' : 'Ce champ sera disponible une fois la production terminée.');
 
         yield TextField::new('nomLivreur', 'Nom du Livreur')

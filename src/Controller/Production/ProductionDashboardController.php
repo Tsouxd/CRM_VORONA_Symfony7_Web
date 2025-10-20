@@ -32,108 +32,93 @@ class ProductionDashboardController extends AbstractDashboardController
 
     }
 
+    // Dans src/Controller/Production/ProductionDashboardController.php
+
     #[Route('/production', name: 'production_dashboard')]
     public function index(): Response
     {
-        // ===== Fenêtre "aujourd'hui" (sur la base de dateCommande) =====
-        $today      = new \DateTimeImmutable('today');
-        $startOfDay = $today->setTime(0, 0, 0);
-        $endOfDay   = $today->setTime(23, 59, 59);
+        // ==============================================================
+        // 1. CALCULS POUR LES CARTES (logique inchangée)
+        // ==============================================================
+        $startOfDay = (new \DateTimeImmutable('today'))->setTime(0, 0, 0);
+        $startOfTomorrow = $startOfDay->modify('+1 day');
 
-        // === 1) Travaux du jour — statut production EN COURS
-        $workInProgressToday = (int) $this->commandeRepository
-            ->createQueryBuilder('c')
-            ->select('COUNT(c.id)')
-            ->where('c.statutProduction = :status')
-            ->andWhere('c.updatedAt BETWEEN :start AND :end')
-            ->setParameter('status', Commande::STATUT_PRODUCTION_EN_COURS)
-            ->setParameter('start', new \DateTime($startOfDay->format('Y-m-d H:i:s')))
-            ->setParameter('end',   new \DateTime($endOfDay->format('Y-m-d H:i:s')))
-            ->getQuery()
-            ->getSingleScalarResult();
+        $worksPendingCount = (int) $this->commandeRepository
+            ->createQueryBuilder('c')->select('COUNT(c.id)')->where('c.statutProduction = :status')
+            ->setParameter('status', Commande::STATUT_PRODUCTION_ATTENTE)->getQuery()->getSingleScalarResult();
 
-        // === 2) Travaux "prêts pour livraison" du jour — statut production POUR_LIVRAISON
-        $workReadyForDeliveryToday = (int) $this->commandeRepository
-            ->createQueryBuilder('c')
-            ->select('COUNT(c.id)')
-            ->where('c.statutProduction = :status')
-            ->andWhere('c.updatedAt BETWEEN :start AND :end')
+        $workInProgressCount = (int) $this->commandeRepository
+            ->createQueryBuilder('c')->select('COUNT(c.id)')->where('c.statutProduction = :status')
+            ->setParameter('status', Commande::STATUT_PRODUCTION_EN_COURS)->getQuery()->getSingleScalarResult();
+
+        $workFinishedToday = (int) $this->commandeRepository
+            ->createQueryBuilder('c')->select('COUNT(c.id)')->where('c.statutProduction = :status')
+            ->andWhere('c.productionStatusUpdatedAt >= :start AND c.productionStatusUpdatedAt < :next')
             ->setParameter('status', Commande::STATUT_PRODUCTION_POUR_LIVRAISON)
             ->setParameter('start', new \DateTime($startOfDay->format('Y-m-d H:i:s')))
-            ->setParameter('end',   new \DateTime($endOfDay->format('Y-m-d H:i:s')))
-            ->getQuery()
-            ->getSingleScalarResult();
+            ->setParameter('next', new \DateTime($startOfTomorrow->format('Y-m-d H:i:s')))
+            ->getQuery()->getSingleScalarResult();
 
-        // ===== 3) Graph mensuel : "PRÊT POUR LIVRAISON" par jour =====
-        // ?month=YYYY-MM, ex: 2025-10 ; défaut = mois courant
-        $request    = $this->requestStack->getCurrentRequest();
-        $monthParam = $request?->query->get('month');
-        if (is_string($monthParam) && preg_match('/^\d{4}-\d{2}$/', $monthParam)) {
-            [$y, $m]   = explode('-', $monthParam);
-            $year      = (int) $y;
-            $month     = (int) $m;
-        } else {
-            $now       = new \DateTimeImmutable('now');
-            $year      = (int) $now->format('Y');
-            $month     = (int) $now->format('m');
-            $monthParam = sprintf('%04d-%02d', $year, $month);
+        // =====================================================================
+        // 2. NOUVEAU : GESTION DE LA RECHERCHE PAR DATE POUR LA LISTE
+        // =====================================================================
+        $request = $this->requestStack->getCurrentRequest();
+        
+        // On récupère les dates depuis l'URL, avec des valeurs par défaut (le mois en cours)
+        $dateStartParam = $request?->query->get('date_start');
+        $dateEndParam = $request?->query->get('date_end');
+
+        try {
+            $dateStart = $dateStartParam ? new \DateTimeImmutable($dateStartParam) : new \DateTimeImmutable('first day of this month');
+        } catch (\Exception $e) {
+            $dateStart = new \DateTimeImmutable('first day of this month');
         }
 
-        $startOfTargetMonth = (new \DateTimeImmutable(sprintf('%04d-%02d-01', $year, $month)))->setTime(0, 0, 0);
-        $endOfTargetMonth   = $startOfTargetMonth->modify('last day of this month')->setTime(23, 59, 59);
+        try {
+            $dateEnd = $dateEndParam ? new \DateTimeImmutable($dateEndParam) : new \DateTimeImmutable('now');
+        } catch (\Exception $e) {
+            $dateEnd = new \DateTimeImmutable('now');
+        }
 
-        // Récup toutes les commandes en statut POUR_LIVRAISON sur le mois
-        $readyRows = $this->commandeRepository
+        // On s'assure de couvrir toute la journée pour les deux dates
+        $dateStart = $dateStart->setTime(0, 0, 0);
+        $dateEnd = $dateEnd->setTime(23, 59, 59);
+
+        // On récupère les commandes terminées dans l'intervalle de dates choisi
+        $finishedCommandsInRange = $this->commandeRepository
             ->createQueryBuilder('c')
-            ->select('c.id, c.dateCommande')
             ->where('c.statutProduction = :status')
-            ->andWhere('c.dateCommande BETWEEN :start AND :end')
+            ->andWhere('c.productionStatusUpdatedAt BETWEEN :start AND :end')
             ->setParameter('status', Commande::STATUT_PRODUCTION_POUR_LIVRAISON)
-            ->setParameter('start', new \DateTime($startOfTargetMonth->format('Y-m-d H:i:s')))
-            ->setParameter('end',   new \DateTime($endOfTargetMonth->format('Y-m-d H:i:s')))
-            ->getQuery()
-            ->getArrayResult();
-
-        // ===== Liste des travaux déjà livrés =====
-        $deliveredCommands = $this->commandeRepository
-            ->createQueryBuilder('c')
-            ->where('c.statutLivraison = :livree') // ici le statut Livrée
-            ->andWhere('c.updatedAt < :endToday')  // optionnel si tu veux exclure le jour courant
-            ->setParameter('livree', 'Livrée')     // ou Commande::STATUT_LIVREE si tu as une constante
-            ->setParameter('endToday', new \DateTime($endOfDay->format('Y-m-d H:i:s')))
-            ->orderBy('c.updatedAt', 'DESC')
+            ->setParameter('start', $dateStart)
+            ->setParameter('end', $dateEnd)
+            ->orderBy('c.productionStatusUpdatedAt', 'DESC') // Les plus récents en premier
             ->getQuery()
             ->getResult();
 
-        // Agréger par jour (en PHP)
-        $daysInMonth = (int) $startOfTargetMonth->format('t');
-        $perDay = array_fill(1, $daysInMonth, 0);
-
-        foreach ($readyRows as $row) {
-            // dateCommande peut être un array (Doctrine DateTime) selon mapping, on normalise
-            $raw = $row['dateCommande'];
-            $dt  = $raw instanceof \DateTimeInterface ? \DateTime::createFromFormat('Y-m-d H:i:s', $raw->format('Y-m-d H:i:s')) : new \DateTime(is_array($raw) && isset($raw['date']) ? $raw['date'] : (string)$raw);
-            if ($dt && !is_nan($dt->getTimestamp())) {
-                $d = (int) $dt->format('j');
-                if ($d >= 1 && $d <= $daysInMonth) $perDay[$d]++;
-            }
-        }
-
-        $chartLabels = [];
-        $chartValues = [];
-        for ($i = 1; $i <= $daysInMonth; $i++) {
-            $chartLabels[] = sprintf('%02d', $i);
-            $chartValues[] = $perDay[$i];
-        }
+        // =====================================================================
+        // 3. LISTE DES TRAVAUX DÉJÀ LIVRÉS (logique inchangée)
+        // =====================================================================
+        $deliveredCommands = $this->commandeRepository
+            ->createQueryBuilder('c')
+            ->where('c.statutLivraison = :livree')
+            ->setParameter('livree', Commande::STATUT_LIVRAISON_LIVREE)
+            ->orderBy('c.dateDeLivraison', 'DESC')
+            ->getQuery()
+            ->getResult();
 
         return $this->render('production/dashboard.html.twig', [
-            'workInProgressToday'       => $workInProgressToday,
-            'workReadyForDeliveryToday' => $workReadyForDeliveryToday,
+            // Données pour les cartes
+            'worksPendingCount'         => $worksPendingCount,
+            'workInProgressCount'       => $workInProgressCount,
+            'workFinishedToday'         => $workFinishedToday,
+            
+            // Données pour la nouvelle liste filtrable
+            'finishedCommandsInRange'   => $finishedCommandsInRange,
+            'dateStart'                 => $dateStart,
+            'dateEnd'                   => $dateEnd,
 
-            // Graph
-            'selectedMonth'             => $monthParam,   // 'YYYY-MM'
-            'chartLabels'               => $chartLabels,  // ['01', '02', ...]
-            'chartValues'               => $chartValues,  // [0, 1, 0, 2, ...]
+            // Données pour la liste des commandes livrées
             'deliveredCommands'         => $deliveredCommands,
         ]);
     }

@@ -10,8 +10,10 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 use App\Entity\User;
+use Doctrine\ORM\Event\PreUpdateEventArgs;
 
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 #[Vich\Uploadable]
 class Commande
 {
@@ -164,6 +166,12 @@ class Commande
 
     #[ORM\Column]
     private bool $blGenere = false;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $paoStatusUpdatedAt = null;
+
+    #[ORM\Column(type: 'datetime', nullable: true)]
+    private ?\DateTimeInterface $productionStatusUpdatedAt = null;
 
     public function __construct()
     {
@@ -433,6 +441,70 @@ class Commande
 
     public function getProduction(): ?User { return $this->production; }
     public function setProduction(?User $production): static { $this->production = $production; return $this; }
+
+    public function getPaoStatusUpdatedAt(): ?\DateTimeInterface
+    {
+        return $this->paoStatusUpdatedAt;
+    }
+
+    public function setPaoStatusUpdatedAt(?\DateTimeInterface $paoStatusUpdatedAt): self
+    {
+        $this->paoStatusUpdatedAt = $paoStatusUpdatedAt;
+        return $this;
+    }
+
+        public function getProductionStatusUpdatedAt(): ?\DateTimeInterface
+    {
+        return $this->productionStatusUpdatedAt;
+    }
+
+    public function setProductionStatusUpdatedAt(?\DateTimeInterface $productionStatusUpdatedAt): self
+    {
+        $this->productionStatusUpdatedAt = $productionStatusUpdatedAt;
+        return $this;
+    }
+    
+    /**
+     * S'exécute à la création d'une nouvelle commande.
+     */
+    #[ORM\PrePersist]
+    public function setStatusTimestampsOnCreate(): void
+    {
+        // Gère le statut PAO
+        if (in_array($this->statutPao, [self::STATUT_PAO_FAIT, self::STATUT_PAO_MODIFICATION])) {
+            $this->paoStatusUpdatedAt = new \DateTime();
+        }
+        
+        // Gère le statut Production
+        // Mettez ici les statuts qui signifient "terminé"
+        if (in_array($this->statutProduction, [self::STATUT_PRODUCTION_POUR_LIVRAISON, 'Livrée'])) { // Remplacez 'Livrée' par la bonne constante si elle existe
+            $this->productionStatusUpdatedAt = new \DateTime();
+        }
+    }
+
+    /**
+     * S'exécute AVANT chaque mise à jour d'une commande existante.
+     */
+    #[ORM\PreUpdate]
+    public function updateStatusTimestampsOnUpdate(PreUpdateEventArgs $eventArgs): void
+    {
+        // On vérifie si le champ 'statutPao' a été modifié
+        if ($eventArgs->hasChangedField('statutPao')) {
+            $newStatus = $eventArgs->getNewValue('statutPao');
+            if (in_array($newStatus, [self::STATUT_PAO_FAIT, self::STATUT_PAO_MODIFICATION])) {
+                $this->paoStatusUpdatedAt = new \DateTime();
+            }
+        }
+        
+        // On vérifie si le champ 'statutProduction' a été modifié
+        if ($eventArgs->hasChangedField('statutProduction')) {
+            $newStatus = $eventArgs->getNewValue('statutProduction');
+            // Mettez ici les statuts qui signifient "terminé" pour la production
+            if (in_array($newStatus, [self::STATUT_PRODUCTION_POUR_LIVRAISON, 'Livrée'])) { // Remplacez 'Livrée' par la bonne constante
+                $this->productionStatusUpdatedAt = new \DateTime();
+            }
+        }
+    }
 
     public function __toString(): string
     {
