@@ -190,24 +190,30 @@ class ProductionCommandeCrudController extends AbstractCrudController
             ]
         );
     }
-
-    // === C'EST LA MÉTHODE QUI APPLIQUE LE FILTRE ===
+    
+    // === C'EST LA MÉTHODE QUI APPLIQUE LE FILTRE (MISE À JOUR) ===
     public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
     {
         $qb = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
         
         // --- Filtre 1 : Restreindre à l'utilisateur Production connecté (si ce n'est pas un admin) ---
+        // On adapte la logique de PAO pour la Production
         if ($this->isGranted('ROLE_PRODUCTION') && !$this->isGranted('ROLE_ADMIN')) {
             $user = $this->getUser();
             $qb->andWhere('entity.production = :currentUser')
                ->setParameter('currentUser', $user);
         }
 
-        // --- Filtre 2 : "Travaux à Faire" ---
+        // --- Filtre 2 : "Travaux à Faire" comme pour la PAO ---
         $request = $this->requestStack->getCurrentRequest();
         if ($request->query->get('filtre') === 'a_faire') {
-            $qb->andWhere('entity.statutProduction = :status')
-               ->setParameter('status', Commande::STATUT_PRODUCTION_EN_COURS);
+            
+            // On ajoute la condition pour ne montrer que les statuts de production actifs.
+            $qb->andWhere('entity.statutProduction IN (:statuses)')
+               ->setParameter('statuses', [
+                   Commande::STATUT_PRODUCTION_ATTENTE,
+                   Commande::STATUT_PRODUCTION_EN_COURS,
+               ]);
         }
         
         return $qb;
