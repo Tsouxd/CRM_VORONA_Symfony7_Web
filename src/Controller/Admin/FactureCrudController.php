@@ -48,25 +48,24 @@ class FactureCrudController extends AbstractCrudController
 
         yield FormField::addPanel('Détails de la Facture');
 
-        // ✅ LORS DE L'ÉDITION, on affiche la commande liée, lecture seule
         if (Crud::PAGE_EDIT === $pageName) {
             yield AssociationField::new('commande', 'Commande liée')
-                ->setFormTypeOption('disabled', true)
+                ->setFormTypeOption('disabled', false)
                 ->setHelp('La commande liée ne peut pas être modifiée une fois la facture créée.');
         }
 
-        // ✅ Client
+        // Client
         yield AssociationField::new('client', 'Client');
 
-        // ✅ Produits de la facture
-        yield CollectionField::new('lignes', 'Produits')
+        // Produits de la facture
+        yield CollectionField::new('lignes', 'Produits Commandes / Services')
             ->setEntryType(FactureLigneType::class)
             ->setEntryIsComplex(true)
             ->allowAdd(true)
             ->allowDelete(true)
             ->setFormTypeOptions(['by_reference' => false]);
 
-        // ✅ Frais de livraison
+        // Frais de livraison
         yield MoneyField::new('fraisLivraison', 'Frais de livraison')
             ->setCurrency('MGA')
             ->setNumDecimals(0)
@@ -75,7 +74,7 @@ class FactureCrudController extends AbstractCrudController
 
         yield TextField::new('livreur', 'Nom du livreur');
 
-        // ✅ Acompte et remise
+        // Acompte et remise
         yield MoneyField::new('acompte', 'Acompte')
             ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
             ->setFormTypeOption('attr', ['class' => 'acompte']);
@@ -107,7 +106,7 @@ class FactureCrudController extends AbstractCrudController
             ])
             ->setHelp('Choisissez les conditions de règlement.');
 
-        // ✅ Total
+        // Total
         yield MoneyField::new('total', 'Total')
             ->setCurrency('MGA')
             ->setNumDecimals(0)
@@ -117,7 +116,7 @@ class FactureCrudController extends AbstractCrudController
 
         yield DateTimeField::new('dateCreation', 'Date de création')->hideOnForm();
 
-        // === Script dynamique (inchangé) ===
+        // === Script dynamique ===
         yield FormField::addPanel('')
             ->setHelp(<<<HTML
                 <script>
@@ -280,20 +279,28 @@ class FactureCrudController extends AbstractCrudController
     public function configureActions(Actions $actions): Actions
     {
         $exportPdf = Action::new('exportPdf', 'Exporter PDF', 'fa fa-file-pdf')
-            ->linkToUrl(function($entity) {
-                $adminUrlGenerator = $this->container->get(AdminUrlGenerator::class);
-                return $adminUrlGenerator
-                    ->setController(self::class)
-                    ->setAction('exportPdfAction')
-                    ->set('entityId', $entity->getId())
-                    ->generateUrl();
-            })
-            ->setHtmlAttributes(['target' => '_blank'])
-            ->setCssClass('btn btn-primary');
+            ->linkToCrudAction('exportPdfAction')
+            ->setCssClass('btn btn-primary')
+            ->setHtmlAttributes([
+                'target' => '_blank',
+            ]);
 
         return $actions
+            // ETAPE 1 : On AJOUTE l'action DETAIL standard à la page d'index.
+            // On ne la configure pas ici, on dit juste à EasyAdmin de l'activer.
+            ->add(Crud::PAGE_INDEX, Action::DETAIL)
+
+            // ETAPE 2 : MAINTENANT qu'elle existe sur la page index, on la MET À JOUR.
+            ->update(Crud::PAGE_INDEX, Action::DETAIL, function (Action $action) {
+                return $action
+                    ->setLabel('Consulter');   // On change le libellé
+            })
+            
+            // On ajoute nos autres actions personnalisées comme avant
             ->add(Crud::PAGE_INDEX, $exportPdf)
-            ->add(Crud::PAGE_DETAIL, $exportPdf);
+            ->add(Crud::PAGE_DETAIL, $exportPdf)
+
+            ->reorder(Crud::PAGE_INDEX, ['exportPdf', Action::DETAIL, Action::EDIT]);
     }
 
     public function exportPdfAction(AdminUrlGenerator $adminUrlGenerator, EntityManagerInterface $entityManager): Response

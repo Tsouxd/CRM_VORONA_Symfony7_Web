@@ -69,7 +69,7 @@ class DevisCrudController extends AbstractCrudController
 
         // --- Panneau Lignes de Devis (Saisie Manuelle) ---
         yield FormField::addPanel('Détails et Validation du Devis');
-        yield CollectionField::new('lignes', 'Produits')
+        yield CollectionField::new('lignes', 'Produits Commandes / Services')
             ->setEntryType(DevisLigneType::class)
             ->setEntryIsComplex(true)
             ->allowAdd(true)
@@ -138,8 +138,6 @@ class DevisCrudController extends AbstractCrudController
                 Devis::STATUT_RELANCE => 'warning',
                 Devis::STATUT_PERDU => 'danger',
             ]);
-        
-        yield FormField::addPanel('Totalisation');
 
         yield MoneyField::new('acompte', 'Acompte Versé')
             ->setCurrency('MGA')
@@ -154,14 +152,15 @@ class DevisCrudController extends AbstractCrudController
             ->setFormTypeOption('divisor', 1)
             ->setFormTypeOption('attr', ['readonly' => true]) // Non modifiable
             ->setFormTypeOption('mapped', false)
-            ->hideOnIndex(); // Optionnel : ne pas l'afficher dans la liste
+            ->hideOnForm(); // Optionnel : ne pas l'afficher dans la liste
 
         // --- Total (calculé par JS) ---
         yield MoneyField::new('total', 'Total')
             ->setCurrency('MGA')
             ->setNumDecimals(0)
             ->setFormTypeOption('divisor', 1)
-            ->setFormTypeOption('attr', ['readonly' => true]);
+            ->setFormTypeOption('attr', ['readonly' => true])
+            ->onlyOnDetail();
 
         yield DateTimeField::new('dateCreation', 'Date de création')->hideOnForm();
         yield DateTimeField::new('dateExpiration', 'Date d’expiration')
@@ -439,16 +438,30 @@ class DevisCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
+        // Votre action 'Exporter PDF' existante
         $exportPdf = Action::new('exportPdf', 'Exporter PDF', 'fa fa-file-pdf')
             ->linkToCrudAction('exportPdfAction')
             ->setCssClass('btn btn-primary')
             ->setHtmlAttributes([
-                'target' => '_blank', // <- ouvre dans un nouvel onglet
+                'target' => '_blank',
             ]);
 
         return $actions
+            // ETAPE 1 : On AJOUTE l'action DETAIL standard à la page d'index.
+            // On ne la configure pas ici, on dit juste à EasyAdmin de l'activer.
+            ->add(Crud::PAGE_INDEX, Action::DETAIL)
+
+            // ETAPE 2 : MAINTENANT qu'elle existe sur la page index, on la MET À JOUR.
+            ->update(Crud::PAGE_INDEX, Action::DETAIL, function (Action $action) {
+                return $action
+                    ->setLabel('Consulter');   // On change le libellé
+            })
+            
+            // On ajoute nos autres actions personnalisées comme avant
             ->add(Crud::PAGE_INDEX, $exportPdf)
-            ->add(Crud::PAGE_DETAIL, $exportPdf);
+            ->add(Crud::PAGE_DETAIL, $exportPdf)
+
+            ->reorder(Crud::PAGE_INDEX, ['exportPdf', Action::DETAIL, Action::EDIT]);
     }
 
     public function exportPdfAction(AdminUrlGenerator $adminUrlGenerator, EntityManagerInterface $entityManager): Response
