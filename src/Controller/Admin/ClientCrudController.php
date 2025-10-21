@@ -80,9 +80,9 @@ class ClientCrudController extends AbstractCrudController
 
         yield TextareaField::new('adresseLivraison')->onlyOnForms();
         yield TextField::new('lieuLivraison')->onlyOnForms();
-        yield TimeField::new('heureLivraison', 'Heure de livraison')
+        /*yield TimeField::new('heureLivraison', 'Heure de livraison')
             ->setFormat('HH:mm') // format 24h
-            ->onlyOnForms();
+            ->onlyOnForms();*/
 
         // --- Panneau pour les Professionnels ---
         yield FormField::addPanel('Informations Professionnel')

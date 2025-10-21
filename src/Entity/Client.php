@@ -39,8 +39,8 @@ class Client
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $lieuLivraison = null;
 
-    #[ORM\Column(type: 'time', nullable: true)]
-    private ?\DateTimeInterface $heureLivraison = null;
+    /*#[ORM\Column(type: 'time', nullable: true)]
+    private ?\DateTimeInterface $heureLivraison = null;*/
 
     // --- Champs Professionnels ---
     #[ORM\Column(length: 255, nullable: true)]
@@ -128,7 +128,7 @@ class Client
         return $this;
     }
 
-    public function getHeureLivraison(): ?\DateTimeInterface
+    /*public function getHeureLivraison(): ?\DateTimeInterface
     {
         return $this->heureLivraison;
     }
@@ -137,7 +137,7 @@ class Client
     {
         $this->heureLivraison = $heureLivraison;
         return $this;
-    }
+    }*/
 
     /**
      * @return Collection<int, Commande>
@@ -164,11 +164,6 @@ class Client
             }
         }
         return $this;
-    }
-
-    public function __toString(): string
-    {
-        return $this->nom;
     }
 
     public function getNif(): ?string
@@ -202,5 +197,10 @@ class Client
     {
         $this->adresse = $adresse;
         return $this;
+    }
+
+        public function __toString(): string
+    {
+        return $this->nom;
     }
 }

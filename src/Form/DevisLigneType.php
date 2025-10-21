@@ -12,6 +12,7 @@ use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 
 class DevisLigneType extends AbstractType
 {
@@ -31,11 +32,9 @@ class DevisLigneType extends AbstractType
                 'scale' => 0,
                 'attr' => ['class' => 'devis-prix-unitaire'], // On ajoute la classe pour le JS
             ])
-            ->add('prixTotal', MoneyType::class, [
-                'currency' => 'MGA',
-                'divisor' => 1,
-                'scale' => 0,
-                'attr' => ['class' => 'devis-prix-total', 'readonly' => true], // Total non modifiable
+            ->add('prixTotal', HiddenType::class, [
+                // On garde la classe pour que le JavaScript puisse trouver le champ
+                'attr' => ['class' => 'devis-prix-total'],
             ]);
     }
 
