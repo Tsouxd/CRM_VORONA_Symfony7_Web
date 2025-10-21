@@ -52,15 +52,8 @@ class ClientOrNewClientForDevisType extends AbstractType
                 'mapped' => false,
                 'attr' => ['class' => 'new-client-block'],
             ]);
-        
-        // Supprimez ou commentez l'ancien listener PRE_SUBMIT
-        /*
-        $builder->addEventListener(FormEvents::PRE_SUBMIT, function(FormEvent $event) {
-            // ... ancien code ...
-        });
-        */
-        
-        // ✅ NOUVEAU Listener POST_SUBMIT
+            
+        // NOUVEAU Listener POST_SUBMIT
         $builder->addEventListener(FormEvents::POST_SUBMIT, function(FormEvent $event) {
             $form = $event->getForm();
 

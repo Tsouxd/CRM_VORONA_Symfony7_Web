@@ -52,13 +52,13 @@ class ClientType extends AbstractType
                 'required' => false,
                 'row_attr' => ['class' => 'client-field particulier-field'],
             ])
-            ->add('heureLivraison', TimeType::class, [
+            /*->add('heureLivraison', TimeType::class, [
                 'label' => 'Heure de livraison',
                 'required' => false,
                 'widget' => 'single_text', // un seul input HTML5 type="time"
                 'input' => 'datetime',     // valeur stockée en \DateTime
                 'row_attr' => ['class' => 'client-field particulier-field'],
-            ])
+            ])*/
 
             // --- Groupe de champs pour les Professionnels ---
             ->add('nif', TextType::class, [
