@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Ticket de Caisse</title>
+    <style>
+        @page { margin: 15px; } /* MODIFIÉ : Marges réduites */
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 9px; /* MODIFIÉ : Police de base plus petite */
+            color: #333;
+        }
+        .container {
+            width: 100%;
+            margin: 0 auto;
+        }
+        .header, .info-section {
+            display: table;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .header-left, .header-right {
+            display: table-cell;
+            vertical-align: top;
+        }
+        .header-left { width: 70%; }
+        .header-right { width: 30%; text-align: right; }
+        .logo { max-width: 60px; } /* MODIFIÉ : Logo plus petit */
+        .company-name { font-size: 16px; font-weight: bold; color: #005f69; margin: 0; } /* MODIFIÉ */
+        .company-details { font-size: 8px; color: #555; line-height: 1.4; } /* MODIFIÉ */
+
+        .title {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 16px; /* MODIFIÉ */
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-top: 15px; /* MODIFIÉ */
+            margin-bottom: 10px; /* MODIFIÉ */
+        }
+
+        .info-cell {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+            padding: 5px 0; /* MODIFIÉ */
+        }
+        .client-info { line-height: 1.4; } /* MODIFIÉ */
+        .facture-info { text-align: left; padding-left: 20px; } /* MODIFIÉ : Espacement réduit */
+        .facture-info p { margin: 4px 0; } /* MODIFIÉ */
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px; /* MODIFIÉ */
+            font-size: 8px; /* MODIFIÉ */
+        }
+        .items-table th, .items-table td {
+            border-bottom: 1px solid #eee;
+            padding: 4px 2px; /* MODIFIÉ */
+            text-align: left;
+        }
+        .items-table th {
+            font-weight: bold;
+            color: #555;
+            border-bottom: 1px solid #ccc; /* MODIFIÉ */
+        }
+        .items-table .align-right { text-align: right; }
+        .items-table .col-qty { width: 10%; }
+        .items-table .col-pu, .items-table .col-total { width: 22%; } /* MODIFIÉ */
+
+        .footer {
+            margin-top: 15px; /* MODIFIÉ */
+            width: 100%;
+            display: table;
+        }
+        .remarques, .totals {
+             display: table-cell;
+             vertical-align: bottom;
+        }
+        .totals { width: 60%; } /* MODIFIÉ */
+        .totals-table {
+            width: 160px; /* MODIFIÉ : Largeur fixe réduite */
+            float: right;
+            border-collapse: collapse;
+            border: 1px solid #000;
+        }
+        .totals-table td {
+            padding: 4px; /* MODIFIÉ */
+            border: 1px solid #000;
+            font-size: 9px; /* MODIFIÉ */
+        }
+        .totals-table .label { font-weight: normal; }
+        .totals-table .value { text-align: right; font-weight: bold; }
+        .grand-total { font-size: 12px; background-color: #f2f2f2; } /* MODIFIÉ */
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-left">
+                <h1 class="company-name">4EVER MG</h1>
+                <p class="company-details">
+                    Ampandrana<br>
+                    Pres Ambassade de Lybie<br>
+                    034 03 767 69 - 038 25 722 47
+                </p>
+            </div>
+            <div class="header-right">
+                <img src="{{ logo }}" alt="Logo" class="logo">
+            </div>
+        </div>
+
+        <h2 class="title">Ticket de caisse</h2>
+
+        <div class="info-section">
+            <div class="info-cell client-info">
+                <strong>Client:</strong><br>
+                {# Informations de base affichées pour tous les clients #}
+                {{ facture.client.nom }}<br>
+                {{ facture.client.provenance }}<br>
+                {{ facture.client.adresseLivraison }}<br>
+                {{ facture.client.telephone }}<br>
+
+                {# On vérifie si le type du client correspond à la constante 'professionnel' #}
+                {# C'est la méthode la plus robuste et la plus maintenable #}
+                {% if facture.client and facture.client.type == constant('App\\Entity\\Client::TYPE_PROFESSIONNEL') %}
+                    
+                    {# On ajoute un espacement visuel #}
+                    <br>
+
+                    {# On affiche chaque champ fiscal uniquement s'il est renseigné #}
+                    {% if facture.client.nif %}
+                        <strong>NIF :</strong> {{ facture.client.nif }}<br>
+                    {% endif %}
+                    {% if facture.client.stat %}
+                        <strong>STAT :</strong> {{ facture.client.stat }}<br>
+                    {% endif %}
+
+                    {# Pour le lieu de livraison, on prend celui de la commande en priorité s'il existe, #}
+                    {# sinon on prend celui par défaut du client. #}
+                    {% set lieu_livraison = facture.commande.lieuDeLivraison ?? facture.client.lieuLivraison %}
+                    {% if lieu_livraison %}
+                        <strong>Lieu de livraison :</strong> {{ lieu_livraison }}<br>
+                    {% endif %}
+                    
+                {% endif %}
+            </div>
+            <div class="info-cell facture-info">
+                <p>
+                    <strong>N°</strong><br>
+                    FA-{{ '%04d'|format(facture.id) }}
+                </p>
+                <p>
+                    <strong>Date</strong><br>
+                    {{ facture.dateCreation|date('d/m/Y') }}
+                </p>
+            </div>
+        </div>
+
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th class="align-right col-qty">Qté</th>
+                    <th class="align-right col-pu">PU AR</th>
+                    <th class="align-right col-total">TOTAL AR</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ligne in facture.lignes %}
+                <tr>
+                    <td>{{ ligne.produit.nom }}</td>
+                    <td class="align-right">{{ ligne.quantite|number_format(2, ',', ' ') }}</td>
+                    <td class="align-right">{{ ligne.prixUnitaire|number_format(0, '', ' ') }}</td>
+                    <td class="align-right">{{ ligne.prixTotal|number_format(0, '', ' ') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <div class="remarques">
+                Remarques :
+            </div>
+            <div class="totals">
+                <table class="totals-table">
+                    <tr>
+                        <td class="label">Sous-total</td>
+                        <td class="value">{{ sousTotal|number_format(0, '', ' ') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Acompte</td>
+                        <td class="value">{{ facture.acompte|number_format(0, '', ' ') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Remise</td>
+                        <td class="value">{{ facture.remise|number_format(0, '', ' ') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Livraison</td>
+                        <td class="value">{{ facture.fraisLivraison|number_format(0, '', ' ') }}</td>
+                    </tr>
+                    <tr class="grand-total">
+                        <td colspan="2" class="value">Ar{{ resteAPayer|number_format(0, '', ' ') }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

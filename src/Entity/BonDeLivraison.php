@@ -42,4 +42,30 @@ class BonDeLivraison
         }
         return $this;
     }
+
+    public function setDateCreation(\DateTimeImmutable $dateCreation): static
+    {
+        $this->dateCreation = $dateCreation;
+
+        return $this;
+    }
+
+    public function setCommande(?Commande $commande): static
+    {
+        $this->commande = $commande;
+
+        return $this;
+    }
+
+    public function removeLigne(BonDeLivraisonLigne $ligne): static
+    {
+        if ($this->lignes->removeElement($ligne)) {
+            // set the owning side to null (unless already changed)
+            if ($ligne->getBonDeLivraison() === $this) {
+                $ligne->setBonDeLivraison(null);
+            }
+        }
+
+        return $this;
+    }
 }

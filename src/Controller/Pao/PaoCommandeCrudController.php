@@ -17,6 +17,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use Symfony\Component\HttpFoundation\RequestStack;
+use Symfony\Component\Mercure\HubInterface;
+use Symfony\Component\Mercure\Update;
+use Symfony\Component\Serializer\SerializerInterface;
 
 class PaoCommandeCrudController extends AbstractCrudController
 {

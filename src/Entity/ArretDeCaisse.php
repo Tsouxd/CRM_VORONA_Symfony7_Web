@@ -4,6 +4,7 @@ namespace App\Entity;
 use App\Repository\ArretDeCaisseRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ArretDeCaisseRepository::class)]
@@ -56,6 +57,18 @@ class ArretDeCaisse
             $this->paiements->add($paiement);
             $paiement->setArretDeCaisse($this); // Assure la cohérence des deux côtés
         }
+        return $this;
+    }
+
+    public function removePaiement(Paiement $paiement): static
+    {
+        if ($this->paiements->removeElement($paiement)) {
+            // set the owning side to null (unless already changed)
+            if ($paiement->getArretDeCaisse() === $this) {
+                $paiement->setArretDeCaisse(null);
+            }
+        }
+
         return $this;
     }
 }

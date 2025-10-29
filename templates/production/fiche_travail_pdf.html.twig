@@ -4,67 +4,335 @@
     <meta charset="UTF-8">
     <title>Fiche de Travail - Commande #{{ commande.id }}</title>
     <style>
-        body { font-family: sans-serif; margin: 20px; }
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { margin: 0; }
-        .details { margin-bottom: 20px; border: 1px solid #ccc; padding: 10px; border-radius: 5px; }
-        .details p { margin: 5px 0; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { border: 1px solid #333; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        .notes { border: 1px dashed #ccc; padding: 10px; min-height: 100px; }
-        .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #777; }
+        @page {
+            size: A4;
+            margin: 10mm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: white;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 5mm;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 2px solid #000;
+        }
+
+        td {
+            border: 2px solid #000;
+            padding: 4px 6px;
+            vertical-align: middle;
+            font-size: 11px;
+        }
+
+        .no-border {
+            border: none !important;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        .middle {
+            vertical-align: middle !important;
+        }
+
+        .logo {
+            max-width: 60px;
+            height: auto;
+        }
+
+        .black-header {
+            background-color: black;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            padding: 6px;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .airtable-num {
+            background-color: black;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            font-size: 32px;
+            padding: 8px;
+            letter-spacing: 2px;
+        }
+
+        .label {
+            font-weight: bold;
+            font-size: 10px;
+            text-transform: uppercase;
+            padding: 4px 6px;
+        }
+
+        .label-gray {
+            background-color: #e0e0e0;
+        }
+
+        .small-label {
+            font-size: 9px;
+            font-weight: normal;
+        }
+
+        .quantity-label {
+            background-color: black;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            font-size: 12px;
+            padding: 6px;
+            text-transform: uppercase;
+        }
+
+        .quantity-value {
+            text-align: center;
+            font-size: 36px;
+            font-weight: bold;
+            padding: 8px;
+        }
+
+        .checkbox-label {
+            font-size: 10px;
+            padding: 3px;
+        }
+
+        .product-name {
+            font-size: 16px;
+            text-align: center;
+            font-weight: bold;
+            padding: 8px 0;
+            text-transform: uppercase;
+        }
+
+        /* Tableau imbriqué */
+        table table {
+            border: none;
+            margin: 0;
+        }
+
+        table table td {
+            border: 2px solid #000;
+        }
+
+        /* Hauteurs spécifiques */
+        .row-small {
+            height: 25px;
+        }
+
+        .row-medium {
+            height: 35px;
+        }
+
+        .row-large {
+            height: 50px;
+        }
+
+        /* Espacement entre tableaux */
+        .mt-neg {
+            margin-top: -2px;
+        }
+
+        .mt-small {
+            margin-top: 3px;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+            }
+        }
+
+        .checkbox {
+            display: inline-block; /* Important pour que width/height fonctionnent */
+            width: 10px;
+            height: 10px;
+            border: 1px solid #000;
+            margin-right: 5px; /* Espace entre le carré et le texte */
+            vertical-align: middle; /* Pour bien aligner avec le texte */
+            color: transparent; /* Pour masquer le texte à l'intérieur du carré */
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        .attachment-image {
+            max-width: 100%;
+            max-height: 95%; /* Pour s'assurer qu'elle ne dépasse pas de la page */
+            object-fit: contain;
+        }
     </style>
 </head>
 <body>
+    {# On calcule la quantité totale avant d'afficher la page #}
+    {% set quantiteTotale = 0 %}
+    {% for ligne in commande.commandeProduits %}
+        {% set quantiteTotale = quantiteTotale + ligne.quantite %}
+    {% endfor %}
 
-    <div class="header">
-        <h1>FICHE DE TRAVAIL</h1>
-        <p>Commande N° {{ commande.id }}</p>
-    </div>
-
-    <div class="details">
-        <p><strong>Client :</strong> {{ commande.client.nom }}</p>
-        <p><strong>Date de la commande :</strong> {{ commande.dateCommande|date('d/m/Y') }}</p>
-        <p><strong>Responsable PAO :</strong> {{ commande.pao ? commande.pao.username : 'N/A' }}</p>
-    </div>
-
-    <h2>Produits à Fabriquer</h2>
+    <!-- TABLEAU 1 : Logo et Numéro de commande -->
     <table>
-        <thead>
-            <tr>
-                <th>Quantité</th>
-                <th>Description du Produit</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for ligne in commande.commandeProduits %}
-                <tr>
-                    <td>{{ ligne.quantite }}</td>
-                    <td>{{ ligne.produit.nom }}</td>
-                </tr>
-            {% endfor %}
-        </tbody>
+        <tr>
+            <td style="width: 15%;" class="center middle no-border">
+                <img src="{{ logo }}" alt="Logo" class="logo">
+            </td>
+            <td style="width: 25%;" class="no-border"></td>
+            <td style="width: 30%;" class="black-header middle">Numéro de la fiche</td>
+            <td style="width: 30%;" class="airtable-num">{{ commande.id }}</td>
+        </tr>
     </table>
-    
-    <h2>Détails Techniques / Modèle</h2>
-        <p>
-            <strong>Fichier modèle validé :</strong> 
-            {% if commande.pieceJointe %}
-                <strong>OUI</strong> - Se référer au fichier numérique attaché à la commande n°{{ commande.id }} dans le système.
-            {% else %}
-                NON - Aucun fichier modèle n'est attaché.
-            {% endif %}
-        </p>
 
-    <h2>Notes de Production</h2>
-    <div class="notes">
-        
-    </div>
+    <!-- TABLEAU 2 : Infos Client et Livraison -->
+    <table class="mt-neg">
+        <tr class="row-small">
+            <td style="width: 12%;">Date</td>
+            <td style="width: 28%;">{{ commande.dateCommande|date('d/m/Y') }}</td>
+            <td style="width: 20%;">BAT</td>
+            <td style="width: 20%;">Date</td>
+            <td style="width: 20%;">Heure</td>
+        </tr>
+        <tr class="row-small">
+            <td>Client</td>
+            <td>{{ commande.client ? commande.client.nom : 'N/A' }}</td>
+            <td>Livraison</td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr class="row-small">
+            <td>Tel</td>
+            <td>{{ commande.client ? commande.client.telephone : 'N/A' }}</td>
+            <td>Livraison Partiel</td>
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
 
-    <div class="footer">
-        Fiche générée le {{ "now"|date('d/m/Y H:i') }}
-    </div>
+    <!-- TABLEAU 3 : Quantité -->
+    <table class="mt-small">
+        <tr>
+            <td style="width: 20%;" class="quantity-label middle">Quantité</td>
+            <td style="width: 80%;" class="quantity-value">{{ quantiteTotale }}</td>
+        </tr>
+    </table>
 
+    <!-- TABLEAU 4 : Production et Responsables -->
+    <table class="mt-small">
+        <tr class="row-small">
+            <td style="width: 20%;" class="black-header"></td>
+            <td style="width: 20%;" class="black-header"></td>
+            <td colspan="2" class="black-header">Production</td>
+        </tr>
+        <tr class="row-small">
+            <td class="black-header"></td>
+            <td class="black-header">Responsable</td>
+            <td style="width: 30%;" class="black-header">Date début / Heure début</td>
+            <td style="width: 30%;" class="black-header">Date fin / Heure fin</td>
+        </tr>
+        <tr class="row-medium">
+            <td class="label">PAO</td>
+            <td>{{ commande.pao ? commande.pao.username : '' }}</td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr class="row-medium">
+            <td class="label">Production</td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr class="row-medium">
+            <td class="label">Finition</td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+    </table>
+
+    <!-- TABLEAU 5 : Catégorie / Produits -->
+    <table class="mt-small">
+        <tr>
+            <td style="width: 50%;" class="black-header">Catégorie</td>
+            <td style="width: 50%;" class="black-header">Produits</td>
+        </tr>
+        <tr>
+            <td colspan="2" class="product-name">
+                {# On affiche le nom de tous les produits, séparés par une virgule #}
+                {{ commande.commandeProduits|map(p => p.produit.nom)|join(', ')|upper }}
+            </td>
+        </tr>
+    </table>
+
+    <!-- TABLEAU 6 : Détails -->
+    <table class="mt-small">
+        <tr>
+            <td class="black-header">Détails</td>
+        </tr>
+        <tr>
+            <td style="height: 35px; vertical-align: top;">{{ commande.description }}</td>
+        </tr>
+    </table>
+
+    <!-- TABLEAU 7 : Impression & Fourniture -->
+    <table class="mt-small">
+        <tr>
+            <td colspan="5" class="black-header">Impression & Fourniture</td>
+        </tr>
+        <tr class="row-small">
+            <td style="width: 15%;" class="label center">Accessoires</td>
+            <td style="width: 15%;" class="label center">Quantité</td>
+            <td colspan="3" class="label center">Support</td>
+        </tr>
+        <tr class="row-small">
+            <td rowspan="4"></td>
+            <td rowspan="4"></td>
+            <td style="width: 16.6%;" class="center checkbox-label">
+                Papier <span class="checkbox"></span>
+            </td>
+            <td style="width: 16.6%;" class="center checkbox-label">
+                PLexy <span class="checkbox"></span>
+            </td>
+            <td style="width: 16.6%;" class="center checkbox-label">
+                Bois <span class="checkbox"></span>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="3" class="black-header">Dimension</td>
+        </tr>
+        <tr>
+            <td colspan="3" class="black-header">Texture</td>
+        </tr>
+        <tr>
+            <td colspan="3" class="black-header">Couleur</td>
+        </tr>
+        <tr style="height: 30px;">
+            <td class="center" style="vertical-align: middle;">Papier</td>
+            <td></td>
+            <td colspan="3"></td>
+        </tr>
+    </table>
+
+    {% if piece_jointe_base64 is not null %}
+        <div class="page-break">
+            <h2 style="text-align: center; margin-bottom: 20px;">Pièce Jointe - Commande #{{ commande.id }}</h2>
+            <div style="text-align: center;">
+                <img src="{{ piece_jointe_base64 }}" alt="Pièce Jointe" class="attachment-image">
+            </div>
+        </div>
+    {% endif %}
 </body>
 </html>

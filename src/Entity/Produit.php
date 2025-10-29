@@ -27,7 +27,7 @@ class Produit
     private Collection $commandeProduits;
 
     #[ORM\ManyToOne(inversedBy: 'produits')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: true)]
     private ?Fournisseur $fournisseur = null;
 
     public function __construct()

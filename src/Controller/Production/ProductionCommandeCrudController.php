@@ -170,9 +170,31 @@ class ProductionCommandeCrudController extends AbstractCrudController
         $options->set('defaultFont', 'Arial');
         $dompdf = new Dompdf($options);
 
+        // Charger l'image du logo en base64
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/forever.jpeg';
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+
+        // DÉBUT DE L'AJOUT : GESTION DE LA PIÈCE JOINTE
+        $pieceJointeBase64 = null;
+        $nomFichierPieceJointe = $commande->getPieceJointe(); // Assurez-vous que le getter est correct
+
+        if ($nomFichierPieceJointe) {
+            // IMPORTANT : Adaptez ce chemin à votre dossier d'upload
+            $cheminCompletPieceJointe = $this->getParameter('kernel.project_dir') . '/public/uploads/pieces/' . $nomFichierPieceJointe;
+
+            if (file_exists($cheminCompletPieceJointe)) {
+                $contenuFichier = file_get_contents($cheminCompletPieceJointe);
+                $typeMime = mime_content_type($cheminCompletPieceJointe);
+                $pieceJointeBase64 = 'data:' . $typeMime . ';base64,' . base64_encode($contenuFichier);
+            }
+        }
+        // FIN DE L'AJOUT
+
         // On rend notre template Twig en HTML
         $html = $this->renderView('production/fiche_travail_pdf.html.twig', [
             'commande' => $commande,
+            'logo' => $logoBase64,
+            'piece_jointe_base64' => $pieceJointeBase64, // On passe la pièce jointe au template
         ]);
 
         $dompdf->loadHtml($html);
@@ -185,12 +207,10 @@ class ProductionCommandeCrudController extends AbstractCrudController
             Response::HTTP_OK,
             [
                 'Content-Type' => 'application/pdf',
-                // 'inline' affiche le PDF dans le navigateur, 'attachment' le télécharge
                 'Content-Disposition' => 'inline; filename="fiche-travail-'.$commande->getId().'.pdf"',
             ]
         );
     }
-    
     // === C'EST LA MÉTHODE QUI APPLIQUE LE FILTRE (MISE À JOUR) ===
     public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
     {
@@ -279,7 +299,7 @@ class ProductionCommandeCrudController extends AbstractCrudController
             //->setFormTypeOption('disabled', !$isProductionFinished);
         yield ChoiceField::new('statutLivraison', 'Statut de Livraison')
             ->setChoices([
-                'Prêt pour livraison' => Commande::STATUT_LIVRAISON_ATTENTE,
+                'En attente' => Commande::STATUT_LIVRAISON_ATTENTE,
                 'Livrée' => Commande::STATUT_LIVRAISON_LIVREE,
                 'Retournée' => Commande::STATUT_LIVRAISON_RETOUR,
                 'Annulée' => Commande::STATUT_LIVRAISON_ANNULEE,

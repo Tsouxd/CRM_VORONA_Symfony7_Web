@@ -21,6 +21,10 @@ class ClientType extends AbstractType
                 'label' => 'Nom du client',
                 'required' => true,
             ])
+            ->add('provenance', TextType::class, [
+                'label' => 'Provenance',
+                'required' => true,
+            ])
             ->add('email', EmailType::class, [
                 'label' => 'Email',
                 'required' => true,

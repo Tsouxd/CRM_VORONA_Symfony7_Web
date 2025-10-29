@@ -22,11 +22,11 @@ class FactureLigneType extends AbstractType
                 'choice_attr' => function(?Produit $produit) {
                     return $produit ? ['data-prix' => $produit->getPrix()] : [];
                 },
-                'attr' => ['class' => 'facture-produit-select'],
+                'attr' => ['class' => 'facture-produit-select'], // correspond au JS
             ])
             ->add('quantite', IntegerType::class, [
                 'label' => 'Quantité',
-                'attr' => ['class' => 'facture-quantite'],
+                'attr' => ['class' => 'facture-quantite'], // correspond au JS
             ])
             ->add('prixUnitaire', MoneyType::class, [
                 'currency' => 'MGA',
@@ -34,14 +34,14 @@ class FactureLigneType extends AbstractType
                 'disabled' => true,
                 'divisor' => 1,
                 'scale' => 0,
-                'attr' => ['class' => 'facture-prix-unitaire'],
+                'attr' => ['class' => 'facture-prix-unitaire'], // correspond au JS
             ])
             ->add('prixTotal', MoneyType::class, [
                 'currency' => 'MGA',
                 'label' => 'Prix total',
                 'disabled' => true,
                 'scale' => 0,
-                'attr' => ['class' => 'facture-total'],
+                'attr' => ['class' => 'facture-total'], // correspond au JS
             ]);
     }
 

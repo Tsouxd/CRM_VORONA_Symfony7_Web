@@ -19,6 +19,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Validator\Constraints as Assert;
 
 class ClientCrudController extends AbstractCrudController
 {
@@ -57,8 +58,31 @@ class ClientCrudController extends AbstractCrudController
         // --- Panneau Informations Générales ---
         yield FormField::addPanel('Informations Générales');
         yield TextField::new('nom', 'Nom du client');
+        yield TextField::new('provenance', 'Provenance')->setRequired(false);
         yield EmailField::new('email', 'Adresse e-mail');
-        yield TelephoneField::new('telephone', 'Numéro de téléphone');
+
+        yield TelephoneField::new('telephone', 'Numéro de téléphone')
+        ->setRequired(true)
+        ->setFormTypeOptions([
+            'constraints' => [
+                new Assert\Length([
+                    'min' => 10,
+                    'max' => 10,
+                    'exactMessage' => 'Le numéro doit contenir exactement {{ limit }} chiffres.'
+                ]),
+                new Assert\Regex([
+                    'pattern' => '/^\d{10}$/',
+                    'message' => 'Le numéro doit contenir uniquement des chiffres.'
+                ]),
+            ],
+            'attr' => [
+                'maxlength' => 10,
+                'minlength' => 10,
+                'pattern' => '\d{10}',
+                'title' => 'Entrez un numéro à 10 chiffres.'
+            ],
+        ]);
+
         yield IdField::new('id')->onlyOnIndex();
 
         // --- Champ de choix du Type ---

@@ -6,6 +6,7 @@ namespace App\Entity;
 use App\Repository\ClientRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ClientRepository::class)]
@@ -19,6 +20,9 @@ class Client
 
     #[ORM\Column(length: 255)]
     private ?string $nom = null;
+    
+    #[ORM\Column(length: 255)]
+    private ?string $provenance = null;
 
     #[ORM\Column(length: 255)]
     private ?string $email = null;
@@ -203,4 +207,16 @@ class Client
     {
         return $this->nom;
     }
+
+        public function getProvenance(): ?string
+        {
+            return $this->provenance;
+        }
+
+        public function setProvenance(string $provenance): static
+        {
+            $this->provenance = $provenance;
+
+            return $this;
+        }
 }

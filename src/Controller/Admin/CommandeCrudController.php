@@ -100,13 +100,12 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             );
 
         // ⚡ Ici on enlève le bouton "Supprimer la sélection" pour les commerciaux
-        if ($this->isGranted('ROLE_COMMERCIAL')) {
-            $actions = $actions->disable(Action::BATCH_DELETE);
+        if (!$this->isGranted('ROLE_ADMIN')) {
+            $actions->disable(Action::BATCH_DELETE);
         }
 
         return $actions;
     }
-
 
     public function configureFilters(Filters $filters): Filters
     {
@@ -485,7 +484,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 return sprintf('<span class="font-weight-bold text-danger">%s</span>', $formattedValue);
             })
             
-            // ✅ LA CORRECTION : On revient à la méthode qui fonctionne pour TOUS les champs.
+            // On revient à la méthode qui fonctionne pour TOUS les champs.
             ->setCustomOption('renderAsHtml', true)
             
             ->hideOnForm();
@@ -504,7 +503,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         /*yield CollectionField::new('commandeProduits', 'Produits')
             ->hideOnForm();*/
         
-        // ✅ C'est ce champ qui remplace le PaiementCrudController
+        // C'est ce champ qui remplace le PaiementCrudController
         yield CollectionField::new('paiements', 'Paiements')
             ->setEntryType(PaiementType::class)
             ->setFormTypeOptions(['by_reference' => false])

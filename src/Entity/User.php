@@ -157,4 +157,26 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         return $this->username;
     }
+
+    public function addCommandesPao(Commande $commandesPao): static
+    {
+        if (!$this->commandesPao->contains($commandesPao)) {
+            $this->commandesPao->add($commandesPao);
+            $commandesPao->setPao($this);
+        }
+
+        return $this;
+    }
+
+    public function removeCommandesPao(Commande $commandesPao): static
+    {
+        if ($this->commandesPao->removeElement($commandesPao)) {
+            // set the owning side to null (unless already changed)
+            if ($commandesPao->getPao() === $this) {
+                $commandesPao->setPao(null);
+            }
+        }
+
+        return $this;
+    }
 }

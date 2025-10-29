@@ -6,6 +6,7 @@ namespace App\Entity;
 use App\Repository\CommandeRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\HttpFoundation\File\File;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
@@ -509,5 +510,27 @@ class Commande
     public function __toString(): string
     {
         return 'Commande n°' . $this->getId() . ' - ' . ($this->getClient() ? $this->getClient()->getNom() : 'N/A');
+    }
+
+    public function addBonsDeLivraison(BonDeLivraison $bonsDeLivraison): static
+    {
+        if (!$this->bonsDeLivraison->contains($bonsDeLivraison)) {
+            $this->bonsDeLivraison->add($bonsDeLivraison);
+            $bonsDeLivraison->setCommande($this);
+        }
+
+        return $this;
+    }
+
+    public function removeBonsDeLivraison(BonDeLivraison $bonsDeLivraison): static
+    {
+        if ($this->bonsDeLivraison->removeElement($bonsDeLivraison)) {
+            // set the owning side to null (unless already changed)
+            if ($bonsDeLivraison->getCommande() === $this) {
+                $bonsDeLivraison->setCommande(null);
+            }
+        }
+
+        return $this;
     }
 }
