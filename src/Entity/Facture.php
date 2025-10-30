@@ -44,13 +44,17 @@ class Facture
     #[ORM\Column(type:"float", nullable:true)]
     private ?float $acompte = null;
 
-    // ✅ RELATION DIRECTE VERS COMMANDE (au lieu du numéroBonCommande)
+    // RELATION DIRECTE VERS COMMANDE (au lieu du numéroBonCommande)
     #[ORM\OneToOne(targetEntity: Commande::class)]
     #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Commande $commande = null;
     
     #[ORM\Column(type:"datetime")]
     private \DateTimeInterface $dateCreation;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $commercial = null;
 
     public function __construct()
     {
@@ -106,11 +110,22 @@ class Facture
     public function getMethodePaiement(): ?string { return $this->methodePaiement; }
     public function setMethodePaiement(?string $methodePaiement): static { $this->methodePaiement = $methodePaiement; return $this; }
 
-    // ✅ Relation vers la commande
+    // Relation vers la commande
     public function getCommande(): ?Commande { return $this->commande; }
     public function setCommande(?Commande $commande): self { $this->commande = $commande; return $this; }
 
-    // ✅ Optionnel : pour afficher plus clairement dans EasyAdmin ou debug
+    public function getCommercial(): ?User
+    {
+        return $this->commercial;
+    }
+
+    public function setCommercial(?User $commercial): static
+    {
+        $this->commercial = $commercial;
+        return $this;
+    }
+
+    // Pour afficher plus clairement dans EasyAdmin ou debug
     public function __toString(): string
     {
         return 'Facture #' . $this->id . ' (Commande ' . ($this->commande?->getId() ?? 'N/A') . ')';

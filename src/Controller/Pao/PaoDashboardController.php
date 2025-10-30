@@ -231,15 +231,47 @@ class PaoDashboardController extends AbstractDashboardController
 
     public function configureMenuItems(): iterable
     {
+        $user = $this->getUser();
+
+        $travauxAFaireCount = (int) $this->commandeRepository
+            ->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.pao = :user')
+            ->andWhere('c.statutPao IN (:statuses)')
+            ->setParameter('user', $user)
+            ->setParameter('statuses', [
+                Commande::STATUT_PAO_ATTENTE,
+                Commande::STATUT_PAO_EN_COURS,
+                Commande::STATUT_PAO_MODIFICATION, // si tu veux aussi inclure ceux en modif
+            ])
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // On initialise le compteur
+        $paoCommandesCount = 0;
+        
+        // On récupère l'utilisateur connecté
+        $user = $this->getUser();
+
+        // Si l'utilisateur est un ADMIN, il voit le total de toutes les commandes.
+        if ($this->isGranted('ROLE_ADMIN')) {
+            $paoCommandesCount = $this->commandeRepository->count([]);
+        } 
+        // Sinon, si c'est un PAO, il ne voit que le total des commandes qui lui sont assignées.
+        elseif ($this->isGranted('ROLE_PAO') && $user) {
+            // La méthode count() de Doctrine peut prendre des critères en paramètre !
+            $paoCommandesCount = $this->commandeRepository->count(['pao' => $user]);
+        }
+
         yield MenuItem::linktoDashboard('Tableau de bord', 'fa fa-home');
-        // Lien n°1 : La liste des tâches actives pour le PAO
-        yield MenuItem::linkToCrud('Travaux à Faire', 'fa fa-tasks', Commande::class)
+
+        // Menu Travaux à faire
+        yield MenuItem::linkToCrud("Travaux à faire ({$travauxAFaireCount})", 'fa fa-tasks', Commande::class)
             ->setController(PaoCommandeCrudController::class)
-            // On ajoute notre paramètre de filtre
             ->setQueryParameter('filtre', 'a_faire');
 
-        // Lien n°2 : L'archive complète de toutes les commandes du PAO
-        yield MenuItem::linkToCrud('Toutes les Commandes', 'fa fa-archive', Commande::class)
+        // On utilise la variable calculée dans le lien du menu.
+        yield MenuItem::linkToCrud("Toutes les Commandes ({$paoCommandesCount})", 'fa fa-archive', Commande::class)
             ->setController(PaoCommandeCrudController::class);
     }
 }

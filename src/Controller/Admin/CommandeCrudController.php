@@ -444,6 +444,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
             yield Field::new('clientSelector', 'Client')
                 ->setFormType(ClientOrNewClientType::class)
+                ->setRequired(true)
                 ->setFormTypeOptions([
                     'label' => false,
                     'mapped' => false, 
@@ -491,7 +492,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
         // --- Panneau Produits ---
         yield FormField::addPanel('Lignes de produits')->onlyOnForms();
-        yield CollectionField::new('commandeProduits', 'Produits commanders')
+        yield CollectionField::new('commandeProduits', 'Produits commandés')
             //->setLabel(false) // Le label est déjà dans le panneau
             ->setEntryType(CommandeProduitType::class) // C'est ici que la magie opère
             ->setFormTypeOptions(['by_reference' => false])

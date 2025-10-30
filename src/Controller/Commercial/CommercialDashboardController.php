@@ -20,24 +20,39 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 use App\Controller\Admin\CommandeCrudController;
 use App\Controller\Admin\DevisCrudController;
 use App\Controller\Admin\FactureCrudController;
+use App\Repository\CommandeRepository;
+use App\Repository\FactureRepository;
 
 #[IsGranted('ROLE_COMMERCIAL')]
 final class CommercialDashboardController extends AbstractDashboardController
 {
     private DevisRepository $devisRepository;
     private RequestStack $requestStack;
+    private CommandeRepository $commandeRepository;
+    private FactureRepository $factureRepository;
 
     public function __construct(
         DevisRepository $devisRepository,
-        RequestStack $requestStack
+        RequestStack $requestStack,
+        CommandeRepository $commandeRepository,
+        FactureRepository $factureRepository
     ) {
         $this->devisRepository = $devisRepository;
         $this->requestStack    = $requestStack;
+        $this->commandeRepository = $commandeRepository;
+        $this->factureRepository = $factureRepository;
     }
 
     #[Route('/commercial/gestion', name: 'commercial_dashboard')]
     public function index(): Response
     {
+        $user = $this->getUser();
+        if (!$user) {
+            // Sécurité : si aucun utilisateur n'est trouvé, on ne retourne rien.
+            // Normalement impossible grâce à l'attribut #[IsGranted].
+            return $this->render('commercial/dashboard.html.twig', [ /* valeurs par défaut */ ]);
+        }
+
         // ===== 1) Lire le paramètre de filtre mois via RequestStack =====
         $request    = $this->requestStack->getCurrentRequest();
         $monthParam = $request?->query->get('month');
@@ -70,8 +85,10 @@ final class CommercialDashboardController extends AbstractDashboardController
                 ->createQueryBuilder('d')
                 ->select('COUNT(d.id)')
                 ->where('d.statut = :status')
+                ->andWhere('d.commercial = :user')
                 ->andWhere('d.dateCreation BETWEEN :start AND :end')
                 ->setParameter('status', $status)
+                ->setParameter('user', $user) 
                 ->setParameter('start', new \DateTime($startOfMonth->format('Y-m-d H:i:s')))
                 ->setParameter('end',   new \DateTime($endOfMonth->format('Y-m-d H:i:s')))
                 ->getQuery()
@@ -85,8 +102,10 @@ final class CommercialDashboardController extends AbstractDashboardController
             ->createQueryBuilder('d')
             ->select('d.id, d.dateCreation, d.statut')
             ->where('d.statut IN (:statuses)')
+            ->andWhere('d.commercial = :user') 
             ->andWhere('d.dateCreation BETWEEN :start AND :end')
             ->setParameter('statuses', $trackedStatuses)
+            ->setParameter('user', $user) 
             ->setParameter('start', new \DateTime($startOfMonth->format('Y-m-d H:i:s')))
             ->setParameter('end',   new \DateTime($endOfMonth->format('Y-m-d H:i:s')))
             ->getQuery()
@@ -146,14 +165,57 @@ final class CommercialDashboardController extends AbstractDashboardController
     {
         yield MenuItem::linktoDashboard('Tableau de bord', 'fa fa-home');
 
+        $user = $this->getUser(); // ici le commercial connecté
+
+        $commandesCount = (int) $this->commandeRepository
+            ->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.commercial = :user') // le champ commercial, pas pao
+            ->andWhere('c.paoBatValidation IN (:statuses)')
+            ->setParameter('user', $user)
+            ->setParameter('statuses', [
+                Commande::BAT_EN_ATTENTE,       // en attente
+                Commande::BAT_MODIFICATION,     // modification à faire
+            ])
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        $devisCount = (int) $this->devisRepository
+            ->createQueryBuilder('d')
+            ->select('COUNT(d.id)')
+            ->where('d.commercial = :user') // ou d.pao si c’est le PAO
+            ->andWhere('d.statut IN (:statuses)')
+            ->setParameter('user', $user)
+            ->setParameter('statuses', [
+                Devis::STATUT_ENVOYE,
+                Devis::STATUT_RELANCE,
+                Devis::STATUT_PERDU,
+            ])
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        /*$facturesCount = (int) $this->factureRepository
+            ->createQueryBuilder('f')
+            ->select('COUNT(f.id)')
+            ->where('f.commercial = :user') // ou d.pao si c’est le PAO
+            ->andWhere('f.statut IN (:statuses)')
+            ->setParameter('user', $user)
+            ->setParameter('statuses', [
+                Devis::STATUT_ENVOYE,
+                Devis::STATUT_RELANCE,
+                Devis::STATUT_PERDU,
+            ])
+            ->getQuery()
+            ->getSingleScalarResult();*/
+
         yield MenuItem::linkToCrud('Clients', 'fas fa-users', Client::class);
         yield MenuItem::linkToCrud('Fournisseurs', 'fas fa-thumbs-up', Fournisseur::class);
         yield MenuItem::linkToCrud('Produits', 'fas fa-box', Produit::class);
 
-        yield MenuItem::linkToCrud('Commandes', 'fas fa-shopping-cart', Commande::class)
+        yield MenuItem::linkToCrud("Commandes ({$commandesCount})", 'fas fa-shopping-cart', Commande::class)
             ->setController(CommandeCrudController::class);
 
-        yield MenuItem::linkToCrud('Devis', 'fas fa-file-pdf', DevisEntity::class)
+        yield MenuItem::linkToCrud("Devis ({$devisCount})", 'fas fa-file-pdf', DevisEntity::class)
             ->setController(DevisCrudController::class);
 
         yield MenuItem::linkToCrud('Factures', 'fas fa-file-invoice', Facture::class)

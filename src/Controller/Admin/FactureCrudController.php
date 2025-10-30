@@ -29,6 +29,10 @@ use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Doctrine\ORM\QueryBuilder;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 
 class FactureCrudController extends AbstractCrudController
 {
@@ -36,7 +40,31 @@ class FactureCrudController extends AbstractCrudController
     {
         return Facture::class;
     }
-    
+
+    public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
+    {
+        // 1. On récupère le QueryBuilder par défaut d'EasyAdmin
+        $queryBuilder = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
+
+        // 2. On récupère l'utilisateur connecté
+        $user = $this->getUser();
+
+        // 3. Si l'utilisateur a le rôle COMMERCIAL mais PAS le rôle ADMIN, on filtre
+        if ($this->isGranted('ROLE_COMMERCIAL') && !$this->isGranted('ROLE_ADMIN')) {
+            // On récupère l'alias de la requête (généralement 'entity')
+            $rootAlias = $queryBuilder->getRootAliases()[0];
+
+            // On ajoute la condition pour ne sélectionner que les factures
+            // où le champ 'commercial' correspond à l'ID de l'utilisateur connecté.
+            $queryBuilder
+                ->andWhere(sprintf('%s.commercial = :user', $rootAlias))
+                ->setParameter('user', $user);
+        }
+
+        // 4. On retourne le QueryBuilder, qui est maintenant filtré si nécessaire
+        return $queryBuilder;
+    }
+
     public function configureFields(string $pageName): iterable
     {
         // CHAMP COMMANDE — création de facture à partir d'une commande
@@ -381,6 +409,14 @@ class FactureCrudController extends AbstractCrudController
     {
         if (!$entityInstance instanceof Facture) return;
         
+        if (null === $entityInstance->getCommercial()) {
+            /** @var User $user */
+            $user = $this->getUser();
+            if ($user) {
+                $entityInstance->setCommercial($user);
+            }
+        }
+
         // On appelle notre nouvelle méthode de calcul
         $this->recalculateTotals($entityInstance);
 

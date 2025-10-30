@@ -61,6 +61,10 @@ class Devis
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $dateExpiration = null;
 
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false)]
+    private ?User $commercial = null;
+
     public function __construct()
     {
         $this->lignes = new ArrayCollection();
@@ -127,6 +131,17 @@ class Devis
     public function setDateExpiration(?\DateTimeInterface $dateExpiration): self
     {
         $this->dateExpiration = $dateExpiration;
+        return $this;
+    }
+
+    public function getCommercial(): ?User
+    {
+        return $this->commercial;
+    }
+
+    public function setCommercial(?User $commercial): static
+    {
+        $this->commercial = $commercial;
         return $this;
     }
 

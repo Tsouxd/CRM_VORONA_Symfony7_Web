@@ -12,6 +12,7 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\Form\FormError;
 
 class ClientOrNewClientForDevisType extends AbstractType
 {
@@ -53,40 +54,69 @@ class ClientOrNewClientForDevisType extends AbstractType
                 'attr' => ['class' => 'new-client-block'],
             ]);
             
-        // NOUVEAU Listener POST_SUBMIT
+        // =======================================================
+        // == VALIDATION DANS PRE_SUBMIT (Rendue plus explicite) ==
+        // =======================================================
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $event) {
+            $data = $event->getData();
+            $form = $event->getForm();
+
+            // Si $data est null (cas rare), on ne fait rien.
+            if (null === $data) {
+                return;
+            }
+
+            $choice = $data['choice'] ?? 'existing';
+
+            // On cible explicitement le cas du placeholder qui envoie une chaîne vide.
+            $existingClientValue = $data['existingClient'] ?? null;
+            if ($choice === 'existing' && ($existingClientValue === null || $existingClientValue === '')) {
+                $form->get('existingClient')->addError(new FormError('Vous devez sélectionner un client dans la liste.'));
+                // On attache un drapeau pour que le POST_SUBMIT sache que la validation a échoué.
+                $form->addError(new FormError('La sélection du client est invalide.')); // Erreur générale sur le form
+            }
+
+            $newClientName = $data['newClient']['nom'] ?? '';
+            if ($choice === 'new' && empty(trim($newClientName))) {
+                $form->get('newClient')->get('nom')->addError(new FormError('Le nom du nouveau client est obligatoire.'));
+                $form->addError(new FormError('La saisie du nouveau client est invalide.')); // Erreur générale sur le form
+            }
+        });
+
+        // =======================================================
+        // ===== LOGIQUE DANS POST_SUBMIT (Rendue plus sûre) =====
+        // =======================================================
         $builder->addEventListener(FormEvents::POST_SUBMIT, function(FormEvent $event) {
             $form = $event->getForm();
 
-            // Récupération du Devis parent
+            // SÉCURITÉ : Si le formulaire n'est pas valide (à cause du PRE_SUBMIT),
+            // on ne fait absolument rien. Cela empêche d'assigner un client null.
+            if (!$form->isValid()) {
+                return;
+            }
+
             $devis = $form->getParent()->getData();
             if (!$devis instanceof Devis) {
                 return;
             }
 
-            // On récupère la valeur du bouton radio
             $choice = $form->get('choice')->getData();
 
             if ($choice === 'existing') {
-                // On récupère l'objet Client directement depuis le champ du formulaire
                 $client = $form->get('existingClient')->getData();
                 if ($client instanceof Client) {
                     $devis->setClient($client);
                 }
             } elseif ($choice === 'new') {
-                // Ici, getData() retourne l'objet Client qui vient d'être créé et hydraté par le formulaire
                 $client = $form->get('newClient')->getData();
-
                 if ($client instanceof Client) {
-                    // Petite vérification pour ne pas persister un client vide
                     if ($client->getNom() !== null || $client->getEmail() !== null) {
-                        // Il faut persister le nouveau client car il n'est pas encore géré par Doctrine
                         $this->entityManager->persist($client);
                         $devis->setClient($client);
                     }
                 }
             }
         });
-
 
         // Listener PRE_SET_DATA pour l'édition (celui-ci est correct et doit rester)
         $builder->addEventListener(FormEvents::PRE_SET_DATA, function(FormEvent $event) {

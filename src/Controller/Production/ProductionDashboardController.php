@@ -133,11 +133,39 @@ class ProductionDashboardController extends AbstractDashboardController
 
     public function configureMenuItems(): iterable
     {
+        $user = $this->getUser();
+
+        $travauxAFaireCount = (int) $this->commandeRepository
+            ->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.production = :user')
+            ->andWhere('c.statutProduction IN (:statuses)')
+            ->setParameter('user', $user)
+            ->setParameter('statuses', [
+                Commande::STATUT_PRODUCTION_ATTENTE,
+                Commande::STATUT_PRODUCTION_EN_COURS,
+            ])
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        // On initialise le compteur
+        $productionCommandesCount = 0;
+
+        // Si l'utilisateur est un ADMIN, il voit le total de toutes les commandes.
+        if ($this->isGranted('ROLE_ADMIN')) {
+            $paoCommandesCount = $this->commandeRepository->count([]);
+        } 
+        // Sinon, si c'est un PAO, il ne voit que le total des commandes qui lui sont assignées.
+        elseif ($this->isGranted('ROLE_PRODUCTION') && $user) {
+            // La méthode count() de Doctrine peut prendre des critères en paramètre !
+            $productionCommandesCount = $this->commandeRepository->count(['production' => $user]);
+        }
+
         yield MenuItem::linkToDashboard('Tableau de bord', 'fa fa-home');
-        yield MenuItem::linkToCrud('Commandes à traiter', 'fa fa-industry', Commande::class)
+        yield MenuItem::linkToCrud("Commandes à traiter ({$travauxAFaireCount})", 'fa fa-industry', Commande::class)
             ->setController(ProductionCommandeCrudController::class)
             ->setQueryParameter('filtre', 'a_faire');
-        yield MenuItem::linkToCrud('Toutes les Commandes', 'fa fa-archive', Commande::class)
+        yield MenuItem::linkToCrud("Toutes les Commandes ({$productionCommandesCount})", 'fa fa-archive', Commande::class)
             ->setController(ProductionCommandeCrudController::class);
     }
 }

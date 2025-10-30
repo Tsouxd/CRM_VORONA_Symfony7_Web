@@ -1,5 +1,4 @@
 <?php
-// src/Form/ProduitOrNewProduitForDevisType.php
 namespace App\Form;
 
 use App\Entity\Produit;
@@ -9,14 +8,13 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-use Symfony\Component\Form\Extension\Core\Type\NumberType;
-use Symfony\Component\Form\Extension\Core\Type\TextType;
+use Symfony\Component\Form\Extension\Core\Type\HiddenType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\Form\Extension\Core\Type\HiddenType;
-use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 
 class ProduitOrNewProduitForDevisType extends AbstractType
 {
@@ -74,22 +72,54 @@ class ProduitOrNewProduitForDevisType extends AbstractType
                 ]
             ]);
 
-        // --- Helper pour remonter au Devis parent ---
-        $findDevisFromForm = function($form) {
+        // ===== VALIDATION : PRE_SUBMIT =====
+        $builder->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $event) {
+            $data = $event->getData();
+            $form = $event->getForm();
+
+            if ($data === null) {
+                return;
+            }
+
+            $choice = $data['choice'] ?? 'existing';
+
+            // Vérifie si le produit existant est vide
+            if ($choice === 'existing' && (empty($data['existingProduit']) || $data['existingProduit'] === '')) {
+                $form->get('existingProduit')->addError(new FormError('Vous devez sélectionner un produit existant.'));
+                $form->addError(new FormError('Veuillez sélectionner un produit avant de valider.'));
+            }
+
+            // Vérifie si le nouveau produit n’a pas de nom
+            if ($choice === 'new') {
+                $newProduitNom = $data['newProduit']['nom'] ?? '';
+                if (empty(trim($newProduitNom))) {
+                    $form->get('newProduit')->get('nom')->addError(new FormError('Le nom du nouveau produit est obligatoire.'));
+                    $form->addError(new FormError('Veuillez saisir les informations du nouveau produit.'));
+                }
+            }
+        });
+
+        // ===== AJOUT LIGNE DEVIS APRÈS VALIDATION =====
+        $builder->addEventListener(FormEvents::POST_SUBMIT, function(FormEvent $event) {
+            $form = $event->getForm();
+            if (!$form->isValid()) {
+                return; // si erreur => on ne fait rien
+            }
+
+            // Trouve le devis parent
             $parent = $form->getParent();
+            $devis = null;
             while ($parent !== null) {
                 $data = $parent->getData();
-                if ($data instanceof Devis) return $data;
+                if ($data instanceof Devis) {
+                    $devis = $data;
+                    break;
+                }
                 $parent = $parent->getParent();
             }
-            return null;
-        };
-
-        // --- POST_SUBMIT : création automatique de DevisLigne ---
-        $builder->addEventListener(FormEvents::POST_SUBMIT, function(FormEvent $event) use ($findDevisFromForm) {
-            $form = $event->getForm();
-            $devis = $findDevisFromForm($form);
-            if (!$devis instanceof Devis) return;
+            if (!$devis instanceof Devis) {
+                return;
+            }
 
             $choice = $form->get('choice')->getData();
             $quantite = $form->get('quantite')->getData() ?? 1;
@@ -102,17 +132,16 @@ class ProduitOrNewProduitForDevisType extends AbstractType
 
                     $ligne = new DevisLigne();
                     $ligne->setDevis($devis)
-                          ->setDescriptionProduit($produit->getNom())
-                          ->setQuantite($quantite)
-                          ->setPrixUnitaire($prix)
-                          ->setPrixTotal($prixTotal);
+                        ->setDescriptionProduit($produit->getNom())
+                        ->setQuantite($quantite)
+                        ->setPrixUnitaire($prix)
+                        ->setPrixTotal($prixTotal);
 
                     $this->entityManager->persist($ligne);
                 }
             } elseif ($choice === 'new') {
                 $produit = $form->get('newProduit')->getData();
                 if ($produit instanceof Produit && $produit->getNom()) {
-                    // Persister le produit
                     $this->entityManager->persist($produit);
 
                     $prix = $produit->getPrix();
@@ -120,10 +149,10 @@ class ProduitOrNewProduitForDevisType extends AbstractType
 
                     $ligne = new DevisLigne();
                     $ligne->setDevis($devis)
-                          ->setDescriptionProduit($produit->getNom())
-                          ->setQuantite($quantite)
-                          ->setPrixUnitaire($prix)
-                          ->setPrixTotal($prixTotal);
+                        ->setDescriptionProduit($produit->getNom())
+                        ->setQuantite($quantite)
+                        ->setPrixUnitaire($prix)
+                        ->setPrixTotal($prixTotal);
 
                     $this->entityManager->persist($ligne);
                 }

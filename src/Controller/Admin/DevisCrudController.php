@@ -30,6 +30,10 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Flash\FlashBagInterface;
 use App\Form\ProduitOrNewProduitForDevisType;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 
 class DevisCrudController extends AbstractCrudController
 {
@@ -40,6 +44,31 @@ class DevisCrudController extends AbstractCrudController
     public static function getEntityFqcn(): string
     {
         return Devis::class;
+    }
+
+    public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
+    {
+        // 1. On récupère le QueryBuilder par défaut d'EasyAdmin
+        $queryBuilder = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
+
+        // 2. On récupère l'utilisateur connecté
+        $user = $this->getUser();
+
+        // 3. Si l'utilisateur n'est pas un admin, on filtre les résultats
+        //    On vérifie qu'il a le rôle COMMERCIAL et qu'il n'est PAS ADMIN.
+        if ($this->isGranted('ROLE_COMMERCIAL') && !$this->isGranted('ROLE_ADMIN')) {
+            // On récupère l'alias de la requête (généralement 'entity')
+            $rootAlias = $queryBuilder->getRootAliases()[0];
+
+            // On ajoute une condition WHERE pour ne garder que les devis
+            // dont le champ 'commercial' correspond à l'utilisateur connecté.
+            $queryBuilder
+                ->andWhere(sprintf('%s.commercial = :user', $rootAlias))
+                ->setParameter('user', $user);
+        }
+
+        // 4. On retourne le QueryBuilder (modifié ou non)
+        return $queryBuilder;
     }
 
     public function configureFields(string $pageName): iterable
@@ -135,12 +164,8 @@ class DevisCrudController extends AbstractCrudController
                 ->setFormTypeOptions(['by_reference' => false]);
         }
 
-        /*yield CollectionField::new('lignes', 'Produits')
-            ->setEntryType(DevisLigneType::class)
-            ->allowAdd()
-            ->allowDelete()
-            ->setFormTypeOptions(['by_reference' => false])
-            ->onlyOnForms();*/
+        yield CollectionField::new('lignes', 'Produits comandés')
+            ->hideOnForm();
 
         yield BooleanField::new('batOk', 'BAT OK ?')
             ->setHelp('Cochez cette case pour accepter le devis et le passer en production. Le statut changera automatiquement.')
@@ -501,6 +526,21 @@ class DevisCrudController extends AbstractCrudController
     {
         if (!$entityInstance instanceof Devis) return;
 
+        /*if (null === $entityInstance->getClient()) {
+            // On informe l'utilisateur avec un message flash.
+            $this->addFlash('danger', 'Le devis n\'a pas pu être créé car aucun client n\'a été sélectionné ou créé.');
+
+            return; 
+        }*/
+
+        // Si aucun commercial n'est défini, on assigne l'utilisateur courant
+        if (null === $entityInstance->getCommercial()) {
+            /** @var User $user */
+            $user = $this->getUser();
+            if ($user) {
+                $entityInstance->setCommercial($user);
+            }
+        }
 
         // 🕒 Définir la date de création si non définie
         if ($entityInstance->getDateCreation() === null) {
@@ -525,6 +565,13 @@ class DevisCrudController extends AbstractCrudController
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Devis) return;
+
+        /*if (null === $entityInstance->getClient()) {
+            // On informe l'utilisateur avec un message flash.
+            $this->addFlash('danger', 'Le devis n\'a pas pu être modifier car aucun client n\'a été sélectionné.');
+
+            return; 
+        }*/
 
         $now = new \DateTimeImmutable();
         $dateExpiration = $entityInstance->getDateExpiration();
@@ -583,7 +630,22 @@ class DevisCrudController extends AbstractCrudController
             ->add(Crud::PAGE_INDEX, $exportPdf)
             ->add(Crud::PAGE_DETAIL, $exportPdf)
 
-            ->reorder(Crud::PAGE_INDEX, ['exportPdf', Action::DETAIL, Action::EDIT]);
+            ->reorder(Crud::PAGE_INDEX, ['exportPdf', Action::DETAIL, Action::EDIT])
+
+            // On modifie l'action de suppression existante
+            ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
+                return $action
+                    ->setIcon('fa fa-trash')
+                    ->setLabel(false) // Ou 'Supprimer' si vous préférez
+                    // C'est la ligne magique :
+                    // On affiche le bouton SEULEMENT SI le devis n'a PAS de commande liée.
+                    ->displayIf(fn (Devis $devis) => $devis->getCommandeGeneree() === null);
+            })
+
+            // Faites de même pour la page de détail si nécessaire
+            ->update(Crud::PAGE_DETAIL, Action::DELETE, function (Action $action) {
+                return $action->displayIf(fn (Devis $devis) => $devis->getCommandeGeneree() === null);
+            });
     }
 
     public function exportPdfAction(AdminUrlGenerator $adminUrlGenerator, EntityManagerInterface $entityManager): Response
