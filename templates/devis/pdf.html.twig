@@ -135,7 +135,7 @@
                     <!-- Le Total Brut (ou sous-total) est la somme de toutes les lignes -->
                     <tr>
                         <td style="background:#e0e0e0;"><strong>Total Brut</strong></td>
-                        <td><strong>{{ devis.total|number_format(0, ',', ' ') }} Ar</strong></td>
+                        <td><strong>{{ devis.totalBrut|number_format(0, ',', ' ') }} Ar</strong></td>
                     </tr>
                     
                     <!-- On affiche la remise SEULEMENT si elle a été saisie (supérieure à 0) -->
@@ -151,7 +151,7 @@
                     <tr class="total-row">
                         <td style="background:#e0e0e0;">Total Net</td>
                         <!-- Le calcul est une simple soustraction -->
-                        <td>{{ (devis.total - (devis.remise|default(0)))|number_format(0, ',', ' ') }} Ar</td>
+                        <td>{{ (devis.totalBrut - (devis.remise|default(0)))|number_format(0, ',', ' ') }} Ar</td>
                     </tr>
                 </table>
             </div>       

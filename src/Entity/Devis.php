@@ -27,9 +27,6 @@ class Devis
     #[ORM\OneToMany(mappedBy: "devis", targetEntity: DevisLigne::class, cascade: ["persist", "remove"], orphanRemoval: true)]
     private Collection $lignes;
 
-    #[ORM\Column(type:"float")]
-    private float $total = 0;
-
     #[ORM\Column(type:"datetime")]
     private \DateTimeInterface $dateCreation;
 
@@ -77,8 +74,6 @@ class Devis
     public function getLignes(): Collection { return $this->lignes; }
     public function addLigne(DevisLigne $ligne): self { $this->lignes->add($ligne); $ligne->setDevis($this); return $this; }
     public function removeLigne(DevisLigne $ligne): self { $this->lignes->removeElement($ligne); return $this; }
-    public function getTotal(): float { return $this->total; }
-    public function setTotal(float $total): self { $this->total = $total; return $this; }
     public function getDateCreation(): \DateTimeInterface { return $this->dateCreation; }
     public function setDateCreation(\DateTimeInterface $dateCreation): self { $this->dateCreation = $dateCreation; return $this; }
         
@@ -114,12 +109,6 @@ class Devis
 
     public function getAcompte(): float { return $this->acompte; }
     public function setAcompte(float $acompte): static { $this->acompte = $acompte; return $this; }
-    
-    // === AJOUTE UNE MÉTHODE UTILE POUR LE RESTE À PAYER ===
-    public function getResteAPayer(): float
-    {
-        return $this->getTotal() - $this->getAcompte();
-    }
 
     public function getDetailsPaiement(): ?string { return $this->detailsPaiement; }
     public function setDetailsPaiement(?string $detailsPaiement): static { $this->detailsPaiement = $detailsPaiement; return $this; }
@@ -141,12 +130,24 @@ class Devis
         return $this;
     }
 
-    public function __toString(): string
+    public function getTotalBrut(): float
     {
-        // Exemple : afficher "Devis #ID - Client: NomClient - Total: 123.45"
-        $clientName = $this->client ? $this->client->getNom() : 'Client inconnu';
-        $total = number_format($this->total, 2, '.', '');
-        return sprintf('Devis #%d - Client: %s - Total: %s', $this->id ?? 0, $clientName, $total);
+        $total = 0;
+        foreach ($this->lignes as $ligne) {
+            $total += $ligne->getPrixTotal();
+        }
+        return $total;
     }
 
+    public function getResteAPayer(): float
+    {
+        return $this->getTotalBrut() - $this->getAcompte();
+    }
+
+    public function __toString(): string
+    {
+        $clientName = $this->client ? $this->client->getNom() : 'Client inconnu';
+        $total = number_format($this->getTotalBrut(), 2, '.', '');
+        return sprintf('Devis #%d - Client: %s - Total: %s', $this->id ?? 0, $clientName, $total);
+    }
 }

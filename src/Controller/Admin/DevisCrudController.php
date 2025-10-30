@@ -29,6 +29,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Flash\FlashBagInterface;
+use App\Form\ProduitOrNewProduitForDevisType;
 
 class DevisCrudController extends AbstractCrudController
 {
@@ -69,12 +70,77 @@ class DevisCrudController extends AbstractCrudController
 
         // --- Panneau Lignes de Devis (Saisie Manuelle) ---
         yield FormField::addPanel('Détails et Validation du Devis');
-        yield CollectionField::new('lignes', 'Produits Commandes / Services')
+        if (Crud::PAGE_NEW === $pageName) {
+            // Champ pour les produits (avec logique JS)
+            yield Field::new('produitsField', 'Produits')
+                ->setFormType(\App\Form\ProduitOrNewProduitForDevisType::class)
+                ->setFormTypeOptions([
+                    'label' => false,
+                    'mapped' => false,
+                    'required' => false,
+                    'attr' => [
+                        'class' => 'produits-container',
+                    ],
+                ])
+                ->setHelp(<<<'HTML'
+                    <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const container = document.querySelector('.produits-container');
+                        if (!container) return;
+
+                        function toggleProduitBlocks() {
+                            const selected = container.querySelector('input[type=radio]:checked');
+                            if (!selected) return;
+                            const existingBlock = container.querySelector('.existing-produit-block');
+                            const newBlock = container.querySelector('.new-produit-block');
+                            if (selected.value === 'existing') {
+                                if (existingBlock) existingBlock.style.display = 'block';
+                                if (newBlock) newBlock.style.display = 'none';
+                            } else {
+                                if (existingBlock) existingBlock.style.display = 'none';
+                                if (newBlock) newBlock.style.display = 'block';
+                            }
+                        }
+
+                        container.querySelectorAll('input[type=radio]').forEach(radio => {
+                            radio.addEventListener('change', toggleProduitBlocks);
+                        });
+
+                        // --- Calcul automatique du prix total ---
+                        container.addEventListener('input', function(e) {
+                            const quantiteInput = container.querySelector('.quantite-field');
+                            const prixField = container.querySelector('.existing-produit-block select, .new-produit-block input[name$="[prix]"]');
+                            const totalInput = container.querySelector('.prix-total-field');
+
+                            if (quantiteInput && prixField && totalInput) {
+                                const prixValue = parseFloat(prixField.value || 0);
+                                const quantiteValue = parseFloat(quantiteInput.value || 0);
+                                totalInput.value = (prixValue * quantiteValue).toFixed(2);
+                            }
+                        });
+
+                        toggleProduitBlocks(); // initial
+                    });
+                    </script>
+                HTML);
+
+        }
+
+        if (Crud::PAGE_EDIT === $pageName) {
+            yield FormField::addPanel('Informations du produit');
+            yield CollectionField::new('lignes', 'Produits')
+                ->setEntryType(DevisLigneType::class)
+                ->allowAdd()
+                ->allowDelete()
+                ->setFormTypeOptions(['by_reference' => false]);
+        }
+
+        /*yield CollectionField::new('lignes', 'Produits')
             ->setEntryType(DevisLigneType::class)
-            ->setEntryIsComplex(true)
-            ->allowAdd(true)
-            ->allowDelete(true)
-            ->setFormTypeOptions(['by_reference' => false]);
+            ->allowAdd()
+            ->allowDelete()
+            ->setFormTypeOptions(['by_reference' => false])
+            ->onlyOnForms();*/
 
         yield BooleanField::new('batOk', 'BAT OK ?')
             ->setHelp('Cochez cette case pour accepter le devis et le passer en production. Le statut changera automatiquement.')
@@ -145,6 +211,14 @@ class DevisCrudController extends AbstractCrudController
             ->setFormTypeOption('divisor', 1)
             ->setHelp('Montant de l\'acompte déjà payé par le client.');
 
+        yield MoneyField::new('totalBrut', 'Total Brut')
+            ->setCurrency('MGA')
+            ->setNumDecimals(0)
+            ->setFormTypeOption('divisor', 1)
+            ->setFormTypeOption('attr', ['readonly' => true]) // Non modifiable
+            ->setFormTypeOption('mapped', false)
+            ->hideOnForm(); // ne pas l'afficher dans la liste
+
         // === LE NOUVEAU CHAMP RESTE À PAYER ===
         yield MoneyField::new('resteAPayer', 'Reste à Payer')
             ->setCurrency('MGA')
@@ -153,14 +227,6 @@ class DevisCrudController extends AbstractCrudController
             ->setFormTypeOption('attr', ['readonly' => true]) // Non modifiable
             ->setFormTypeOption('mapped', false)
             ->hideOnForm(); // Optionnel : ne pas l'afficher dans la liste
-
-        // --- Total (calculé par JS) ---
-        yield MoneyField::new('total', 'Total')
-            ->setCurrency('MGA')
-            ->setNumDecimals(0)
-            ->setFormTypeOption('divisor', 1)
-            ->setFormTypeOption('attr', ['readonly' => true])
-            ->onlyOnDetail();
 
         yield DateTimeField::new('dateCreation', 'Date de création')->hideOnForm();
         yield DateTimeField::new('dateExpiration', 'Date d’expiration')
@@ -182,10 +248,10 @@ class DevisCrudController extends AbstractCrudController
                     return ['status' => 'expired', 'label' => 'Expirée'];
                 }
             })
-            ->setTemplatePath('admin/fields/offre_valide.html.twig'); // ✅ custom template
+            ->setTemplatePath('admin/fields/offre_valide.html.twig'); // custom template
 
 
-        // ✅ Injection du JS directement dans EasyAdmin via un champ invisible
+        // Injection du JS directement dans EasyAdmin via un champ invisible
         yield FormField::addPanel('')
             ->onlyOnForms()
             ->setHelp(<<<HTML
@@ -356,26 +422,85 @@ class DevisCrudController extends AbstractCrudController
             });
         </script>
         HTML)->setCssClass('d-none');
-    }
 
-    // --- Recalculs côté serveur (sécurité) ---
-    private function recalculateTotals(Devis $devis)
-    {
-        $total = 0;
-        foreach ($devis->getLignes() as $ligne) {
-            $prixTotalLigne = ($ligne->getQuantite() ?? 0) * ($ligne->getPrixUnitaire() ?? 0);
-            $ligne->setPrixTotal($prixTotalLigne);
-            $total += $prixTotalLigne;
-        }
-        $devis->setTotal($total);
+        yield FormField::addPanel('')
+        ->setHelp(<<<'HTML'
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+
+                // === Gestion Client ===
+                const clientRadios = document.querySelectorAll('.client-choice-radio input[type=radio]');
+                const existingClientBlock = document.querySelector('.existing-client-block');
+                const newClientBlock = document.querySelector('.new-client-block');
+
+                const toggleClientBlocks = () => {
+                    const selected = document.querySelector('.client-choice-radio input[type=radio]:checked');
+                    if (!selected) return;
+
+                    if (selected.value === 'existing') {
+                        existingClientBlock.style.display = 'block';
+                        newClientBlock.style.display = 'none';
+                    } else {
+                        existingClientBlock.style.display = 'none';
+                        newClientBlock.style.display = 'block';
+                    }
+                };
+                clientRadios.forEach(r => r.addEventListener('change', toggleClientBlocks));
+                toggleClientBlocks();
+
+
+                // === Gestion Produit ===
+                const produitSections = document.querySelectorAll('.field-collection-item');
+                produitSections.forEach(section => {
+                    const radios = section.querySelectorAll('.produit-choice-radio input[type=radio]');
+                    const existingProduitBlock = section.querySelector('.existing-produit-block');
+                    const newProduitBlock = section.querySelector('.new-produit-block');
+
+                    const toggleProduitBlocks = () => {
+                        const selected = section.querySelector('.produit-choice-radio input[type=radio]:checked');
+                        if (!selected) return;
+
+                        if (selected.value === 'existing') {
+                            existingProduitBlock.style.display = 'block';
+                            newProduitBlock.style.display = 'none';
+                        } else {
+                            existingProduitBlock.style.display = 'none';
+                            newProduitBlock.style.display = 'block';
+                        }
+                    };
+
+                    radios.forEach(r => r.addEventListener('change', toggleProduitBlocks));
+                    toggleProduitBlocks();
+                });
+
+
+                // === Calcul automatique du total ===
+                const updateFactureTotal = () => {
+                    let total = 0;
+                    document.querySelectorAll('[id$="_prix"]').forEach(input => {
+                        const val = parseFloat(input.value || 0);
+                        if (!isNaN(val)) total += val;
+                    });
+                    const totalInput = document.querySelector('[id$="_total"]');
+                    if (totalInput) totalInput.value = total;
+                };
+
+                document.addEventListener('input', function(e) {
+                    if (e.target && e.target.id.endsWith('_prix')) {
+                        updateFactureTotal();
+                    }
+                });
+
+                updateFactureTotal();
+            });
+            </script>
+        HTML);
     }
 
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Devis) return;
 
-        // 🧮 Recalcul des totaux
-        $this->recalculateTotals($entityInstance);
 
         // 🕒 Définir la date de création si non définie
         if ($entityInstance->getDateCreation() === null) {
@@ -415,9 +540,6 @@ class DevisCrudController extends AbstractCrudController
             $response->send();
             return;
         }
-
-        // 🧮 Recalcul des totaux côté serveur
-        $this->recalculateTotals($entityInstance);
 
         // 🕓 Mise à jour automatique de la date d’expiration si la date de création change
         if ($entityInstance->getDateCreation()) {

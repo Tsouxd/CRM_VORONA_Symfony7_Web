@@ -54,18 +54,21 @@ use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
+use App\Service\NotificationService;
 
 class CommandeCrudController extends AbstractCrudController implements EventSubscriberInterface
 {
     private $requestStack;
     private EntityManagerInterface $entityManager;
     private Security $security;
+    private NotificationService $notificationService;
 
-    public function __construct(Security $security, RequestStack $requestStack, EntityManagerInterface $entityManager)
+    public function __construct(Security $security, RequestStack $requestStack, EntityManagerInterface $entityManager, NotificationService $notificationService)
     {
         $this->requestStack = $requestStack;
         $this->entityManager = $entityManager;
         $this->security = $security;
+        $this->notificationService = $notificationService;
     }
 
     public static function getSubscribedEvents()
@@ -397,6 +400,25 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         }
 
         return $qb;
+    }
+
+    public function persistEntity(EntityManagerInterface $em, $entityInstance): void
+    {
+        parent::persistEntity($em, $entityInstance);
+
+        if ($entityInstance instanceof Commande) {
+            $paos = $this->userRepository->findByRole('ROLE_PAO');
+            $prods = $this->userRepository->findByRole('ROLE_PRODUCTION');
+            $users = array_merge($paos, $prods);
+
+            $this->notificationService->createForUsers(
+                sprintf('Nouvelle commande créée par %s (n°%d)',
+                    $this->getUser()->getUserIdentifier(),
+                    $entityInstance->getId()
+                ),
+                $users
+            );
+        }
     }
     
     public function configureFields(string $pageName): iterable
