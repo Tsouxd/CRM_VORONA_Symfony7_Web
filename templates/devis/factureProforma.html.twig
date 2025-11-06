@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Devis - FOREVER MG</title>
+    <title>Facture Proforma - FOREVER MG</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Arial&family=Dancing+Script&display=swap');
         /* Forcer la page A4 et réduire les paddings pour tenir sur une seule page */
@@ -74,10 +74,10 @@
         </div>
 
         <div class="doc-title-section">
-            <h1 class="doc-title">DEVIS</h1>
+            <h1 class="doc-title">FACTURE PROFORMA</h1>
             <div class="doc-meta" style="display:flex; gap: 10px; flex-direction:row; width:25%;">
                 <div class="doc-id" style="border:0.01px solid #000000b4;padding:6px;">
-                    <table><tr><td style="font-weight:bold;padding-right:6px;">N° :</td><td>D-{{ '%06d'|format(devis.id) }}</td></tr></table>
+                    <table><tr><td style="font-weight:bold;padding-right:6px;">N° :</td><td>F-{{ '%06d'|format(devis.id) }}</td></tr></table>
                 </div>
                 <div class="date" style="border:0.01px solid #000000b4;padding:6px;">
                     <table><tr><td style="font-weight:bold;padding-right:6px;">Date :</td><td>{{ devis.dateCreation ? devis.dateCreation|date('d/m/Y') : '#REF!' }}</td></tr></table>
@@ -196,22 +196,18 @@
 
                     {#<p>En cas de retard de paiement, une pénalité de X% sera appliquée.</p>#}
 
+                    {# Texte ancien supprimé : remplacé par la logique réelle ci-dessus #}
                     {# <p>Devis valable 30 jours à compter de sa date d'émission.</p> #}
-                    <p style="font-weight:bold; margin-top:10px;">
-                        Arrêté le présent devis à la somme de : 
-                        <span style="text-decoration:underline;">
-                            {{ (devis.totalBrut - (devis.remise|default(0)))|number_format(0, ',', ' ') }} Ariary
-                        </span>
-                    </p>
                 </div>
             </div>
 
             <div style="text-align:right;width:100%">
+                <div class="signature-placeholder">Signature...</div>
                 <p>Le Responsable</p>
             </div>
 
             <p style="margin-top: -30px;">
-                Commercial
+                {{ devis.client ? devis.client.nom : '#REF!' }}
             </p>
         </div>
     </div>

@@ -5,6 +5,7 @@ namespace App\Controller\Admin;
 // En haut du fichier (imports)
 use Doctrine\ORM\PersistentCollection;
 use App\Entity\Commande;
+use App\Entity\Produit;
 use App\Form\CommandeProduitType;
 use App\Form\ClientOrNewClientType;
 use App\Form\PaiementType;
@@ -54,6 +55,11 @@ use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
+
+use EasyCorp\Bundle\EasyAdminBundle\Config\KeyValueStore; // Important
+use Symfony\Component\Form\FormBuilderInterface; // Important
+use Symfony\Component\Form\FormEvent; // Important
+use Symfony\Component\Form\FormEvents; // Important
 
 class CommandeCrudController extends AbstractCrudController implements EventSubscriberInterface
 {
@@ -127,10 +133,10 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ]))
 
             // Pour filtrer par le statut de PAO
-            ->add(ChoiceFilter::new('statutPao', 'Statut Pao')->setChoices([
-                'En attente' => 'en attente',
-                'Fait' => 'fait',
-                'En cours' => 'en cours',
+            ->add(ChoiceFilter::new('paoBatValidation', 'Statut Pao')->setChoices([
+                'En attente de validation' => 'En attente de validation',
+                'Modification à faire' => 'Modification à faire',
+                'Valider pour la production' => 'Valider pour la production',
             ]));
     }
     
@@ -357,6 +363,42 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         $commande->updateStatutPaiement();
     }
 
+    public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if (!$entityInstance instanceof Commande) {
+            return;
+        }
+
+        if (null === $entityInstance->getClient()) {
+            $this->addFlash('danger', 'La commande n\'a pas pu être créée car aucun client n\'a été sélectionné ou créé.');
+            return; 
+        }
+
+        // 1. Récupération des données brutes du formulaire soumis
+        $formData = $this->requestStack->getCurrentRequest()->request->all()['Commande'] ?? [];
+        $referencePaiement = $formData['referencePaiement'] ?? null;
+        $detailsPaiement = $formData['detailsPaiement'] ?? null;
+        
+        // 2. On appelle la méthode de génération en lui passant les nouvelles infos
+        //    au lieu de l'appeler sans arguments.
+        $entityInstance->genererPaiementsAutomatiques($referencePaiement, $detailsPaiement);
+
+        $this->addFlash('success', 'La commande a été créée');
+        
+        parent::persistEntity($entityManager, $entityInstance);
+    }
+
+    public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if (!$entityInstance instanceof Commande) {
+            return;
+        }
+
+        $this->addFlash('success', 'La commande a été mise à jour.');
+
+        parent::updateEntity($entityManager, $entityInstance);
+    }
+
     public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Commande) {
@@ -374,15 +416,6 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         parent::deleteEntity($entityManager, $entityInstance);
     }
 
-        public function createEntity(string $entityFqcn)
-    {
-        $commande = new Commande();
-        // On assigne l'utilisateur actuellement connecté comme commercial
-        $commande->setCommercial($this->getUser());
-        
-        return $commande;
-    }
-
     // === ON AJOUTE LE FILTRAGE DE LA LISTE ===
     public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
     {
@@ -398,10 +431,68 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
         return $qb;
     }
+
+    public function createEntity(string $entityFqcn)
+    {
+        $commande = new Commande();
+        // On assigne l'utilisateur actuellement connecté comme commercial
+        $commande->setCommercial($this->getUser());
+        
+        return $commande;
+    }
     
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id')->hideOnForm();
+
+        yield AssociationField::new('devisOrigine', 'Lier un devis validé')
+            ->setFormTypeOption('required', false)
+            ->setFormTypeOption('placeholder', 'Sélectionnez un devis pour tout remplir')
+            ->setHelp('Remplira automatiquement le client, les produits et les conditions de paiement.')
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                // 1. On récupère la commande en cours d'édition (si on est en mode édition)
+                $currentCommande = $this->getContext()->getEntity()->getInstance();
+                $currentDevisId = null;
+                if ($currentCommande && $currentCommande->getDevisOrigine()) {
+                    $currentDevisId = $currentCommande->getDevisOrigine()->getId();
+                }
+
+                // 2. Sous-requête pour trouver les devis déjà utilisés (comme avant)
+                $commandeQb = $this->entityManager->createQueryBuilder();
+                $subQuery = $commandeQb
+                    ->select('IDENTITY(c.devisOrigine)')
+                    ->from(Commande::class, 'c')
+                    ->where('c.devisOrigine IS NOT NULL')
+                    ->getDQL();
+
+                // 3. Construction de la condition WHERE principale
+                // Condition A : Le devis doit avoir le statut 'BAT/Production'
+                $conditionStatut = 'entity.statut = :statut';
+                $qb->setParameter('statut', Devis::STATUT_BAT_PRODUCTION);
+
+                // Condition B : Le devis ne doit PAS être dans la liste des devis déjà utilisés
+                $conditionNotIn = $qb->expr()->notIn('entity.id', $subQuery);
+                
+                // Condition C (POUR L'ÉDITION) : OU le devis doit être celui déjà lié à la commande actuelle
+                if ($currentDevisId) {
+                    $conditionCurrentDevis = 'entity.id = :currentDevisId';
+                    $qb->setParameter('currentDevisId', $currentDevisId);
+                    
+                    // On combine les conditions : (A ET (B OU C))
+                    $qb->andWhere($conditionStatut)
+                    ->andWhere($qb->expr()->orX($conditionNotIn, $conditionCurrentDevis));
+                } else {
+                    // Si on est en mode création (pas de devis actuel), on applique simplement les conditions A et B
+                    $qb->andWhere($conditionStatut)
+                    ->andWhere($conditionNotIn);
+                }
+
+                return $qb;
+            });
+
+        yield TextField::new('bonDeCommande', 'N° de bon de commande')
+            ->setRequired(true)
+            ->hideOnIndex();
 
         yield DateTimeField::new('dateCommande', 'Date de Commande')
             ->setFormat('dd/MM/yyyy HH:mm')
@@ -415,7 +506,48 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         yield AssociationField::new('client')
             ->hideOnForm();
 
+        yield CollectionField::new('commandeProduits', 'Produits commandés')
+            ->setCssClass('field-from-devis')
+            //->setLabel(false) // Le label est déjà dans le panneau
+            ->setEntryType(CommandeProduitType::class) // C'est ici que la magie opère
+            ->setFormTypeOptions(['by_reference' => false])
+            ->setEntryIsComplex(true)
+            ->allowAdd()
+            //->hideOnIndex()
+            ->allowDelete();
+        
+        if (Crud::PAGE_EDIT === $pageName) {
+            yield CollectionField::new('commandeProduits', 'Produits commandés')
+                //->setLabel(false) // Le label est déjà dans le panneau
+                ->setEntryType(CommandeProduitType::class) // C'est ici que la magie opère
+                ->setFormTypeOptions(['by_reference' => false])
+                ->setEntryIsComplex(true)
+                ->allowAdd()
+                //->hideOnIndex()
+                ->allowDelete();
+        }
+
+        // 1. On crée le champ 'commercial'
+        yield AssociationField::new('commercial', 'Commercial en charge')
+            // 2. On ne l'affiche que si l'utilisateur est ADMIN
+            ->setPermission('ROLE_ADMIN')
+            // 3. On filtre la liste pour n'afficher que les utilisateurs ayant le rôle COMMERCIAL
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                $alias = $qb->getRootAliases()[0]; // Récupère l'alias, ex: 'User'
+                return $qb
+                    ->andWhere(sprintf('%s.roles LIKE :role', $alias))
+                    ->setParameter('role', '%"ROLE_COMMERCIAL"%')
+                    ->orderBy(sprintf('%s.username', $alias), 'ASC');
+            });
+            
+        if ($this->isGranted('ROLE_COMMERCIAL') && !$this->isGranted('ROLE_ADMIN')) {
+            yield TextField::new('commercial.username', 'Commercial')
+                ->setFormTypeOption('disabled', true)
+                ->onlyOnForms();
+        }
+
         yield AssociationField::new('pao', 'Responsable PAO')
+            ->setCssClass('field-from-devis')
             ->setQueryBuilder(function (QueryBuilder $qb) {
                 $alias = $qb->getRootAliases()[0];
                 return $qb
@@ -439,10 +571,8 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
         // SI on est sur la page de CRÉATION (new)
         if (Crud::PAGE_NEW === $pageName) {
-            yield FormField::addPanel('Informations du Client')
-            ->setHelp('Choisissez un client existant ou créez-en un nouveau.');
-
             yield Field::new('clientSelector', 'Client')
+                ->setCssClass('field-from-devis')
                 ->setFormType(ClientOrNewClientType::class)
                 ->setRequired(true)
                 ->setFormTypeOptions([
@@ -453,10 +583,95 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
 
         // SI on est sur la page de MODIFICATION (edit)
         if (Crud::PAGE_EDIT === $pageName) {
-            yield FormField::addPanel('Informations du Client');
+            yield FormField::addPanel('Informations du Client')->setCssClass('field-from-devis');;
             yield AssociationField::new('client', 'Client');
                 //->setFormTypeOption('disabled', true); // Grise le champ pour qu'il ne soit pas modifiable
         }
+
+        yield ChoiceField::new('methodePaiement', 'Méthode de paiement')
+            ->setCssClass('field-from-devis')
+            ->setChoices([
+                '50% à la commande, 50% à la livraison' => '50% commande, 50% livraison',
+                '100% à la livraison' => '100% livraison',
+                '30 jours après réception de la facture' => '30 jours fin de mois',
+                '100% à la commande' => '100% commande'
+            ])
+            ->setHelp('Choisissez les conditions de règlement.');
+
+        /*yield FormField::addPanel('')->setCssClass('dynamic-moyen-paiement-wrapper')->setLabel(false);
+        yield ChoiceField::new('referencePaiement', 'Moyen de paiement')
+            ->setChoices([
+                'Espèces' => 'Espèces',
+                'Carte Bancaire' => 'Carte Bancaire',
+                'Mobile Money' => 'Mobile Money',
+                'Virement Bancaire' => 'Virement Bancaire',
+                'Chèque' => 'Chèque',
+            ])
+            ->onlyOnIndex()
+            ->setHelp('Sera utilisé pour le premier paiement généré.')
+            ->setFormTypeOption('mapped', false)
+            ->hideWhenUpdating();
+
+        yield FormField::addPanel('')->setCssClass('dynamic-details-paiement-wrapper')->setLabel(false);
+        yield TextField::new('detailsPaiement', 'Détails / Références')
+            ->setHelp('Ex: N° de chèque, référence de virement...')
+            ->setFormTypeOption('mapped', false)
+            ->hideWhenUpdating();*/
+
+        // =======================================================
+        // ====== JAVASCRIPT CORRIGÉ CI-DESSOUS ======
+        // =======================================================
+        /*yield FormField::addPanel('')->setHelp(<<<'HTML'
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // On sélectionne nos champs et wrappers
+                const methodePaiementSelect = document.querySelector('#Commande_methodePaiement');
+                const moyenPaiementWrapper = document.querySelector('.dynamic-moyen-paiement-wrapper');
+                
+                // MODIFIÉ : On cible le nouvel ID du champ et on renomme la variable pour plus de clarté
+                const referencePaiementSelect = document.querySelector('#Commande_referencePaiement'); 
+                
+                const detailsPaiementWrapper = document.querySelector('.dynamic-details-paiement-wrapper');
+
+                // MODIFIÉ : On met à jour la condition de sécurité
+                if (!methodePaiementSelect || !moyenPaiementWrapper || !detailsPaiementWrapper || !referencePaiementSelect) {
+                    return; // Sécurité si un élément est manquant
+                }
+
+                function toggleDynamicFields() {
+                    // --- Logique pour afficher/masquer le moyen de paiement ---
+                    const methodeValue = methodePaiementSelect.value;
+                    const showMoyenPaiement = methodeValue === '100% commande' || methodeValue === '50% commande, 50% livraison';
+                    
+                    moyenPaiementWrapper.style.display = showMoyenPaiement ? 'block' : 'none';
+
+                    // --- Logique pour afficher/masquer les détails ---
+                    // MODIFIÉ : On utilise la nouvelle variable
+                    const referenceValue = referencePaiementSelect.value; 
+                    
+                    // On affiche les détails si le moyen de paiement est visible ET que ce n'est pas "Espèces"
+                    const showDetails = showMoyenPaiement && referenceValue && referenceValue !== 'Espèces';
+
+                    detailsPaiementWrapper.style.display = showDetails ? 'block' : 'none';
+                }
+
+                // On attache les écouteurs d'événements
+                methodePaiementSelect.addEventListener('change', toggleDynamicFields);
+                
+                // MODIFIÉ : On attache l'écouteur au bon élément
+                referencePaiementSelect.addEventListener('change', toggleDynamicFields); 
+
+                // On exécute la fonction une fois au chargement pour définir l'état initial
+                toggleDynamicFields()
+            });
+            </script>
+        HTML)->setCssClass('d-none'); // On cache ce panel qui ne sert qu'à porter le script*/
+
+        yield MoneyField::new('fraisLivraison', 'Frais de livraison')
+            ->setCurrency('MGA')
+            ->setStoredAsCents(false)
+            ->setNumDecimals(0);
+            //->hideOnIndex();
 
         yield MoneyField::new('totalAvecFrais', 'Total à Payer')
             ->setCurrency('MGA')
@@ -489,33 +704,24 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->setCustomOption('renderAsHtml', true)
             
             ->hideOnForm();
-
-        // --- Panneau Produits ---
-        yield FormField::addPanel('Lignes de produits')->onlyOnForms();
-        yield CollectionField::new('commandeProduits', 'Produits commandés')
-            //->setLabel(false) // Le label est déjà dans le panneau
-            ->setEntryType(CommandeProduitType::class) // C'est ici que la magie opère
-            ->setFormTypeOptions(['by_reference' => false])
-            ->setEntryIsComplex(true)
-            ->allowAdd()
-            //->hideOnIndex()
-            ->allowDelete();
-
-        /*yield CollectionField::new('commandeProduits', 'Produits')
-            ->hideOnForm();*/
         
-        // C'est ce champ qui remplace le PaiementCrudController
-        yield CollectionField::new('paiements', 'Paiements')
-            ->setEntryType(PaiementType::class)
-            ->setFormTypeOptions(['by_reference' => false])
-            ->allowAdd()
-            ->allowDelete()
-            ->hideOnIndex();
+        if (Crud::PAGE_EDIT === $pageName) {
+            yield CollectionField::new('paiements', 'Paiements')
+                ->setEntryType(PaiementType::class)
+                ->setFormTypeOptions(['by_reference' => false])
+                ->allowAdd()
+                ->allowDelete();
+        }
 
-        /*yield CollectionField::new('paiements', 'Tranche de paiements')
-            ->hideOnForm();*/
+        if (Crud::PAGE_NEW === $pageName) {
+            yield CollectionField::new('paiements', 'Paiements')
+                ->setCssClass('field-from-devis')
+                ->setEntryType(PaiementType::class)
+                ->setFormTypeOptions(['by_reference' => false])
+                ->allowAdd()
+                ->allowDelete();
+        }
 
-        // === AJOUTEZ CE BLOC COMPLET À LA FIN DE VOTRE FORMULAIRE ===
         yield FormField::addPanel('Validation PAO / Bon à Tirer (BAT)')->collapsible()
             ->setHelp('Vous disposez de 3 cycles de modification. Après la 3ème modification, la validation sera automatique.');
 
@@ -605,7 +811,13 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 document.addEventListener('DOMContentLoaded', function() {
                     // Fonction pour mettre à jour le prix
                     const updatePrice = (selectElement) => {
+                        if (selectElement.selectedIndex < 0) {
+                            return; // Pas d'option sélectionnée, on ne fait rien
+                        }
                         const selectedOption = selectElement.options[selectElement.selectedIndex];
+                        if (selectElement.selectedIndex < 0) {
+                            return; // Pas d'option sélectionnée, on ne fait rien
+                        }
                         const prix = selectedOption.getAttribute('data-prix') || 0;
 
                         // Trouver le champ prixUnitaire qui correspond à ce select
@@ -682,12 +894,6 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 ]);
         }
 
-        yield MoneyField::new('fraisLivraison', 'Frais de livraison')
-            ->setCurrency('MGA')
-            ->setStoredAsCents(false)
-            ->setNumDecimals(0)
-            ->hideOnIndex();
-
         yield TextField::new('categorie', 'Catégorie')
             ->setRequired(false)
             ->hideOnIndex();
@@ -723,14 +929,6 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 Commande::STATUT_PRODUCTION_POUR_LIVRAISON => 'success',
             ]);
 
-        yield AssociationField::new('devisOrigine', 'Devis (BAT/Production)')
-            ->setFormTypeOption('required', false)
-            ->setFormTypeOption('placeholder', 'Sélectionnez un devis BAT/Production')
-            ->setQueryBuilder(function (QueryBuilder $qb) {
-                return $qb->andWhere('entity.statut = :statut')
-                        ->setParameter('statut', Devis::STATUT_BAT_PRODUCTION);
-            });
-
         yield ChoiceField::new('statutDevis', 'Statut Devis')
             ->setChoices([
                 'Validée' => Commande::STATUT_DEVIS_VALIDEE,
@@ -743,7 +941,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 Commande::STATUT_DEVIS_VALIDEE => 'success',
             ]);
 
-        // ✅ Injection du JS directement dans EasyAdmin via un champ invisible
+        // Injection du JS directement dans EasyAdmin via un champ invisible
         yield FormField::addPanel('')
             ->onlyOnForms()
             ->setHelp(<<<HTML
@@ -828,6 +1026,50 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                     document.addEventListener("turbo:load", initCommandeFormScripts);
                 </script>
             HTML);
+        
+        yield FormField::addPanel('')->setHelp(<<<'HTML'
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // On s'assure que le script s'exécute aussi après les rechargements de Turbo
+                document.addEventListener('turbo:load', setupDevisToggle);
+                
+                function setupDevisToggle() {
+                    const devisSelect = document.querySelector('#Commande_devisOrigine');
+                    if (!devisSelect) {
+                        return; // Pas sur la bonne page
+                    }
+
+                    // La fonction qui fait tout le travail
+                    function toggleAutoFilledFields() {
+                        // On vérifie si un devis est sélectionné (s'il y a une valeur non vide)
+                        const isDevisLinked = !!devisSelect.value;
+                        
+                        // On récupère tous les champs qu'on a marqués
+                        const fieldsToToggle = document.querySelectorAll('.field-from-devis');
+
+                        fieldsToToggle.forEach(field => {
+                            // EasyAdmin enveloppe chaque champ dans un conteneur .form-group
+                            // C'est ce conteneur qu'il faut masquer pour cacher aussi le label
+                            const wrapper = field.closest('.form-group, .accordion');
+                            if (wrapper) {
+                                wrapper.style.display = isDevisLinked ? 'none' : 'block';
+                            }
+                        });
+                    }
+
+                    // On écoute les changements sur le sélecteur de devis
+                    devisSelect.addEventListener('change', toggleAutoFilledFields);
+
+                    // On exécute la fonction une fois au chargement pour définir l'état initial
+                    // (important pour la page d'édition)
+                    toggleAutoFilledFields();
+                }
+
+                // Premier appel
+                setupDevisToggle();
+            });
+            </script>
+            HTML)->setCssClass('d-none'); // Cache le panneau qui ne sert qu'à porter le script
     }
 
     public function requestModification(
@@ -898,5 +1140,109 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         ]);
 
         return $this->redirect($url);
+    }
+
+    public function createNewFormBuilder(EntityDto $entityDto, KeyValueStore $formOptions, AdminContext $context): FormBuilderInterface
+    {
+        $formBuilder = parent::createNewFormBuilder($entityDto, $formOptions, $context);
+        // On attache notre écouteur d'événement personnalisé au formulaire de création
+        return $this->addDevisDataListener($formBuilder);
+    }
+
+    private function addDevisDataListener(FormBuilderInterface $formBuilder): FormBuilderInterface
+    {
+        $formBuilder->addEventListener(FormEvents::PRE_SUBMIT, function(FormEvent $event) {
+            // 1. On récupère les données brutes soumises par le formulaire
+            $data = $event->getData();
+            
+            // 2. On récupère l'ID du devis qui a été sélectionné
+            $devisId = $data['devisOrigine'] ?? null;
+            if (!$devisId) {
+                return; // Si aucun devis n'est sélectionné, on ne fait rien
+            }
+            
+            // 3. On va chercher l'entité Devis complète depuis la base de données
+            /** @var Devis|null $devis */
+            $devis = $this->entityManager->getRepository(Devis::class)->find($devisId);
+            
+            if (!$devis) {
+                return; // Si le devis n'est pas trouvé, on ne fait rien
+            }
+
+            // 4. On modifie le tableau de données ($data) pour pré-remplir la commande
+
+            // a. Pré-remplir le client
+            if ($devis->getClient()) {
+                if (!isset($data['clientSelector'])) {
+                    $data['clientSelector'] = [];
+                }
+                $data['clientSelector']['choice'] = 'existing';
+                $data['clientSelector']['existingClient'] = $devis->getClient()->getId();
+            }
+
+            // b. Pré-remplir les lignes de produits
+            $data['commandeProduits'] = [];
+            $produitRepository = $this->entityManager->getRepository(Produit::class);
+            $lignesAjoutees = 0;
+            foreach ($devis->getLignes() as $devisLigne) {
+                $produitTrouve = $produitRepository->findOneBy(['nom' => $devisLigne->getDescriptionProduit()]);
+                if ($produitTrouve) {
+                    $data['commandeProduits'][(string)$lignesAjoutees] = [
+                        'produit' => $produitTrouve->getId(),
+                        'quantite' => $devisLigne->getQuantite(),
+                        'prixUnitaire' => $devisLigne->getPrixUnitaire(),
+                    ];
+                    $lignesAjoutees++;
+                } else {
+                    $this->addFlash('warning', sprintf(
+                        'Le produit "%s" du devis n\'a pas été trouvé dans la base de données et n\'a pas été ajouté à la commande.',
+                        $devisLigne->getDescriptionProduit()
+                    ));
+                }
+            }
+
+            // c. Pré-remplir les conditions et détails de paiement
+            if ($devis->getMethodePaiement()) {
+                $methodeMap = [
+                    Devis::METHODE_100_COMMANDE => '100% commande',
+                    Devis::METHODE_50_50 => '50% commande, 50% livraison',
+                    Devis::METHODE_100_LIVRAISON => '100% livraison',
+                    Devis::METHODE_30_JOURS => '30 jours fin de mois',
+                ];
+                $data['methodePaiement'] = $methodeMap[$devis->getMethodePaiement()] ?? null;
+            }
+            
+            // ========================================================== //
+            // ====== NOUVEAUX AJOUTS ====== //
+            // ========================================================== //
+            
+            // d. Pré-remplir le PAO en charge
+            // On vérifie que le devis a un PAO assigné
+            if ($devis->getPao()) {
+                // Le champ du formulaire attend l'ID de l'utilisateur PAO
+                $data['pao'] = $devis->getPao()->getId();
+            }
+            
+            // e. Pré-remplir le MOYEN de paiement (le champ s'appelle referencePaiement dans votre formulaire)
+            // Ce champ est 'mapped' => false, mais on peut quand même le remplir
+            if ($devis->getModeDePaiement()) {
+                $data['referencePaiement'] = $devis->getModeDePaiement();
+            }
+
+            // f. Pré-remplir les DÉTAILS / RÉFÉRENCES de paiement
+            // Ce champ est aussi 'mapped' => false
+            if ($devis->getDetailsPaiement()) {
+                $data['detailsPaiement'] = $devis->getDetailsPaiement();
+            }
+
+            // ========================================================== //
+            // ====== FIN DES NOUVEAUX AJOUTS ====== //
+            // ========================================================== //
+
+            // 5. On remplace les données de l'événement par nos données modifiées
+            $event->setData($data);
+        });
+        
+        return $formBuilder;
     }
 }

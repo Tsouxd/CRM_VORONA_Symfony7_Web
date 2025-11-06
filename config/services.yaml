@@ -42,5 +42,9 @@ services:
         tags:
             - { name: 'kernel.event_subscriber' }
 
+    Knp\Snappy\Pdf:
+        arguments:
+            $binary: '/usr/bin/wkhtmltopdf'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

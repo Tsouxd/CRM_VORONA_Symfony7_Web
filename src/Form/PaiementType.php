@@ -21,6 +21,7 @@ class PaiementType extends AbstractType
                 'currency' => 'MGA',
                 'divisor' => 1,
                 'scale' => 0,
+                'required' => true,
             ])
             ->add('datePaiement', DateTimeType::class, [
                 'widget' => 'single_text',
@@ -28,17 +29,20 @@ class PaiementType extends AbstractType
                 'label' => 'Date du Paiement',
             ])
             ->add('statut', ChoiceType::class, [
-                'label' => 'Statut',
+                'label' => 'Statut du paiement',
                 'choices' => [
-                    'Effectué' => 'effectué',
-                    'En attente' => 'en attente',
-                    'Annulé' => 'annulé',
+                    'Effectué' => Paiement::STATUT_EFFECTUE,
+                    'En attente' => Paiement::STATUT_EN_ATTENTE,
+                    'À venir' => Paiement::STATUT_A_VENIR,
+                    'Annulé' => Paiement::STATUT_ANNULE,
                 ],
+                //'placeholder' => 'Choisir un statut',
+                'required' => true,
             ])
             ->add('referencePaiement', ChoiceType::class, [
                 'label' => 'Méthode de Paiement',
                 'choices' => [
-                    'Espèces' => 'Espèces',
+                    'Espèce' => 'Espèce',
                     'Carte Bancaire' => 'Carte Bancaire',
                     'Mobile Money' => 'Mobile Money',
                     'Virement Bancaire' => 'Virement Bancaire',

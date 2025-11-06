@@ -58,18 +58,18 @@ class ProductionCommandeCrudController extends AbstractCrudController
         // 1. On crée notre nouvelle action personnalisée
         $imprimerFiche = Action::new('imprimerFiche', 'Imprimer Fiche', 'fa fa-print')
             ->linkToCrudAction('genererFicheTravailPdf') // Le nom de la méthode qu'on va créer
-            ->setCssClass('btn btn-primary')
+            //->setCssClass('btn btn-primary')
             ->setHtmlAttributes(['target' => '_blank']); // Ouvre dans un nouvel onglet
 
         $genererOuVoirBl = Action::new('genererBl', 'Générer / Voir BL', 'fa fa-truck')
-                    ->linkToCrudAction('genererOuVoirBlAction') // On change le nom de la méthode cible
-                    ->setCssClass('btn btn-primary')
-                    // La condition d'affichage est maintenant plus simple :
-                    // On affiche le bouton dès que la production est marquée comme terminée.
-                    ->displayIf(fn (Commande $c) => $c->isProductionTermineeOk() === true)
-                    // On change le label du bouton dynamiquement !
-                    ->setLabel(fn (Commande $c) => $c->isBlGenere() ? 'Voir le BL' : 'Générer le BL')
-                    ->setHtmlAttributes(['target' => '_blank']);
+            ->linkToCrudAction('genererOuVoirBlAction') // On change le nom de la méthode cible
+            //->setCssClass('btn btn-primary')
+            // La condition d'affichage est maintenant plus simple :
+            // On affiche le bouton dès que la production est marquée comme terminée.
+            ->displayIf(fn (Commande $c) => $c->isProductionTermineeOk() === true)
+            // On change le label du bouton dynamiquement !
+            ->setLabel(fn (Commande $c) => $c->isBlGenere() ? 'Voir le BL' : 'Générer le BL')
+            ->setHtmlAttributes(['target' => '_blank']);
 
         return $actions
             ->disable(Action::NEW, Action::DELETE)
@@ -165,43 +165,56 @@ class ProductionCommandeCrudController extends AbstractCrudController
             throw $this->createNotFoundException("Commande non trouvée");
         }
 
-        // Configuration de Dompdf
         $options = new Options();
         $options->set('defaultFont', 'Arial');
+        $options->set('isRemoteEnabled', true);
+        $options->set('isHtml5ParserEnabled', true); // Ajout pour meilleur support CSS
         $dompdf = new Dompdf($options);
 
-        // Charger l'image du logo en base64
-        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/forever.jpeg';
-        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+        // Logo
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/Fichier 2-8.png';
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)); // Changé en png si c'est un png
 
-        // DÉBUT DE L'AJOUT : GESTION DE LA PIÈCE JOINTE
-        $pieceJointeBase64 = null;
-        $nomFichierPieceJointe = $commande->getPieceJointe(); // Assurez-vous que le getter est correct
+        // Gestion des pièces jointes
+        $piecesJointesBase64 = [];
+        $nomFichiers = explode(',', $commande->getPieceJointe() ?? '');
 
-        if ($nomFichierPieceJointe) {
-            // IMPORTANT : Adaptez ce chemin à votre dossier d'upload
-            $cheminCompletPieceJointe = $this->getParameter('kernel.project_dir') . '/public/uploads/pieces/' . $nomFichierPieceJointe;
+        foreach ($nomFichiers as $nom) {
+            $nom = trim($nom);
+            if (!$nom) continue;
 
-            if (file_exists($cheminCompletPieceJointe)) {
-                $contenuFichier = file_get_contents($cheminCompletPieceJointe);
-                $typeMime = mime_content_type($cheminCompletPieceJointe);
-                $pieceJointeBase64 = 'data:' . $typeMime . ';base64,' . base64_encode($contenuFichier);
+            $chemin = $this->getParameter('kernel.project_dir') . '/public/uploads/pieces/' . $nom;
+            if (file_exists($chemin)) {
+                $mime = mime_content_type($chemin);
+                $base64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($chemin));
+                $piecesJointesBase64[] = $base64;
             }
         }
-        // FIN DE L'AJOUT
 
-        // On rend notre template Twig en HTML
+        $aDesPiecesJointes = count($piecesJointesBase64) > 0;
+
+        // Calcul quantité totale
+        $quantiteTotale = 0;
+        foreach ($commande->getCommandeProduits() as $ligne) {
+            $quantiteTotale += $ligne->getQuantite();
+        }
+
+        // Génération du HTML
         $html = $this->renderView('production/fiche_travail_pdf.html.twig', [
             'commande' => $commande,
             'logo' => $logoBase64,
-            'piece_jointe_base64' => $pieceJointeBase64, // On passe la pièce jointe au template
+            'pieces_jointes' => $piecesJointesBase64,
+            'quantiteTotale' => $quantiteTotale,
+            'aDesPiecesJointes' => $aDesPiecesJointes,
         ]);
 
+        // Toujours en paysage si pièces jointes
+        $orientation = $aDesPiecesJointes ? 'landscape' : 'portrait';
+        $dompdf->setPaper('A4', $orientation);
+
         $dompdf->loadHtml($html);
-        $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();
 
-        // On envoie le PDF au navigateur
         return new Response(
             $dompdf->output(),
             Response::HTTP_OK,
@@ -211,6 +224,7 @@ class ProductionCommandeCrudController extends AbstractCrudController
             ]
         );
     }
+
     // === C'EST LA MÉTHODE QUI APPLIQUE LE FILTRE (MISE À JOUR) ===
     public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
     {
@@ -279,6 +293,9 @@ class ProductionCommandeCrudController extends AbstractCrudController
                 Commande::STATUT_PRODUCTION_POUR_LIVRAISON => 'success',
             ]);
 
+        yield TextField::new('finition', 'Finition')
+            ->setFormTypeOption('required', false);
+
         // --- Panneau Livraison avec logique conditionnelle ---
         yield FormField::addPanel('Gestion de la Livraison');
         
@@ -287,9 +304,9 @@ class ProductionCommandeCrudController extends AbstractCrudController
         $commande = $context->getEntity()->getInstance();
         $isProductionFinished = ($commande && $commande->getStatutProduction() === Commande::STATUT_PRODUCTION_POUR_LIVRAISON);
 
-        yield TextField::new('lieuDeLivraison', 'Lieu de Livraison')
+        /*yield TextField::new('lieuDeLivraison', 'Lieu de Livraison')
             //->setFormTypeOption('disabled', !$isProductionFinished)
-            ->setHelp($isProductionFinished ? '' : 'Ce champ sera disponible une fois la production terminée.');
+            ->setHelp($isProductionFinished ? '' : 'Ce champ sera disponible une fois la production terminée.');*/
 
         yield TextField::new('nomLivreur', 'Nom du Livreur')
             //->setFormTypeOption('disabled', !$isProductionFinished)
@@ -297,6 +314,13 @@ class ProductionCommandeCrudController extends AbstractCrudController
             
         yield DateTimeField::new('dateDeLivraison', 'Date de Livraison Prévue');
             //->setFormTypeOption('disabled', !$isProductionFinished);
+        yield DateTimeField::new('dateDeLivraisonPartielle', 'Date de Livraison Partielle');
+            //->setFormTypeOption('disabled', !$isProductionFinished);
+        yield DateTimeField::new('dateDebut', 'Date début / Heure début');
+            //->setFormTypeOption('disabled', !$isProductionFinished);
+        yield DateTimeField::new('dateFin', 'Date fin / Heure fin');
+            //->setFormTypeOption('disabled', !$isProductionFinished)
+
         yield ChoiceField::new('statutLivraison', 'Statut de Livraison')
             ->setChoices([
                 'En attente' => Commande::STATUT_LIVRAISON_ATTENTE,

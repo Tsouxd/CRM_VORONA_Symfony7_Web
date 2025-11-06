@@ -34,13 +34,13 @@ class CommandeProduitType extends AbstractType
                 'attr' => ['min' => 1]
             ])
             
-            // ✅ ÉTAPE 1 : AJOUTER LE CHAMP MANQUANT
+            // ÉTAPE 1 : AJOUTER LE CHAMP MANQUANT
             ->add('prixUnitaire', MoneyType::class, [
                 'label' => 'Prix Unitaire',
                 'currency' => 'MGA',
                 'divisor' => 1, // Si vous stockez des floats. Si vous stockez des centimes, mettez 100.
                 
-                // ✅ L'OPTION LA PLUS IMPORTANTE
+                // L'OPTION LA PLUS IMPORTANTE
                 'mapped' => false,
 
                 'scale' => 0, 
@@ -54,7 +54,7 @@ class CommandeProduitType extends AbstractType
                 ],
             ]);
 
-        // ✅ ÉTAPE 2 : VOTRE LOGIQUE D'ÉVÉNEMENT EST MAINTENANT CORRECTE
+        // ÉTAPE 2 : VOTRE LOGIQUE D'ÉVÉNEMENT EST MAINTENANT CORRECTE
         $formModifier = function (FormEvent $event) {
             $form = $event->getForm();
             /** @var CommandeProduit|null $commandeProduit */

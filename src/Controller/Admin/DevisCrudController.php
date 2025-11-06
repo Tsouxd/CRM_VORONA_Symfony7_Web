@@ -73,6 +73,19 @@ class DevisCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
+        // 1. On crée le champ 'commercial'
+        yield AssociationField::new('commercial', 'Commercial en charge')
+            // 2. On ne l'affiche que si l'utilisateur est ADMIN
+            ->setPermission('ROLE_ADMIN')
+            // 3. On filtre la liste pour n'afficher que les utilisateurs ayant le rôle COMMERCIAL
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                $alias = $qb->getRootAliases()[0]; // Récupère l'alias, ex: 'User'
+                return $qb
+                    ->andWhere(sprintf('%s.roles LIKE :role', $alias))
+                    ->setParameter('role', '%"ROLE_COMMERCIAL"%')
+                    ->orderBy(sprintf('%s.username', $alias), 'ASC');
+            });
+
         // Affichage sur index/detail
         yield AssociationField::new('client')->hideOnForm();
 
@@ -209,10 +222,11 @@ class DevisCrudController extends AbstractCrudController
 
         yield ChoiceField::new('methodePaiement', 'Méthode de paiement')
             ->setChoices([
-                '50% à la commande, 50% à la livraison' => '50% commande, 50% livraison',
-                '100% à la livraison' => '100% livraison',
-                '30 jours après réception de la facture' => '30 jours fin de mois',
-                '100% à la commande' => '100% commande', // Optionnel, mais souvent utile
+                // Libellé pour l'utilisateur => Valeur (la constante)
+                '100% à la commande' => Devis::METHODE_100_COMMANDE,
+                '50% à la commande, 50% à la livraison' => Devis::METHODE_50_50,
+                '100% à la livraison' => Devis::METHODE_100_LIVRAISON,
+                '30 jours après réception de la facture' => Devis::METHODE_30_JOURS,
             ])
             ->setHelp('Choisissez les conditions de règlement.');
 
@@ -234,7 +248,76 @@ class DevisCrudController extends AbstractCrudController
             ->setCurrency('MGA')
             ->setNumDecimals(0)
             ->setFormTypeOption('divisor', 1)
+            ->onlyOnIndex()
             ->setHelp('Montant de l\'acompte déjà payé par le client.');
+
+        if (Crud::PAGE_EDIT === $pageName) {
+            yield MoneyField::new('acompte', 'Acompte Versé')
+                ->setCurrency('MGA')
+                ->setNumDecimals(0)
+                ->setFormTypeOption('divisor', 1)
+                ->setHelp('Montant de l\'acompte déjà payé par le client.');
+        }
+
+        yield FormField::addPanel('')->setHelp(<<<'HTML'
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // On sélectionne les éléments du formulaire
+                const methodePaiementSelect = document.querySelector('#Devis_methodePaiement');
+                const acompteInput = document.querySelector('#Devis_acompte');
+                const linesContainer = document.querySelector('#Devis_lignes'); // Pour le devis en mode ÉDITION
+
+                // Sécurité : si les champs n'existent pas sur la page, on arrête
+                if (!methodePaiementSelect || !acompteInput) {
+                    return;
+                }
+
+                // La fonction qui fait tout le travail
+                function updateAcompte() {
+                    let totalBrut = 0;
+
+                    // Calcul du total en mode ÉDITION (basé sur la collection de lignes)
+                    if (linesContainer) {
+                        linesContainer.querySelectorAll('.form-widget-compound').forEach(line => {
+                            const quantite = parseFloat(line.querySelector('input[id$="_quantite"]').value) || 0;
+                            const prixUnitaire = parseFloat(line.querySelector('input[id$="_prixUnitaire"]').value) || 0;
+                            totalBrut += quantite * prixUnitaire;
+                        });
+                    }
+                    // NOTE: Le calcul pour le mode CRÉATION est plus complexe car les lignes
+                    // ne sont pas encore dans une collection. Cette version se concentre sur le
+                    // mode ÉDITION qui est plus courant pour ce genre de calcul.
+
+                    const methode = methodePaiementSelect.value;
+                    let acompteCalcule = 0;
+
+                    if (methode === '100% commande') {
+                        acompteCalcule = totalBrut;
+                    } else if (methode === '50% commande, 50% livraison') {
+                        acompteCalcule = totalBrut * 0.5;
+                    }
+
+                    // On met à jour la valeur du champ acompte
+                    acompteInput.value = acompteCalcule.toFixed(0); // .toFixed(0) pour des montants entiers
+                }
+
+                // On écoute les changements sur le sélecteur de méthode
+                methodePaiementSelect.addEventListener('change', updateAcompte);
+                
+                // On écoute les changements dans les lignes du devis (quantité, prix)
+                if (linesContainer) {
+                    // Pour les changements de valeur dans les champs
+                    linesContainer.addEventListener('input', updateAcompte);
+                    // Pour l'ajout/suppression de lignes
+                    linesContainer.addEventListener('ea.collection.item-added', updateAcompte);
+                    linesContainer.addEventListener('ea.collection.item-removed', updateAcompte);
+                }
+
+                // On lance un premier calcul au chargement de la page
+                updateAcompte();
+            });
+            </script>
+        HTML)->setCssClass('d-none'); // On cache ce panel qui est purement technique
 
         yield MoneyField::new('totalBrut', 'Total Brut')
             ->setCurrency('MGA')
@@ -542,19 +625,19 @@ class DevisCrudController extends AbstractCrudController
             }
         }
 
-        // 🕒 Définir la date de création si non définie
+        // Définir la date de création si non définie
         if ($entityInstance->getDateCreation() === null) {
             $entityInstance->setDateCreation(new \DateTimeImmutable());
         }
 
-        // 🕓 Définir la date d’expiration automatiquement si absente
+        // Définir la date d’expiration automatiquement si absente
         if ($entityInstance->getDateExpiration() === null) {
             $entityInstance->setDateExpiration(
                 (clone $entityInstance->getDateCreation())->modify('+8 days')
             );
         }
 
-        // 🧾 Vérifie si le BAT est validé → changement automatique du statut
+        // Vérifie si le BAT est validé → changement automatique du statut
         if (method_exists($entityInstance, 'isBatOk') && $entityInstance->isBatOk()) {
             $entityInstance->setStatut('BAT/Production');
         }
@@ -576,7 +659,7 @@ class DevisCrudController extends AbstractCrudController
         $now = new \DateTimeImmutable();
         $dateExpiration = $entityInstance->getDateExpiration();
 
-        // 🚫 Empêcher la modification d'un devis expiré
+        // Empêcher la modification d'un devis expiré
         if ($dateExpiration !== null && $dateExpiration < $now) {
             $this->requestStack->getSession()->getFlashBag()->add(
                 'danger',
@@ -588,7 +671,7 @@ class DevisCrudController extends AbstractCrudController
             return;
         }
 
-        // 🕓 Mise à jour automatique de la date d’expiration si la date de création change
+        // Mise à jour automatique de la date d’expiration si la date de création change
         if ($entityInstance->getDateCreation()) {
             $newExpiration = (clone $entityInstance->getDateCreation())->modify('+8 days');
 
@@ -597,7 +680,7 @@ class DevisCrudController extends AbstractCrudController
             }
         }
 
-        // 🧾 Vérifie si le BAT est validé → changement automatique du statut
+        // Vérifie si le BAT est validé → changement automatique du statut
         if (method_exists($entityInstance, 'isBatOk') && $entityInstance->isBatOk()) {
             $entityInstance->setStatut('BAT/Production');
         }
@@ -610,7 +693,14 @@ class DevisCrudController extends AbstractCrudController
         // Votre action 'Exporter PDF' existante
         $exportPdf = Action::new('exportPdf', 'Exporter PDF', 'fa fa-file-pdf')
             ->linkToCrudAction('exportPdfAction')
-            ->setCssClass('btn btn-primary')
+            //->setCssClass('btn btn-primary')
+            ->setHtmlAttributes([
+                'target' => '_blank',
+            ]);
+
+        $exportFactureProforma = Action::new('exportFactureProforma', 'Facture Proforma', 'fa fa-file-invoice-dollar')
+            ->linkToCrudAction('exportFactureProformaAction')
+            //->setCssClass('btn btn-primary')
             ->setHtmlAttributes([
                 'target' => '_blank',
             ]);
@@ -629,8 +719,10 @@ class DevisCrudController extends AbstractCrudController
             // On ajoute nos autres actions personnalisées comme avant
             ->add(Crud::PAGE_INDEX, $exportPdf)
             ->add(Crud::PAGE_DETAIL, $exportPdf)
+            ->add(Crud::PAGE_INDEX, $exportFactureProforma)
+            ->add(Crud::PAGE_DETAIL, $exportFactureProforma)
 
-            ->reorder(Crud::PAGE_INDEX, ['exportPdf', Action::DETAIL, Action::EDIT])
+            ->reorder(Crud::PAGE_INDEX, ['exportPdf', 'exportFactureProforma', Action::DETAIL, Action::EDIT])
 
             // On modifie l'action de suppression existante
             ->update(Crud::PAGE_INDEX, Action::DELETE, function (Action $action) {
@@ -663,7 +755,7 @@ class DevisCrudController extends AbstractCrudController
         $options->set('defaultFont', 'Arial');
         $dompdf = new Dompdf($options);
 
-        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/forever.jpeg';
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/Fichier 2-8.png';
         $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
 
 
@@ -686,4 +778,41 @@ class DevisCrudController extends AbstractCrudController
         );
     }
 
+    public function exportFactureProformaAction(AdminUrlGenerator $adminUrlGenerator, EntityManagerInterface $entityManager): Response
+    {
+        $id = $this->getContext()->getRequest()->query->get('entityId');
+
+        // Récupération via EntityManager
+        $devis = $entityManager->getRepository(Devis::class)->find($id);
+
+        if (!$devis) {
+            throw $this->createNotFoundException("Devis non trouvé");
+        }
+
+        $options = new Options();
+        $options->set('defaultFont', 'Arial');
+        $dompdf = new Dompdf($options);
+
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/forever.jpeg';
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+
+
+        $html = $this->renderView('devis/factureProforma.html.twig', [
+            'devis' => $devis,
+            'logo' => $logoBase64
+        ]);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return new Response(
+            $dompdf->output(),
+            200,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="devis-'.$devis->getId().'.pdf"',
+            ]
+        );
+    }
 }

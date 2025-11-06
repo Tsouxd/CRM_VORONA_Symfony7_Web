@@ -253,6 +253,112 @@
             from { opacity: 1; transform: translateY(0); }
             to { opacity: 0; transform: translateY(-20px); }
         }
+
+        /* On cache les liens de switch par défaut sur grand écran */
+        .mobile-switch-link {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                margin: 0;
+                padding: 15px;
+                height: auto;
+                min-height: 100vh;
+                /* Permet au clavier mobile de ne pas tout écraser */
+                padding-bottom: 50px; 
+            }
+            
+            .container {
+                width: 100%;
+                max-width: 400px; /* On donne une largeur max pour un meilleur look */
+                min-height: auto;
+                height: 500px; /* Hauteur de base, le JS l'ajustera */
+                border-radius: 10px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+                position: relative;
+                overflow: hidden; /* Crucial pour l'animation de glissement */
+                /* Animation fluide de la hauteur */
+                transition: height 0.6s ease-in-out;
+            }
+
+            /* On cache l'overlay de bureau */
+            .overlay-container {
+                display: none;
+            }
+
+            /* Les deux conteneurs de formulaire sont superposés */
+            .form-container {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background-color: var(--white-color);
+                /* Animation de la position et de l'opacité */
+                transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+            }
+
+            .form-container form {
+                padding: 0 30px;
+                height: 100%;
+            }
+
+            /*
+            * Logique de l'animation :
+            * L'un des formulaires est visible et centré (translateY(0)).
+            * L'autre est caché, décalé vers le bas et transparent (translateY(30px), opacity 0).
+            * La classe .right-panel-active inverse simplement ces états.
+            */
+
+            /* État initial : Connexion visible, Inscription cachée */
+            .sign-in-container {
+                transform: translateY(0);
+                opacity: 1;
+                z-index: 2;
+            }
+            .sign-up-container {
+                transform: translateY(30px);
+                opacity: 0;
+                z-index: 1;
+                pointer-events: none; /* Empêche l'interaction avec le formulaire caché */
+            }
+
+            /* État activé : Inscription visible, Connexion cachée */
+            .container.right-panel-active .sign-in-container {
+                transform: translateY(30px);
+                opacity: 0;
+                z-index: 1;
+                pointer-events: none;
+            }
+            .container.right-panel-active .sign-up-container {
+                transform: translateY(0);
+                opacity: 1;
+                z-index: 2;
+                pointer-events: auto;
+            }
+            
+            h1 {
+                font-size: 1.6em;
+                margin-bottom: 10px;
+            }
+            
+            /* On stylise les liens de switch pour qu'ils soient plus élégants */
+            .mobile-switch-link {
+                display: inline-block; /* S'affiche sur mobile */
+                margin-top: 25px;
+                font-weight: 500;
+                color: var(--primary-color);
+                font-size: 14px;
+                cursor: pointer;
+                padding: 5px;
+                border-bottom: 2px solid transparent;
+                transition: color 0.3s ease;
+            }
+            .mobile-switch-link:hover {
+                color: var(--accent-color);
+            }
+        }
     </style>
 </head>
 <body>
@@ -276,7 +382,7 @@
         <div class="form-container sign-up-container">
             {{ form_start(registrationForm, {'action': path('app_register'), 'attr': {'novalidate': 'novalidate'}}) }}
                 <!-- LOGO AJOUTÉ ICI -->
-                <img src="{{ asset('utils/logo/forever-removebg-preview.png') }}" alt="Logo Forever" class="form-logo">
+                <img src="{{ asset('utils/logo/Fichier 11.png') }}" alt="Logo Forever" class="form-logo">
                 
                 <h1>Demande de compte</h1>
                 <br>
@@ -285,13 +391,14 @@
                 {{ form_row(registrationForm.roleDemander, { 'attr': {'placeholder': 'Rôle demandé'} }) }}
                 <br>
                 <button type="submit">Envoyer la demande</button>
+                <span class="mobile-switch-link" id="mobileSignIn">Déjà un compte ? Se connecter.</span>
             {{ form_end(registrationForm) }}
         </div>
 
         <!-- FORMULAIRE DE CONNEXION -->
         <div class="form-container sign-in-container">
             <form method="post" action="{{ path('app_login') }}">
-                <img src="{{ asset('utils/logo/forever-removebg-preview.png') }}" alt="Logo Forever" class="form-logo">
+                <img src="{{ asset('utils/logo/Fichier 11.png') }}" alt="Logo Forever" class="form-logo">
 
                 <h1>Connexion</h1>
                 
@@ -308,6 +415,7 @@
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
                 <br>
                 <button type="submit">Se connecter</button>
+                <span class="mobile-switch-link" id="mobileSignUp">Pas de compte ? Faites une demande.
             </form>
         </div>
 
@@ -333,16 +441,63 @@
         const signUpButton = document.getElementById('signUp');
         const signInButton = document.getElementById('signIn');
         const container = document.getElementById('container');
+        const mobileSignUpButton = document.getElementById('mobileSignUp');
+        const mobileSignInButton = document.getElementById('mobileSignIn');
 
-        if(signUpButton) {
-            signUpButton.addEventListener('click', () => container.classList.add("right-panel-active"));
+        // NOUVEAU : On récupère les conteneurs de formulaire pour mesurer leur hauteur
+        const signInFormContainer = document.querySelector('.sign-in-container');
+        const signUpFormContainer = document.querySelector('.sign-up-container');
+
+        // NOUVEAU : La fonction qui ajuste la hauteur du conteneur sur mobile
+        function updateMobileContainerHeight() {
+            if (window.innerWidth > 768 || !container || !signInFormContainer || !signUpFormContainer) {
+                // On ne fait rien sur grand écran ou si les éléments n'existent pas
+                // On réinitialise aussi le style au cas où l'utilisateur agrandit sa fenêtre
+                if (container) container.style.height = ''; 
+                return;
+            }
+
+            let activeFormHeight = 0;
+            if (container.classList.contains('right-panel-active')) {
+                activeFormHeight = signUpFormContainer.scrollHeight;
+            } else {
+                activeFormHeight = signInFormContainer.scrollHeight;
+            }
+            
+            // On applique la hauteur calculée, avec un petit extra pour l'aération
+            container.style.height = (activeFormHeight + 20) + 'px';
         }
 
-        if(signInButton) {
-            signInButton.addEventListener('click', () => container.classList.remove("right-panel-active"));
+        // On modifie les écouteurs pour qu'ils appellent la fonction de mise à jour
+        if (signUpButton) {
+            signUpButton.addEventListener('click', () => {
+                container.classList.add("right-panel-active");
+                updateMobileContainerHeight(); // NOUVEAU
+            });
         }
 
-        // --- Script pour gérer la fermeture et l'auto-disparition des alertes ---
+        if (signInButton) {
+            signInButton.addEventListener('click', () => {
+                container.classList.remove("right-panel-active");
+                updateMobileContainerHeight(); // NOUVEAU
+            });
+        }
+
+        if (mobileSignUpButton) {
+            mobileSignUpButton.addEventListener('click', () => {
+                container.classList.add("right-panel-active");
+                updateMobileContainerHeight(); // NOUVEAU
+            });
+        }
+
+        if (mobileSignInButton) {
+            mobileSignInButton.addEventListener('click', () => {
+                container.classList.remove("right-panel-active");
+                updateMobileContainerHeight(); // NOUVEAU
+            });
+        }
+
+        // --- Script pour gérer la fermeture des alertes (inchangé) ---
         function closeAlert(button) {
             const alert = button.closest('.alert');
             if (alert) {
@@ -351,8 +506,9 @@
             }
         }
         
+        // --- Logique au chargement de la page ---
         document.addEventListener('DOMContentLoaded', function() {
-            // Auto-disparition des messages flash
+            // Auto-disparition des messages flash (inchangé)
             document.querySelectorAll('[data-auto-dismiss]').forEach(alert => {
                 const dismissTime = parseInt(alert.getAttribute('data-auto-dismiss'), 10);
                 if (!isNaN(dismissTime) && dismissTime > 0) {
@@ -363,16 +519,27 @@
                 }
             });
 
-            // Gérer l'affichage du panneau d'inscription en cas d'erreur de formulaire
+            // Gérer l'affichage du panneau d'inscription en cas d'erreur (inchangé)
             const registrationForm = document.querySelector('.sign-up-container form');
             const hasRegistrationErrors = registrationForm && registrationForm.querySelectorAll('.is-invalid, .form-error-message').length > 0;
             const hasRegistrationFlash = {{ app.flashes('success') is not empty or app.flashes('error') is not empty ? 'true' : 'false' }};
             
             if (hasRegistrationErrors || (hasRegistrationFlash && '{{ app.request.attributes.get("_route") }}' === 'app_register')) {
-                 container.classList.add('right-panel-active');
+                container.classList.add('right-panel-active');
             }
+            
+            // NOUVEAU : On appelle la fonction de mise à jour de la hauteur une fois au chargement
+            updateMobileContainerHeight();
+        });
+
+        // NOUVEAU : On ajoute un écouteur pour le redimensionnement de la fenêtre
+        // C'est utile si l'utilisateur tourne son téléphone (portrait -> paysage)
+        window.addEventListener('resize', updateMobileContainerHeight);
+
+        // NOUVEAU : On écoute aussi l'événement turbo:load pour les rechargements partiels
+        document.addEventListener('turbo:load', function() {
+            updateMobileContainerHeight();
         });
     </script>
-
 </body>
 </html>

@@ -77,7 +77,24 @@ class FactureCrudController extends AbstractCrudController
                 ->setFormTypeOption('placeholder', 'Aucune commande sélectionnée');
         }
 
-        yield FormField::addPanel('Détails de la Facture');
+        yield AssociationField::new('commande', 'Lier une Commande')
+            ->setHelp('Sélectionnez une commande pour lier cette facture à une commande existante.')
+            ->setRequired(false)
+            ->onlyOnIndex()
+            ->setFormTypeOption('placeholder', 'Aucune commande sélectionnée');
+
+        // 1. On crée le champ 'commercial'
+        yield AssociationField::new('commercial', 'Commercial en charge')
+            // 2. On ne l'affiche que si l'utilisateur est ADMIN
+            ->setPermission('ROLE_ADMIN')
+            // 3. On filtre la liste pour n'afficher que les utilisateurs ayant le rôle COMMERCIAL
+            ->setQueryBuilder(function (QueryBuilder $qb) {
+                $alias = $qb->getRootAliases()[0]; // Récupère l'alias, ex: 'User'
+                return $qb
+                    ->andWhere(sprintf('%s.roles LIKE :role', $alias))
+                    ->setParameter('role', '%"ROLE_COMMERCIAL"%')
+                    ->orderBy(sprintf('%s.username', $alias), 'ASC');
+            });
 
         if (Crud::PAGE_EDIT === $pageName) {
             yield AssociationField::new('commande', 'Commande liée')
@@ -89,7 +106,8 @@ class FactureCrudController extends AbstractCrudController
         yield AssociationField::new('client', 'Client')->setFormTypeOption('placeholder', 'Aucun client sélectionné');
 
         // Produits de la facture
-        yield CollectionField::new('lignes', 'Produits Commandes / Services')
+        yield CollectionField::new('lignes', 'Produits Commandés')
+            ->setCssClass('field-from-facture')
             ->setEntryType(FactureLigneType::class)
             ->setEntryIsComplex(true)
             ->allowAdd(true)
@@ -104,7 +122,33 @@ class FactureCrudController extends AbstractCrudController
             ->setFormTypeOption('divisor', 1)
             ->setFormTypeOption('attr', ['class' => 'facture-frais-livraison']);
 
-        yield TextField::new('livreur', 'Nom du livreur');
+        if ($pageName === Crud::PAGE_NEW || $pageName === Crud::PAGE_EDIT) {
+            yield TextField::new('livreur', 'Nom du livreur')
+                //->setFormTypeOption('disabled', true)
+                ->setHelp('Ce champ sera rempli automatiquement depuis la commande liée.');
+        }
+        yield TextField::new('livreur', 'Nom du livreur')->hideOnForm();
+
+        yield FormField::addPanel('')
+            ->setHelp(<<<'HTML'
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const commandeSelect = document.querySelector('#Facture_commande');
+                const livreurField = document.querySelector('#Facture_livreur')?.closest('.form-group');
+
+                function toggleLivreur() {
+                    if (!commandeSelect || !livreurField) return;
+                    livreurField.style.display = commandeSelect.value ? 'none' : 'block';
+                }
+
+                if (commandeSelect) {
+                    commandeSelect.addEventListener('change', toggleLivreur);
+                    toggleLivreur(); // état initial
+                }
+            });
+            </script>
+            HTML
+            )->onlyOnForms()->setCssClass('d-none'); // le panneau est invisible, ne sert que pour le script
 
         // Acompte et remise
         yield MoneyField::new('acompte', 'Acompte')
@@ -114,13 +158,11 @@ class FactureCrudController extends AbstractCrudController
         yield NumberField::new('remise', 'Remise')
             ->setFormTypeOption('attr', ['class' => 'remise']);
 
-        yield FormField::addPanel('Conditions de Paiement');
-
         yield ChoiceField::new('modeDePaiement', 'Mode de paiement')
             ->setChoices([
                 'Chèque' => 'Chèque',
-                'Espèces' => 'Espèces',
-                'Virement bancaire' => 'Virement bancaire',
+                'Espèce' => 'Espèce',
+                'Virement Bancaire' => 'Virement Bancaire',
                 'Carte bancaire' => 'Carte bancaire',
                 'Mobile Money' => 'Mobile Money'
             ])
@@ -148,6 +190,50 @@ class FactureCrudController extends AbstractCrudController
             ->setFormTypeOption('attr', ['class' => 'facture-total-general']);
 
         yield DateTimeField::new('dateCreation', 'Date de création')->hideOnForm();
+
+        yield FormField::addPanel('')->setHelp(<<<'HTML'
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // On s'assure que le script s'exécute aussi après les rechargements de Turbo
+            document.addEventListener('turbo:load', setupCommandeToggle);
+            
+            function setupCommandeToggle() {
+                // MODIFIÉ : On cible le sélecteur de COMMANDE
+                const commandeSelect = document.querySelector('#Facture_commande');
+                
+                if (!commandeSelect) {
+                    return; // Pas sur la bonne page ou champ introuvable
+                }
+
+                // La fonction qui fait tout le travail
+                function toggleAutoFilledFields() {
+                    // On vérifie si une commande est sélectionnée
+                    const isCommandeLinked = !!commandeSelect.value;
+                    
+                    // On récupère tous les champs qu'on a marqués
+                    const fieldsToToggle = document.querySelectorAll('.field-from-facture');
+
+                    fieldsToToggle.forEach(field => {
+                        // EasyAdmin enveloppe chaque champ dans un conteneur .form-group
+                        const wrapper = field.closest('.form-group');
+                        if (wrapper) {
+                            wrapper.style.display = isCommandeLinked ? 'none' : 'block';
+                        }
+                    });
+                }
+
+                // On écoute les changements sur le sélecteur de commande
+                commandeSelect.addEventListener('change', toggleAutoFilledFields);
+
+                // On exécute la fonction une fois au chargement pour définir l'état initial
+                toggleAutoFilledFields();
+            }
+
+            // Premier appel
+            setupCommandeToggle();
+        });
+        </script>
+        HTML)->setCssClass('d-none'); // Cache le panneau qui ne sert qu'à porter le script
 
         yield FormField::addPanel('')
             ->setHelp(<<<'HTML'
@@ -183,19 +269,17 @@ class FactureCrudController extends AbstractCrudController
                         qty.addEventListener('input', updateLine);
                     };
 
-                    // ======================================================================
-                    // NOUVELLE FONCTION POUR MASQUER/AFFICHER LES CHAMPS
-                    // ======================================================================
                     const toggleAutoFilledFields = (shouldHide) => {
                         // Liste des sélecteurs CSS pour les champs à masquer/afficher
                         const fieldSelectors = [
                             'select[name$="[client]"]',
                             'div[id="Facture_lignes"]',
                             'input[name$="[fraisLivraison]"]',
-                            'input[name$="[acompte]"]',
+                            //'input[name$="[acompte]"]',
                             'select[name$="[modeDePaiement]"]',
                             'input[name$="[detailsPaiement]"]',
-                            'input[name$="[total]"]'
+                            'input[name$="[total]"]',
+                            'select[name$="[methodePaiement]"]'
                         ];
 
                         fieldSelectors.forEach(selector => {
@@ -233,7 +317,7 @@ class FactureCrudController extends AbstractCrudController
                     commandeSelect.addEventListener('change', function() {
                         const commandeId = this.value;
 
-                        // ✅ On masque ou affiche les champs instantanément en fonction de la sélection
+                        // On masque ou affiche les champs instantanément en fonction de la sélection
                         toggleAutoFilledFields(!!commandeId);
 
                         if (!commandeId) {
@@ -332,13 +416,9 @@ class FactureCrudController extends AbstractCrudController
                 return;
             }
 
-            // Lier la commande à l'entité facture
+            // --- VOTRE LOGIQUE EXISTANTE (PARFAITE) ---
             $facture->setCommande($commande);
-
-            // Pré-remplir les données du formulaire
             $data['client'] = $commande->getClient() ? $commande->getClient()->getId() : null;
-
-            // Vider les lignes pour les remplacer par celles de la commande
             $data['lignes'] = [];
             foreach ($commande->getCommandeProduits() as $index => $commandeLigne) {
                 if ($commandeLigne->getProduit()) {
@@ -348,32 +428,37 @@ class FactureCrudController extends AbstractCrudController
                     ];
                 }
             }
+            
+            // 1. On copie les CONDITIONS de règlement (ex: "50/50")
+            if ($commande->getMethodePaiement()) {
+                $data['methodePaiement'] = $commande->getMethodePaiement();
+            }
 
-            // =================================================================
-            // NOUVELLE PARTIE : Pré-remplir les informations de paiement
-            // =================================================================
+            // 2. On récupère le PREMIER paiement de la commande pour copier les détails
             $paiements = $commande->getPaiements();
             if (!$paiements->isEmpty()) {
-                // On prend le premier paiement de la commande comme référence
                 $premierPaiement = $paiements->first();
                 
-                // On remplit les données du formulaire avec les valeurs du paiement
-                // Note: Assurez-vous que les getters correspondent bien à votre entité Paiement
-                if ($premierPaiement->getMontant()) {
+                // On copie le MONTANT de l'acompte (si effectué)
+                if ($premierPaiement->getMontant() && $premierPaiement->getStatut() === 'effectué') {
                     $data['acompte'] = $premierPaiement->getMontant();
+                } else {
+                    $data['acompte'] = 0;
                 }
-                // getModeDePaiement() est plus standard, mais votre JSON utilise referencePaiement
-                // pour le mode. J'utilise getModeDePaiement() en me basant sur votre nouveau JSON.
-                if ($premierPaiement->getreferencePaiement()) { 
-                    $data['modeDePaiement'] = $premierPaiement->getreferencePaiement();
+                
+                // On copie le MOYEN de paiement (Espèces, Chèque...)
+                // C'est la referencePaiement de l'entité Paiement
+                if ($premierPaiement->getReferencePaiement()) { 
+                    $data['modeDePaiement'] = $premierPaiement->getReferencePaiement();
                 }
+
+                // On copie les DÉTAILS du paiement
                 if ($premierPaiement->getDetailsPaiement()) {
                     $data['detailsPaiement'] = $premierPaiement->getDetailsPaiement();
                 }
             }
-            // =================================================================
 
-            // Mettre à jour les données de l'événement
+            // Mettre à jour les données de l'événement (l'étape cruciale)
             $event->setData($data);
         });
         
@@ -408,16 +493,17 @@ class FactureCrudController extends AbstractCrudController
     public function persistEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         if (!$entityInstance instanceof Facture) return;
-        
+
+        // Lier le commercial si vide
         if (null === $entityInstance->getCommercial()) {
-            /** @var User $user */
-            $user = $this->getUser();
-            if ($user) {
-                $entityInstance->setCommercial($user);
-            }
+            $entityInstance->setCommercial($this->getUser());
         }
 
-        // On appelle notre nouvelle méthode de calcul
+        // Copier le nom du livreur depuis la commande si existante
+        if ($entityInstance->getCommande() && $entityInstance->getCommande()->getNomLivreur()) {
+            $entityInstance->setLivreur($entityInstance->getCommande()->getNomLivreur());
+        }
+
         $this->recalculateTotals($entityInstance);
 
         parent::persistEntity($entityManager, $entityInstance);
@@ -447,6 +533,11 @@ class FactureCrudController extends AbstractCrudController
             //->setCssClass('btn btn-light')
             ->setHtmlAttributes(['target' => '_blank']);
 
+        /*$exportFactureProforma = Action::new('exportFactureProforma', 'Facture Proforma', 'fa fa-file-invoice-dollar')
+            ->linkToCrudAction('exportFactureProformaAction')
+            //->setCssClass('btn btn-light')
+            ->setHtmlAttributes(['target' => '_blank']);*/
+
         return $actions
             // ETAPE 1 : On AJOUTE l'action DETAIL standard à la page d'index.
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
@@ -462,10 +553,12 @@ class FactureCrudController extends AbstractCrudController
             ->add(Crud::PAGE_DETAIL, $exportPdf)
             ->add(Crud::PAGE_INDEX, $exportTicket)
             ->add(Crud::PAGE_DETAIL, $exportTicket)
+            /*->add(Crud::PAGE_INDEX, $exportFactureProforma)
+            ->add(Crud::PAGE_DETAIL, $exportFactureProforma)*/
 
             // On utilise les noms des actions (chaînes de caractères)
-            ->reorder(Crud::PAGE_INDEX, ['exportTicket', 'exportPdf', Action::DETAIL, Action::EDIT])
-            ->reorder(Crud::PAGE_DETAIL, ['exportTicket', 'exportPdf', Action::EDIT, Action::DELETE]);
+            ->reorder(Crud::PAGE_INDEX, ['exportTicket', 'exportPdf', /*'exportFactureProforma',*/ Action::DETAIL, Action::EDIT])
+            ->reorder(Crud::PAGE_DETAIL, ['exportTicket', 'exportPdf', /*'exportFactureProforma',*/ Action::EDIT, Action::DELETE]);
     }
 
     public function exportPdfAction(AdminUrlGenerator $adminUrlGenerator, EntityManagerInterface $entityManager): Response
@@ -481,7 +574,7 @@ class FactureCrudController extends AbstractCrudController
         $options->set('defaultFont', 'Arial');
         $dompdf = new Dompdf($options);
 
-        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/forever.jpeg';
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/Fichier 2-8.png';
         $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
 
         $html = $this->renderView('facture/pdf.html.twig', [
@@ -502,6 +595,41 @@ class FactureCrudController extends AbstractCrudController
             ]
         );
     }
+
+    /*public function exportFactureProformaAction(AdminUrlGenerator $adminUrlGenerator, EntityManagerInterface $entityManager): Response
+    {
+        $id = $this->getContext()->getRequest()->query->get('entityId');
+
+        $facture = $entityManager->getRepository(Facture::class)->find($id);
+        if (!$facture) {
+            throw $this->createNotFoundException("Facture non trouvée");
+        }
+
+        $options = new Options();
+        $options->set('defaultFont', 'Arial');
+        $dompdf = new Dompdf($options);
+
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/forever.jpeg';
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+
+        $html = $this->renderView('facture/factureProforma.html.twig', [
+            'facture' => $facture,
+            'logo' => $logoBase64,
+        ]);
+
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        return new Response(
+            $dompdf->output(),
+            200,
+            [
+                'Content-Type' => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="facture-'.$facture->getId().'.pdf"',
+            ]
+        );
+    }*/
 
     public function exportTicketAction(EntityManagerInterface $entityManager): Response
     {

@@ -99,14 +99,13 @@ class ProduitOrNewProduitForDevisType extends AbstractType
             }
         });
 
-        // ===== AJOUT LIGNE DEVIS APRÈS VALIDATION =====
         $builder->addEventListener(FormEvents::POST_SUBMIT, function(FormEvent $event) {
             $form = $event->getForm();
             if (!$form->isValid()) {
                 return; // si erreur => on ne fait rien
             }
 
-            // Trouve le devis parent
+            // Trouve le devis parent (votre code est bon)
             $parent = $form->getParent();
             $devis = null;
             while ($parent !== null) {
@@ -124,38 +123,32 @@ class ProduitOrNewProduitForDevisType extends AbstractType
             $choice = $form->get('choice')->getData();
             $quantite = $form->get('quantite')->getData() ?? 1;
 
+            $produit = null; // On initialise la variable produit
+            $ligne = null;   // On initialise la variable ligne
+
             if ($choice === 'existing') {
                 $produit = $form->get('existingProduit')->getData();
-                if ($produit instanceof Produit) {
-                    $prix = $produit->getPrix();
-                    $prixTotal = $quantite * $prix;
-
-                    $ligne = new DevisLigne();
-                    $ligne->setDevis($devis)
-                        ->setDescriptionProduit($produit->getNom())
-                        ->setQuantite($quantite)
-                        ->setPrixUnitaire($prix)
-                        ->setPrixTotal($prixTotal);
-
-                    $this->entityManager->persist($ligne);
-                }
             } elseif ($choice === 'new') {
                 $produit = $form->get('newProduit')->getData();
                 if ($produit instanceof Produit && $produit->getNom()) {
-                    $this->entityManager->persist($produit);
-
-                    $prix = $produit->getPrix();
-                    $prixTotal = $quantite * $prix;
-
-                    $ligne = new DevisLigne();
-                    $ligne->setDevis($devis)
-                        ->setDescriptionProduit($produit->getNom())
-                        ->setQuantite($quantite)
-                        ->setPrixUnitaire($prix)
-                        ->setPrixTotal($prixTotal);
-
-                    $this->entityManager->persist($ligne);
+                    $this->entityManager->persist($produit); // On persiste le nouveau produit
+                } else {
+                    $produit = null; // Sécurité si le nouveau produit est invalide
                 }
+            }
+            
+            // Si on a un produit valide, on crée la ligne de devis
+            if ($produit instanceof Produit) {
+                $prix = $produit->getPrix();
+                $prixTotal = $quantite * $prix;
+
+                $ligne = new DevisLigne();
+                $ligne->setDescriptionProduit($produit->getNom())
+                      ->setQuantite($quantite)
+                      ->setPrixUnitaire($prix)
+                      ->setPrixTotal($prixTotal);
+
+                $devis->addLigne($ligne);
             }
         });
     }

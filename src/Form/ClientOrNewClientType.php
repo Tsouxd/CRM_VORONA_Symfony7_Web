@@ -11,8 +11,6 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\Form\FormEvent;
 use Symfony\Component\Form\FormEvents;
 use Symfony\Component\OptionsResolver\OptionsResolver;
-use Symfony\Component\Form\FormError;
-use App\Entity\Commande;
 
 class ClientOrNewClientType extends AbstractType
 {
@@ -58,67 +56,35 @@ class ClientOrNewClientType extends AbstractType
                 'attr' => ['class' => 'new-client-block'],
             ]);
 
-        // =======================================================
-        // == VALIDATION DANS PRE_SUBMIT (Rendue plus explicite) ==
-        // =======================================================
+        // Ce listener est la clé ! Il se déclenche juste avant la soumission du formulaire.
         $builder->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $event) {
-            $data = $event->getData();
+            $data = $event->getData(); // Données brutes du formulaire (ex: ['choice' => 'new', 'newClient' => ['nom' => 'Test']])
             $form = $event->getForm();
+            
+            // LA LIGNE MAGIQUE : on récupère l'entité Commande du formulaire parent.
+            // C'est pour cela que cette méthode fonctionne parfaitement avec le champ non-mappé.
+            $commande = $form->getParent()->getData();
 
-            // Si $data est null (cas rare), on ne fait rien.
-            if (null === $data) {
+            // Si $commande n'est pas un objet (rare, mais sécurité), on ne fait rien.
+            if (!$commande instanceof \App\Entity\Commande) {
                 return;
             }
 
-            $choice = $data['choice'] ?? 'existing';
-
-            // On cible explicitement le cas du placeholder qui envoie une chaîne vide.
-            $existingClientValue = $data['existingClient'] ?? null;
-            if ($choice === 'existing' && ($existingClientValue === null || $existingClientValue === '')) {
-                $form->get('existingClient')->addError(new FormError('Vous devez sélectionner un client dans la liste.'));
-                // On attache un drapeau pour que le POST_SUBMIT sache que la validation a échoué.
-                $form->addError(new FormError('La sélection du client est invalide.')); // Erreur générale sur le form
-            }
-
-            $newClientName = $data['newClient']['nom'] ?? '';
-            if ($choice === 'new' && empty(trim($newClientName))) {
-                $form->get('newClient')->get('nom')->addError(new FormError('Le nom du nouveau client est obligatoire.'));
-                $form->addError(new FormError('La saisie du nouveau client est invalide.')); // Erreur générale sur le form
-            }
-        });
-
-        // =======================================================
-        // ===== LOGIQUE DANS POST_SUBMIT (Rendue plus sûre) =====
-        // =======================================================
-        $builder->addEventListener(FormEvents::POST_SUBMIT, function(FormEvent $event) {
-            $form = $event->getForm();
-
-            // SÉCURITÉ : Si le formulaire n'est pas valide (à cause du PRE_SUBMIT),
-            // on ne fait absolument rien. Cela empêche d'assigner un client null.
-            if (!$form->isValid()) {
-                return;
-            }
-
-            $devis = $form->getParent()->getData();
-            if (!$devis instanceof Devis) {
-                return;
-            }
-
-            $choice = $form->get('choice')->getData();
-
-            if ($choice === 'existing') {
-                $client = $form->get('existingClient')->getData();
-                if ($client instanceof Client) {
-                    $devis->setClient($client);
+            if (isset($data['choice']) && $data['choice'] === 'existing') {
+                if (!empty($data['existingClient'])) {
+                    $client = $this->entityManager->getRepository(Client::class)->find($data['existingClient']);
+                    $commande->setClient($client); // On modifie directement l'objet Commande
                 }
-            } elseif ($choice === 'new') {
-                $client = $form->get('newClient')->getData();
-                if ($client instanceof Client) {
-                    if ($client->getNom() !== null || $client->getEmail() !== null) {
-                        $this->entityManager->persist($client);
-                        $devis->setClient($client);
-                    }
-                }
+            } elseif (isset($data['choice']) && $data['choice'] === 'new') {
+                $newClientData = $data['newClient'] ?? [];
+                
+                $client = new Client();
+                $client->setNom($newClientData['nom'] ?? null);
+                $client->setEmail($newClientData['email'] ?? null);
+                $client->setTelephone($newClientData['telephone'] ?? null);
+
+                $commande->setClient($client); // On attache le NOUVEAU client à la commande.
+                                               // `cascade={"persist"}` s'occupera de l'enregistrer.
             }
         });
 

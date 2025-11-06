@@ -12,6 +12,9 @@ use Symfony\Component\HttpFoundation\File\File;
 use Vich\UploaderBundle\Mapping\Annotation as Vich;
 use App\Entity\User;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
+use App\Entity\Paiement;
+/*use Doctrine\ORM\Event\PostPersistEventArgs;
+use Doctrine\ORM\Event\PostUpdateEventArgs;*/
 
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -173,6 +176,24 @@ class Commande
 
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $productionStatusUpdatedAt = null;
+
+    #[ORM\Column(type: 'string', length: 50, nullable: true)]
+    private ?string $bonDeCommande = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $methodePaiement = null;
+
+    #[ORM\Column(type: "datetime", nullable: true)]
+    private ?\DateTimeInterface $dateDeLivraisonPartielle = null;
+
+    #[ORM\Column(type: "datetime", nullable: true)]
+    private ?\DateTimeInterface $dateDebut = null;
+
+    #[ORM\Column(type: "datetime", nullable: true)]
+    private ?\DateTimeInterface $dateFin = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $finition = null;
 
     public function __construct()
     {
@@ -509,7 +530,7 @@ class Commande
 
     public function __toString(): string
     {
-        return 'Commande n°' . $this->getId() . ' - ' . ($this->getClient() ? $this->getClient()->getNom() : 'N/A');
+        return 'Commande n°' . $this->getId();
     }
 
     public function addBonsDeLivraison(BonDeLivraison $bonsDeLivraison): static
@@ -531,6 +552,161 @@ class Commande
             }
         }
 
+        return $this;
+    }
+
+    public function getBonDeCommande(): ?string
+    {
+        return $this->bonDeCommande;
+    }
+
+    public function setBonDeCommande(?string $bonDeCommande): static
+    {
+        $this->bonDeCommande = $bonDeCommande;
+
+        return $this;
+    }
+
+    public function getMethodePaiement(): ?string { return $this->methodePaiement; }
+    public function setMethodePaiement(?string $methodePaiement): static { $this->methodePaiement = $methodePaiement; return $this; }
+
+    /**
+    * @param string|null $moyenPaiement Le moyen de paiement (Espèces, CB...)
+    * @param string|null $detailsPaiement Les détails/références du paiement
+    */
+    public function genererPaiementsAutomatiques(?string $referencePaiement = null, ?string $detailsPaiement = null): void
+    {
+        $totalCommande = $this->getTotalAvecFrais();
+        if ($totalCommande <= 0) {
+            return;
+        }
+
+        // On réinitialise les paiements existants pour repartir sur une base propre.
+        // C'est crucial si l'utilisateur change la méthode de paiement.
+        $this->getPaiements()->clear();
+
+        $methode = $this->getMethodePaiement();
+
+        // On crée le ou les paiements en fonction de la méthode choisie
+        switch ($methode) {
+            case '100% commande':
+                $paiement = new Paiement();
+                $paiement->setMontant($totalCommande);
+                $paiement->setDatePaiement(new \DateTime());
+                $paiement->setReferencePaiement($referencePaiement);
+                $paiement->setDetailsPaiement($detailsPaiement);
+                //$paiement->setReferencePaiement('Paiement intégral à la commande');
+                $paiement->setStatut(Paiement::STATUT_EFFECTUE);
+                $this->addPaiement($paiement);
+                break;
+
+            case '50% commande, 50% livraison':
+                $acompte = round($totalCommande * 0.5);
+                $solde = $totalCommande - $acompte;
+
+                // L'acompte, considéré comme payé
+                $paiementAcompte = new Paiement();
+                $paiementAcompte->setMontant($acompte);
+                $paiementAcompte->setDatePaiement(new \DateTime());
+                $paiementAcompte->setReferencePaiement($referencePaiement);
+                $paiementAcompte->setDetailsPaiement($detailsPaiement);
+                //$paiementAcompte->setReferencePaiement('Acompte 50%');
+                $paiementAcompte->setStatut(Paiement::STATUT_EFFECTUE);
+
+                // Le solde, à payer plus tard
+                $paiementSolde = new Paiement();
+                $paiementSolde->setMontant($solde);
+                $paiementSolde->setDatePaiement(new \DateTime());
+                $paiementSolde->setReferencePaiement('Solde 50% à la livraison');
+                $paiementSolde->setStatut(Paiement::STATUT_A_VENIR);
+
+                $this->addPaiement($paiementAcompte);
+                $this->addPaiement($paiementSolde);
+                break;
+            
+            case '100% à la livraison':
+                $paiement = new Paiement();
+                $paiement->setMontant($totalCommande);
+                $paiement->setDatePaiement(new \DateTime());
+                $paiement->setReferencePaiement('Paiement 100% à la livraison');
+                $paiement->setStatut(Paiement::STATUT_A_VENIR);
+                $this->addPaiement($paiement);
+                break;
+
+            case '30 jours après réception de la facture':
+                $paiement = new Paiement();
+                $paiement->setMontant($totalCommande);
+                $paiement->setDatePaiement(new \DateTime());
+                $paiement->setReferencePaiement('Paiement à 30 jours');
+                $paiement->setStatut(Paiement::STATUT_A_VENIR);
+                $this->addPaiement($paiement);
+                break;
+        }
+
+        // On met à jour le statut global de la commande
+        $this->updateStatutPaiement();
+    }
+
+    /**
+     * S'exécute juste avant qu'une NOUVELLE commande soit enregistrée.
+     */
+        #[ORM\PrePersist]
+    public function onPrePersist(): void
+    {
+        $this->setStatusTimestampsOnCreate();
+    }
+
+    #[ORM\PreUpdate]
+    public function onPreUpdate(PreUpdateEventArgs $eventArgs): void
+    {
+        $this->updateStatusTimestampsOnUpdate($eventArgs);
+    }
+
+    // Getter
+    public function getDateDeLivraisonPartielle(): ?\DateTimeInterface
+    {
+        return $this->dateDeLivraisonPartielle;
+    }
+
+    // Setter
+    public function setDateDeLivraisonPartielle(?\DateTimeInterface $dateDeLivraisonPartielle): self
+    {
+        $this->dateDeLivraisonPartielle = $dateDeLivraisonPartielle;
+        return $this;
+    }
+
+    // Getter et Setter pour dateDebut
+    public function getDateDebut(): ?\DateTimeInterface
+    {
+        return $this->dateDebut;
+    }
+
+    public function setDateDebut(?\DateTimeInterface $dateDebut): self
+    {
+        $this->dateDebut = $dateDebut;
+        return $this;
+    }
+
+    // Getter et Setter pour dateFin
+    public function getDateFin(): ?\DateTimeInterface
+    {
+        return $this->dateFin;
+    }
+
+    public function setDateFin(?\DateTimeInterface $dateFin): self
+    {
+        $this->dateFin = $dateFin;
+        return $this;
+    }
+
+    public function getFinition(): ?string
+    {
+        return $this->finition;
+    }
+
+    public function setFinition(?string $finition): static
+    {
+        $this->finition = $finition;
         return $this;
     }
 }

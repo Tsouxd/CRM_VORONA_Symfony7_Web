@@ -8,7 +8,7 @@
         /* --- On reprend le style général de vos devis/factures pour la cohérence --- */
         @import url('https://fonts.googleapis.com/css2?family=Arial&family=Dancing+Script&display=swap');
         html, body { height: 100%; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f0f0f0; font-size: 10pt; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 10pt; }
         .page {width: 18cm; height: 85%; margin: 20 auto; padding: 10mm; box-sizing: border-box; display:flex; flex-direction:column; position:relative; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid black; padding-bottom: 8px; margin-bottom: 12px; gap:12px; }
         .company-info { flex:1 1 auto; }
@@ -36,7 +36,6 @@
         .items-table tbody tr { height: 30px; }
         .placeholder { color: #888; }
         /* Style pour la section de signature */
-        .final-footer { margin-top: auto; padding-top: 40px; display: flex; justify-content: space-between; align-items: flex-end; }
         .signature-box { border: 1px solid #333; padding: 10px; margin-top: 40px; height: 100px; width: 100%; }
         .signature-section { text-align: center; }
         .signature-placeholder { font-family: 'Dancing Script', cursive; font-size: 24pt; height: 60px; }
@@ -78,7 +77,7 @@
 
                         <tr>
                             <td style="font-weight:bold;padding-right:6px;">N° Bon de commande :</td>
-                            <td>{{ bonDeLivraison.commande.id is not null ? '%05d'|format(bonDeLivraison.commande.id) : '#REF!' }}</td>
+                            <td>{{ commande.bonDeCommande is not null ? commande.bonDeCommande : '' }}</td>
                         </tr>
                     </table>
                 </div>
@@ -110,11 +109,11 @@
             <thead>
                 <tr>
                     <th class="col-designation">DESIGNATION</th>
-                    <th class="col-qtt">QUANTITÉ</th>
+                    <th class="col-qtt">QTT</th>
                 </tr>
             </thead>
             <tbody>
-                {# ✅ ÉTAPE 1: On initialise la variable pour le total #}
+                {# ÉTAPE 1: On initialise la variable pour le total #}
                 {% set totalQuantite = 0 %}
 
                 {% for ligne in commande.commandeProduits %}
@@ -129,21 +128,20 @@
                 {% endfor %}
             </tbody>
             
-            {# ✅ ÉTAPE 2: On ajoute un pied de page au tableau pour afficher le total #}
+            {# ÉTAPE 2: On ajoute un pied de page au tableau pour afficher le total #}
             <tfoot>
                 <tr>
-                    <td class="col-designation"><strong>Total des articles</strong></td>
+                    <td class="col-designation"><strong>Total</strong></td>
                     <td class="col-qtt"><strong>{{ totalQuantite }}</strong></td>
                 </tr>
             </tfoot>
         </table>
-
-        <!-- PIED DE PAGE AVEC ZONE DE SIGNATURE -->
-        <div class="final-footer">
-            <div class="signature-box">
-                <p>Signature du Client (précédé de "Lu et approuvé") :</p>
-            </div>
+        <div style="text-align:right;width:100%">
+            <p>Le Responsable</p>
         </div>
+        <p style="margin-top: -30px;">
+            AZERTY
+        </p>
     </div>
 </body>
 </html>

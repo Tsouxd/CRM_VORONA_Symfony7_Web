@@ -1,338 +1,333 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Fiche de Travail - Commande #{{ commande.id }}</title>
-    <style>
-        @page {
-            size: A4;
-            margin: 10mm;
-        }
+  <meta charset="UTF-8" />
+  <title>FICHIER DE TRAVAIL — Feuille de suivi</title>
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% if not aDesPiecesJointes %}
+  {# ========== VERSION PORTRAIT (sans pièce jointe) ========== #}
+  <style>
+    @page { margin: 0; size: A4 portrait; }
+    body { margin: 0; background: #fff; color: #0e0f12; font-family: Helvetica, Arial, sans-serif; font-size: 12.5px; line-height: 1.45; }
 
-        body {
-            font-family: Arial, sans-serif;
-            background: white;
-            width: 210mm;
-            min-height: 297mm;
-            padding: 5mm;
-        }
+    .sheet { padding: 12mm 18mm; box-sizing: border-box; }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            border: 2px solid #000;
-        }
+    /* ===== Typo ===== */
+    .title { font-size: 21px; font-weight: bold; }
+    .subtitle { font-size: 12px; color: #505868; margin-top: 2px; }
+    h3 { margin: 0 0 10px; font-size: 13px; font-weight: bold; text-transform: uppercase; color: #111826; }
+    label { display: block; font-size: 10.5px; text-transform: uppercase; color: #303846; margin-bottom: 3px; }
 
-        td {
-            border: 2px solid #000;
-            padding: 4px 6px;
-            vertical-align: middle;
-            font-size: 11px;
-        }
+    /* ===== Header ===== */
+    .header-table { width: 100%; border-spacing: 0; margin-bottom: 12px; }
+    .header-table td { vertical-align: middle; }
+    .brand-table { border-spacing: 0; }
+    .brand-table td { vertical-align: middle; padding: 0; }
+    .logo { width: 44px; height: 44px; border-radius: 12px; background: #0ea5e9; margin-right: 12px; }
+    .logo img { max-width: 150px; max-height: 50px; }
 
-        .no-border {
-            border: none !important;
-        }
+    /* ===== Section ===== */
+    .section { border: 1px solid #e8ebef; border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #fff; }
+    .section--tinted { background: #f8fafc; }
 
-        .center {
-            text-align: center;
-        }
+    /* ===== Grilles ===== */
+    .layout-grid { width: 100%; border-collapse: separate; border-spacing: 10px 8px; }
+    .layout-grid td { vertical-align: top; padding: 0; }
+    .layout-grid .g-2 td { width: 50%; }
+    .layout-grid .g-3 td { width: 33.33%; }
+    .layout-grid .g-4 td { width: 25%; }
+    .nested-grid { width: 100%; border-spacing: 10px 0; }
+    .nested-grid td { width: 50%; padding: 0; }
 
-        .middle {
-            vertical-align: middle !important;
-        }
+    /* ===== Form fields ===== */
+    .form-field { width: 100%; height: 34px; padding: 6px 10px; border: 1px solid #dde1e6; border-radius: 8px; background: #fff; font-size: 12.5px; box-sizing: border-box; line-height: 20px; }
+    .form-field-textarea { height: 80px; }
 
-        .logo {
-            max-width: 60px;
-            height: auto;
-        }
+    /* ===== Chips ===== */
+    .chips { margin-bottom: 10px; line-height: 1.8; }
+    .chip { display: inline-block; margin-right: 6px; margin-bottom: 6px; background: #f5f7fa; border: 1px solid #e8ebef; padding: 5px 10px; border-radius: 999px; font-size: 11px; }
 
-        .black-header {
-            background-color: black;
-            color: white;
-            font-weight: bold;
-            text-align: center;
-            padding: 6px;
-            font-size: 11px;
-            text-transform: uppercase;
-        }
+    /* ===== Tableau ===== */
+    table#items { width: 100%; border-collapse: separate; border-spacing: 0; }
+    #items thead th { font-size: 10.5px; text-transform: uppercase; text-align: left; color: #303846; background: #f4f7fb; }
+    #items th, #items td { border: 1px solid #e8ebef; padding: 6px 8px; vertical-align: middle; }
+    #items tbody td { height: 26px; }
 
-        .airtable-num {
-            background-color: black;
-            color: white;
-            font-weight: bold;
-            text-align: center;
-            font-size: 32px;
-            padding: 8px;
-            letter-spacing: 2px;
-        }
+    /* ===== Footer / Signatures ===== */
+    .footer-table { width: 100%; border-collapse: separate; border-spacing: 14px 0; margin-top: 12px; }
+    .footer-table td { width: 33.33%; }
+    .sign { border: 1px dashed #cccccc; border-radius: 10px; padding: 10px; height: 50px; }
+    .sign .label { font-size: 11px; color: #6b7280; }
+  </style>
 
-        .label {
-            font-weight: bold;
-            font-size: 10px;
-            text-transform: uppercase;
-            padding: 4px 6px;
-        }
+{% else %}
+  {# ========== VERSION PAYSAGE (avec pièce jointe) ========== #}
+  <style>
+    @page { margin: 0; size: A4 landscape; }
+    body { margin: 0; background: #fff; color: #0e0f12; font-family: Helvetica, Arial, sans-serif; font-size: 7px; line-height: 1.15; }
 
-        .label-gray {
-            background-color: #e0e0e0;
-        }
+    .sheet { padding: 4mm 6mm; box-sizing: border-box; width: 100%; }
 
-        .small-label {
-            font-size: 9px;
-            font-weight: normal;
-        }
+    /* ===== Layout principal ===== */
+    .main-container { display: table; width: 100%; table-layout: fixed; }
+    .column-left { display: table-cell; width: 58%; vertical-align: top; padding-right: 6px; }
+    .column-right { display: table-cell; width: 40%; vertical-align: top; padding-left: 6px; }
 
-        .quantity-label {
-            background-color: black;
-            color: white;
-            font-weight: bold;
-            text-align: center;
-            font-size: 12px;
-            padding: 6px;
-            text-transform: uppercase;
-        }
+    /* ===== Typo ===== */
+    .title { font-size: 12px; font-weight: bold; }
+    .subtitle { font-size: 7px; color: #505868; margin-top: 1px; }
+    h3 { margin: 0 0 3px; font-size: 8px; font-weight: bold; text-transform: uppercase; color: #111826; }
+    label { display: block; font-size: 6.5px; text-transform: uppercase; color: #303846; margin-bottom: 1px; }
 
-        .quantity-value {
-            text-align: center;
-            font-size: 36px;
-            font-weight: bold;
-            padding: 8px;
-        }
+    /* ===== Header ===== */
+    .header-table { width: 100%; border-spacing: 0; margin-bottom: 4px; }
+    .header-table td { vertical-align: middle; }
+    .brand-table { border-spacing: 0; }
+    .brand-table td { vertical-align: middle; padding: 0; }
+    .logo { width: 24px; height: 24px; border-radius: 6px; background: #0ea5e9; margin-right: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-        .checkbox-label {
-            font-size: 10px;
-            padding: 3px;
-        }
+    /* ===== Section ===== */
+    .section { border: 1px solid #e8ebef; border-radius: 5px; padding: 4px; margin-bottom: 4px; background: #fff; }
+    .section--tinted { background: #f8fafc; }
 
-        .product-name {
-            font-size: 16px;
-            text-align: center;
-            font-weight: bold;
-            padding: 8px 0;
-            text-transform: uppercase;
-        }
+    /* ===== Grilles ===== */
+    .layout-grid { width: 100%; border-collapse: separate; border-spacing: 3px 2px; }
+    .layout-grid td { vertical-align: top; padding: 0; }
+    .layout-grid .g-2 td { width: 50%; }
+    .layout-grid .g-3 td { width: 33.33%; }
+    .layout-grid .g-4 td { width: 25%; }
+    .nested-grid { width: 100%; border-spacing: 3px 0; }
+    .nested-grid td { width: 50%; padding: 0; }
 
-        /* Tableau imbriqué */
-        table table {
-            border: none;
-            margin: 0;
-        }
+    /* ===== Form fields ===== */
+    .form-field { 
+        width: 100%; 
+        height: 20px; 
+        padding: 2px 4px; 
+        border: 1px solid #dde1e6; 
+        border-radius: 3px; 
+        background: #fff; 
+        font-size: 7px; 
+        box-sizing: border-box; 
+        line-height: 15px; 
+        overflow: hidden; 
+        text-overflow: ellipsis; 
+        white-space: nowrap; 
+    }
+    .form-field-textarea { height: 35px; white-space: normal; }
 
-        table table td {
-            border: 2px solid #000;
-        }
+    /* ===== Chips ===== */
+    .chips { margin-bottom: 3px; line-height: 1.4; }
+    .chip { 
+        display: inline-block; 
+        margin-right: 2px; 
+        margin-bottom: 2px; 
+        background: #f5f7fa; 
+        border: 1px solid #e8ebef; 
+        padding: 1px 4px; 
+        border-radius: 999px; 
+        font-size: 6px; 
+    }
 
-        /* Hauteurs spécifiques */
-        .row-small {
-            height: 25px;
-        }
+    /* ===== Tableau ===== */
+    table#items { width: 100%; border-collapse: separate; border-spacing: 0; }
+    #items thead th { 
+        font-size: 6.5px; 
+        text-transform: uppercase; 
+        text-align: left; 
+        color: #303846; 
+        background: #f4f7fb; 
+    }
+    #items th, #items td { 
+        border: 1px solid #e8ebef; 
+        padding: 2px 3px; 
+        vertical-align: middle; 
+        font-size: 7px;
+    }
+    #items tbody td { height: 16px; }
 
-        .row-medium {
-            height: 35px;
-        }
+    /* ===== Footer / Signatures ===== */
+    .footer-table { width: 100%; border-collapse: separate; border-spacing: 4px 0; margin-top: 4px; }
+    .footer-table td { width: 33.33%; }
+    .sign { border: 1px dashed #cccccc; border-radius: 5px; padding: 4px; height: 25px; }
+    .sign .label { font-size: 6.5px; color: #6b7280; }
 
-        .row-large {
-            height: 50px;
-        }
+    /* ===== Colonne pièces jointes ===== */
+    .attachments { 
+        width: 100%; 
+        height: 100%; 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: flex-start; 
+        align-items: center; 
+    }
+    .attachments img { 
+        width: 100%; 
+        max-height: 270px; 
+        object-fit: contain; 
+        border: 1px solid #ccc; 
+        border-radius: 5px; 
+        margin-bottom: 5px; 
+        display: block; 
+    }
+  </style>
+{% endif %}
 
-        /* Espacement entre tableaux */
-        .mt-neg {
-            margin-top: -2px;
-        }
-
-        .mt-small {
-            margin-top: 3px;
-        }
-
-        @media print {
-            body {
-                padding: 0;
-            }
-        }
-
-        .checkbox {
-            display: inline-block; /* Important pour que width/height fonctionnent */
-            width: 10px;
-            height: 10px;
-            border: 1px solid #000;
-            margin-right: 5px; /* Espace entre le carré et le texte */
-            vertical-align: middle; /* Pour bien aligner avec le texte */
-            color: transparent; /* Pour masquer le texte à l'intérieur du carré */
-        }
-
-        .page-break {
-            page-break-before: always;
-        }
-
-        .attachment-image {
-            max-width: 100%;
-            max-height: 95%; /* Pour s'assurer qu'elle ne dépasse pas de la page */
-            object-fit: contain;
-        }
-    </style>
 </head>
 <body>
-    {# On calcule la quantité totale avant d'afficher la page #}
-    {% set quantiteTotale = 0 %}
-    {% for ligne in commande.commandeProduits %}
-        {% set quantiteTotale = quantiteTotale + ligne.quantite %}
-    {% endfor %}
+<main class="sheet" role="document">
+  {% if aDesPiecesJointes %}
+  <div class="main-container">
+  {% endif %}
+  
+    <!-- Colonne gauche: fiche -->
+    {% if aDesPiecesJointes %}<div class="column-left">{% endif %}
+    
+    <!-- Header -->
+    <header>
+      <table class="header-table">
+        <tr>
+          <td>
+            <table class="brand-table">
+              <tr>
+                <td>
+                    <div class="logo">
+                        {% if logo %}
+                            <img src="{{ logo }}" alt="Logo">
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                  <div class="title">FICHIER DE TRAVAIL</div>
+                  <div class="subtitle">Feuille de suivi de production</div>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </header>
 
-    <!-- TABLEAU 1 : Logo et Numéro de commande -->
-    <table>
+    <!-- Section: Commande -->
+    <section class="section section--tinted">
+      <h3>Commande</h3>
+      <table class="layout-grid g-4">
         <tr>
-            <td style="width: 15%;" class="center middle no-border">
-                <img src="{{ logo }}" alt="Logo" class="logo">
-            </td>
-            <td style="width: 25%;" class="no-border"></td>
-            <td style="width: 30%;" class="black-header middle">Numéro de la fiche</td>
-            <td style="width: 30%;" class="airtable-num">{{ commande.id }}</td>
+          <td><label>N° Commande</label><div class="form-field">{{ commande.id }}</div></td>
+          <td><label>Date</label><div class="form-field">{{ commande.dateCommande ? commande.dateCommande|date('d/m/Y') : '' }}</div></td>
+          <td><label>Heure</label><div class="form-field">{{ commande.dateCommande ? commande.dateCommande|date('H:i') : '' }}</div></td>
+          <td><label>Client</label><div class="form-field">{{ commande.client ? commande.client.nom : '' }}</div></td>
         </tr>
-    </table>
+        <tr>
+          <td><label>BAT</label><div class="form-field">{{ commande.paoBatValidation }}</div></td>
+          <td><label>Livraison</label><div class="form-field">{{ commande.dateDeLivraison ? commande.dateDeLivraison|date('d/m/Y') : '' }}</div></td>
+          <td><label>Livraison partielle</label><div class="form-field">{{ commande.dateDeLivraisonPartielle ? commande.dateDeLivraisonPartielle|date('d/m/Y') : '' }}</div></td>
+          <td><label>Quantité</label><div class="form-field">{{ quantiteTotale }}</div></td>
+        </tr>
+      </table>
+    </section>
 
-    <!-- TABLEAU 2 : Infos Client et Livraison -->
-    <table class="mt-neg">
-        <tr class="row-small">
-            <td style="width: 12%;">Date</td>
-            <td style="width: 28%;">{{ commande.dateCommande|date('d/m/Y') }}</td>
-            <td style="width: 20%;">BAT</td>
-            <td style="width: 20%;">Date</td>
-            <td style="width: 20%;">Heure</td>
+    <!-- Section: Production -->
+    <section class="section">
+      <h3>Production</h3>
+      <table class="layout-grid g-4">
+        <tr>
+          <td><label>Responsable</label><div class="form-field">{{ commande.commercial ? commande.commercial.username : '' }}</div></td>
+          <td><label>PAO</label><div class="form-field">{{ commande.pao ? commande.pao.username : '' }}</div></td>
+          <td>
+              <label>Production (atelier)</label>
+              <div class="form-field">
+                  {% for ligne in commande.commandeProduits %}
+                      {{ ligne.produit.nom }}{% if not loop.last %}, {% endif %}
+                  {% endfor %}
+              </div>
+          </td>
+          <td><label>Finition</label><div class="form-field">{{ commande.finition ?: '' }}</div></td>
         </tr>
-        <tr class="row-small">
-            <td>Client</td>
-            <td>{{ commande.client ? commande.client.nom : 'N/A' }}</td>
-            <td>Livraison</td>
-            <td></td>
-            <td></td>
-        </tr>
-        <tr class="row-small">
-            <td>Tel</td>
-            <td>{{ commande.client ? commande.client.telephone : 'N/A' }}</td>
-            <td>Livraison Partiel</td>
-            <td></td>
-            <td></td>
-        </tr>
-    </table>
+      </table>
 
-    <!-- TABLEAU 3 : Quantité -->
-    <table class="mt-small">
+      <table class="layout-grid g-3">
         <tr>
-            <td style="width: 20%;" class="quantity-label middle">Quantité</td>
-            <td style="width: 80%;" class="quantity-value">{{ quantiteTotale }}</td>
+          <td>
+            <label>Date début / Heure début</label>
+            <table class="nested-grid">
+              <tr>
+                <td><div class="form-field">{{ commande.dateDebut ? commande.dateDebut|date('d/m/Y') : '' }}</div></td>
+                <td><div class="form-field">{{ commande.dateDebut ? commande.dateDebut|date('H:i') : '' }}</div></td>
+              </tr>
+            </table>
+          </td>
+          <td>
+            <label>Date fin / Heure fin</label>
+            <table class="nested-grid">
+              <tr>
+                <td><div class="form-field">{{ commande.dateFin ? commande.dateFin|date('d/m/Y') : '' }}</div></td>
+                <td><div class="form-field">{{ commande.dateFin ? commande.dateFin|date('H:i') : '' }}</div></td>
+              </tr>
+            </table>
+          </td>
+          <td><label>Catégorie produits</label><div class="form-field">{{ commande.categorie }}</div></td>
         </tr>
-    </table>
+      </table>
 
-    <!-- TABLEAU 4 : Production et Responsables -->
-    <table class="mt-small">
-        <tr class="row-small">
-            <td style="width: 20%;" class="black-header"></td>
-            <td style="width: 20%;" class="black-header"></td>
-            <td colspan="2" class="black-header">Production</td>
-        </tr>
-        <tr class="row-small">
-            <td class="black-header"></td>
-            <td class="black-header">Responsable</td>
-            <td style="width: 30%;" class="black-header">Date début / Heure début</td>
-            <td style="width: 30%;" class="black-header">Date fin / Heure fin</td>
-        </tr>
-        <tr class="row-medium">
-            <td class="label">PAO</td>
-            <td>{{ commande.pao ? commande.pao.username : '' }}</td>
-            <td></td>
-            <td></td>
-        </tr>
-        <tr class="row-medium">
-            <td class="label">Production</td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>
-        <tr class="row-medium">
-            <td class="label">Finition</td>
-            <td></td>
-            <td></td>
-            <td></td>
-        </tr>
-    </table>
+      <div style="margin-top: {% if aDesPiecesJointes %}4px{% else %}8px{% endif %};">
+        <label>Détails</label>
+        <div class="form-field form-field-textarea">{{ commande.description }}</div>
+      </div>
+    </section>
 
-    <!-- TABLEAU 5 : Catégorie / Produits -->
-    <table class="mt-small">
-        <tr>
-            <td style="width: 50%;" class="black-header">Catégorie</td>
-            <td style="width: 50%;" class="black-header">Produits</td>
-        </tr>
-        <tr>
-            <td colspan="2" class="product-name">
-                {# On affiche le nom de tous les produits, séparés par une virgule #}
-                {{ commande.commandeProduits|map(p => p.produit.nom)|join(', ')|upper }}
-            </td>
-        </tr>
-    </table>
+    <!-- Section: Impression & Fournitures -->
+    <section class="section section--tinted">
+      <h3>Impression & Fournitures</h3>
+      <div class="chips">
+        <span class="chip">Accessoires / Supports</span>
+        <span class="chip">Papier</span>
+        <span class="chip">Dimension</span>
+        <span class="chip">Texture</span>
+        <span class="chip">Couleur</span>
+        <span class="chip">Plexi / Bois</span>
+        <span class="chip">Quantité</span>
+      </div>
+      <table id="items">
+        <thead>
+          <tr><th>Accessoires / Supports</th><th>Papier</th><th>Dimension</th><th>Texture</th><th>Couleur</th><th>Plexi / Bois</th><th>Qté</th></tr>
+        </thead>
+        <tbody>
+          {% for i in 1..3 %}
+          <tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
 
-    <!-- TABLEAU 6 : Détails -->
-    <table class="mt-small">
+    <!-- Footer / Signatures -->
+    <footer>
+      <table class="footer-table">
         <tr>
-            <td class="black-header">Détails</td>
+          <td><div class="sign"><div class="label">Signature Responsable</div></div></td>
+          <td><div class="sign"><div class="label">Signature PAO</div></div></td>
+          <td><div class="sign"><div class="label">Signature Production</div></div></td>
         </tr>
-        <tr>
-            <td style="height: 35px; vertical-align: top;">{{ commande.description }}</td>
-        </tr>
-    </table>
+      </table>
+    </footer>
+    
+    {% if aDesPiecesJointes %}</div>{% endif %} <!-- FIN .column-left -->
 
-    <!-- TABLEAU 7 : Impression & Fourniture -->
-    <table class="mt-small">
-        <tr>
-            <td colspan="5" class="black-header">Impression & Fourniture</td>
-        </tr>
-        <tr class="row-small">
-            <td style="width: 15%;" class="label center">Accessoires</td>
-            <td style="width: 15%;" class="label center">Quantité</td>
-            <td colspan="3" class="label center">Support</td>
-        </tr>
-        <tr class="row-small">
-            <td rowspan="4"></td>
-            <td rowspan="4"></td>
-            <td style="width: 16.6%;" class="center checkbox-label">
-                Papier <span class="checkbox"></span>
-            </td>
-            <td style="width: 16.6%;" class="center checkbox-label">
-                PLexy <span class="checkbox"></span>
-            </td>
-            <td style="width: 16.6%;" class="center checkbox-label">
-                Bois <span class="checkbox"></span>
-            </td>
-        </tr>
-        <tr>
-            <td colspan="3" class="black-header">Dimension</td>
-        </tr>
-        <tr>
-            <td colspan="3" class="black-header">Texture</td>
-        </tr>
-        <tr>
-            <td colspan="3" class="black-header">Couleur</td>
-        </tr>
-        <tr style="height: 30px;">
-            <td class="center" style="vertical-align: middle;">Papier</td>
-            <td></td>
-            <td colspan="3"></td>
-        </tr>
-    </table>
-
-    {% if piece_jointe_base64 is not null %}
-        <div class="page-break">
-            <h2 style="text-align: center; margin-bottom: 20px;">Pièce Jointe - Commande #{{ commande.id }}</h2>
-            <div style="text-align: center;">
-                <img src="{{ piece_jointe_base64 }}" alt="Pièce Jointe" class="attachment-image">
-            </div>
-        </div>
+    <!-- Colonne droite: pièces jointes -->
+    {% if aDesPiecesJointes %}
+    <div class="column-right">
+      <div class="attachments">
+        {% for image in pieces_jointes %}
+          <img src="{{ image }}" alt="Pièce jointe {{ loop.index }}">
+        {% endfor %}
+      </div>
+    </div>
     {% endif %}
+
+  {% if aDesPiecesJointes %}
+  </div> <!-- FIN .main-container -->
+  {% endif %}
+</main>
 </body>
 </html>

@@ -225,7 +225,7 @@ class PaoDashboardController extends AbstractDashboardController
     {
         return Dashboard::new()
             ->setTitle('<div style="text-align:center;">
-                            <img src="/utils/logo/forever-removebg-preview.png" alt="Forever Logo" width="130" height="100">
+                            <img src="/utils/logo/Fichier 11.png" alt="Forever Logo" width="120" height="80">
                         </div>');
     }
 
@@ -249,9 +249,6 @@ class PaoDashboardController extends AbstractDashboardController
 
         // On initialise le compteur
         $paoCommandesCount = 0;
-        
-        // On récupère l'utilisateur connecté
-        $user = $this->getUser();
 
         // Si l'utilisateur est un ADMIN, il voit le total de toutes les commandes.
         if ($this->isGranted('ROLE_ADMIN')) {

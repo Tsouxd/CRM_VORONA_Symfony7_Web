@@ -320,7 +320,7 @@ class DashboardController extends AbstractDashboardController
     {
         return Dashboard::new()
             ->setTitle('<div style="text-align:center;">
-                            <img src="/utils/logo/forever-removebg-preview.png" alt="Forever Logo" width="130" height="100">
+                            <img src="/utils/logo/Fichier 11.png" alt="Forever Logo" width="120" height="80">
                         </div>');
     }
 

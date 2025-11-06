@@ -8,7 +8,7 @@
         /* --- COPIER/COLLER EXACTEMENT LE MÊME BLOC <style> QUE CELUI DU DEVIS --- */
         @import url('https://fonts.googleapis.com/css2?family=Arial&family=Dancing+Script&display=swap');
         html, body { height: 100%; margin: 0; padding: 0; }
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f0f0f0; font-size: 10pt; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 10pt; }
         .page {width: 18cm; height: 85%; margin: 20 auto; padding: 10mm; box-sizing: border-box; display:flex; flex-direction:column; position:relative; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid black; padding-bottom: 8px; margin-bottom: 12px; gap:12px; }
         .company-info { flex:1 1 auto; }
@@ -87,7 +87,7 @@
                         <tr>
                             <td style="font-weight:bold;padding-right:6px;">N° Bon de commande :</td>
                             {# Puisqu'on est dans le 'if', on est sûr que la commande existe, pas besoin de test supplémentaire #}
-                            <td>{{ '%05d'|format(facture.commande.id) }}</td>
+                            <td>{{ facture.commande.bonDeCommande }}</td>
                         </tr>
                     {% endif %}
                     </table>
@@ -107,14 +107,19 @@
         <div class="client-info">
             <table>
                 <tr><td>DOIT :</td><td></td></tr>
-                <tr><td>CLIENT :</td><td>{{ facture.client ? facture.client.nom : '#REF!' }}</td></tr>
+                <tr><td>CLIENT :</td><td>{{ facture.client ? facture.client.nom : '' }}</td></tr>
 
                 {% if facture.client and facture.client.type == 'professionnel' %}
                     <tr><td>NIF :</td><td>{{ facture.client.nif }}</td></tr>
                     <tr><td>STAT :</td><td>{{ facture.client.stat }}</td></tr>
+                    <tr><td>ADRESSE :</td><td>{{ facture.client.adresse }}</td></tr>
                 {% endif %}
 
-                <tr><td>CONTACT :</td><td>{{ facture.client ? facture.client.telephone : '#REF!' }}</td></tr>
+                {% if facture.client and facture.client.type == 'particulier' %}
+                    <tr><td>ADRESSE :</td><td>{{ facture.client.adresseLivraison }}</td></tr>
+                {% endif %}
+
+                <tr><td>CONTACT :</td><td>{{ facture.client ? facture.client.telephone : '' }}</td></tr>
             </table>
         </div>
 
@@ -193,12 +198,8 @@
             </div>
 
             <div style="text-align:right;width:100%">
-                <div class="signature-placeholder">Cachet et Signature</div>
                 <p>Le Responsable</p>
             </div>
-
-            <p style="margin-top: -30px;">
-                {{ facture.client ? facture.client.nom : '#REF!' }}
             </p>
         </div>
     </div>

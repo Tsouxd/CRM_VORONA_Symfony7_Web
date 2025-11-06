@@ -8,12 +8,18 @@ use Doctrine\ORM\Mapping as ORM;
 use App\Entity\User; 
 
 #[ORM\Entity(repositoryClass: DevisRepository::class)]
+#[ORM\HasLifecycleCallbacks]
 class Devis
 {
     public const STATUT_ENVOYE = 'Envoyé';
     public const STATUT_BAT_PRODUCTION = 'BAT/Production';
     public const STATUT_RELANCE = 'Relance';
     public const STATUT_PERDU = 'Perdu';
+
+    public const METHODE_100_COMMANDE = '100% commande';
+    public const METHODE_50_50 = '50% commande, 50% livraison';
+    public const METHODE_100_LIVRAISON = '100% livraison';
+    public const METHODE_30_JOURS = '30 jours fin de mois';
 
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -159,10 +165,42 @@ class Devis
         return $this->getTotalBrut() - $this->getAcompte();
     }
 
+    public function calculerAcompteAutomatique(): void
+    {
+        $total = $this->getTotalBrut();
+        $methode = $this->getMethodePaiement();
+        $nouvelAcompte = 0.0;
+
+        switch ($methode) {
+            case self::METHODE_100_COMMANDE: // Utilisation de la constante
+                $nouvelAcompte = $total;
+                break;
+            case self::METHODE_50_50: // Utilisation de la constante
+                $nouvelAcompte = $total * 0.5;
+                break;
+            // Pour tous les autres cas, l'acompte est de 0
+            case self::METHODE_100_LIVRAISON:
+            case self::METHODE_30_JOURS:
+            default:
+                $nouvelAcompte = 0.0;
+                break;
+        }
+
+        $this->setAcompte($nouvelAcompte);
+    }
+    
+    // Vous pouvez garder ce callback, il ne fait pas de mal et fonctionnera en EDIT
+    #[ORM\PrePersist]
+    #[ORM\PreUpdate]
+    public function onPrePersistOrUpdate(): void
+    {
+        $this->calculerAcompteAutomatique();
+    }
+
     public function __toString(): string
     {
-        $clientName = $this->client ? $this->client->getNom() : 'Client inconnu';
-        $total = number_format($this->getTotalBrut(), 2, '.', '');
-        return sprintf('Devis #%d - Client: %s - Total: %s', $this->id ?? 0, $clientName, $total);
+        //$clientName = $this->client ? $this->client->getNom() : 'Client inconnu';
+        //$total = $this->getTotalBrut();
+        return sprintf('Devis n°%d', $this->id ?? 0);
     }
 }

@@ -48,6 +48,7 @@ class ProduitCrudController extends AbstractCrudController
             IdField::new('id')->hideOnForm(),
             TextField::new('nom', 'Nom du produit'),
             AssociationField::new('fournisseur', 'Fournisseur')
+                ->hideOnIndex()
                 ->autocomplete()
                 ->setFormTypeOption('required', false),
 
