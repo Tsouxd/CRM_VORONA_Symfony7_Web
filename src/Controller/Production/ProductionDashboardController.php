@@ -43,21 +43,41 @@ class ProductionDashboardController extends AbstractDashboardController
         $startOfDay = (new \DateTimeImmutable('today'))->setTime(0, 0, 0);
         $startOfTomorrow = $startOfDay->modify('+1 day');
 
+        $user = $this->getUser();
+
         $worksPendingCount = (int) $this->commandeRepository
-            ->createQueryBuilder('c')->select('COUNT(c.id)')->where('c.statutProduction = :status')
-            ->setParameter('status', Commande::STATUT_PRODUCTION_ATTENTE)->getQuery()->getSingleScalarResult();
+            ->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.statutProduction = :status')
+            ->andWhere('c.production = :user')
+            ->setParameter('status', Commande::STATUT_PRODUCTION_ATTENTE)
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
 
         $workInProgressCount = (int) $this->commandeRepository
-            ->createQueryBuilder('c')->select('COUNT(c.id)')->where('c.statutProduction = :status')
-            ->setParameter('status', Commande::STATUT_PRODUCTION_EN_COURS)->getQuery()->getSingleScalarResult();
+            ->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.statutProduction = :status')
+            ->andWhere('c.production = :user')
+            ->setParameter('status', Commande::STATUT_PRODUCTION_EN_COURS)
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
 
         $workFinishedToday = (int) $this->commandeRepository
-            ->createQueryBuilder('c')->select('COUNT(c.id)')->where('c.statutProduction = :status')
+            ->createQueryBuilder('c')
+            ->select('COUNT(c.id)')
+            ->where('c.statutProduction = :status')
+            ->andWhere('c.production = :user')
             ->andWhere('c.productionStatusUpdatedAt >= :start AND c.productionStatusUpdatedAt < :next')
             ->setParameter('status', Commande::STATUT_PRODUCTION_POUR_LIVRAISON)
-            ->setParameter('start', new \DateTime($startOfDay->format('Y-m-d H:i:s')))
-            ->setParameter('next', new \DateTime($startOfTomorrow->format('Y-m-d H:i:s')))
-            ->getQuery()->getSingleScalarResult();
+            ->setParameter('start', $startOfDay)
+            ->setParameter('next', $startOfTomorrow)
+            ->setParameter('user', $user)
+            ->getQuery()
+            ->getSingleScalarResult();
+
 
         // =====================================================================
         // 2. NOUVEAU : GESTION DE LA RECHERCHE PAR DATE POUR LA LISTE
@@ -88,13 +108,16 @@ class ProductionDashboardController extends AbstractDashboardController
         $finishedCommandsInRange = $this->commandeRepository
             ->createQueryBuilder('c')
             ->where('c.statutProduction = :status')
+            ->andWhere('c.production = :user')
             ->andWhere('c.productionStatusUpdatedAt BETWEEN :start AND :end')
             ->setParameter('status', Commande::STATUT_PRODUCTION_POUR_LIVRAISON)
+            ->setParameter('user', $user)
             ->setParameter('start', $dateStart)
             ->setParameter('end', $dateEnd)
-            ->orderBy('c.productionStatusUpdatedAt', 'DESC') // Les plus récents en premier
+            ->orderBy('c.productionStatusUpdatedAt', 'DESC')
             ->getQuery()
             ->getResult();
+
 
         // =====================================================================
         // 3. LISTE DES TRAVAUX DÉJÀ LIVRÉS (logique inchangée)
@@ -102,7 +125,9 @@ class ProductionDashboardController extends AbstractDashboardController
         $deliveredCommands = $this->commandeRepository
             ->createQueryBuilder('c')
             ->where('c.statutLivraison = :livree')
+            ->andWhere('c.production = :user')
             ->setParameter('livree', Commande::STATUT_LIVRAISON_LIVREE)
+            ->setParameter('user', $user)
             ->orderBy('c.dateDeLivraison', 'DESC')
             ->getQuery()
             ->getResult();
