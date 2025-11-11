@@ -32,7 +32,7 @@ class Paiement
     private ?ArretDeCaisse $arretDeCaisse = null;
 
     #[ORM\ManyToOne(targetEntity: Commande::class, inversedBy: 'paiements')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: "CASCADE")]
     private ?Commande $commande = null;
 
     #[ORM\Column(type: 'string', length: 100, nullable: true)]

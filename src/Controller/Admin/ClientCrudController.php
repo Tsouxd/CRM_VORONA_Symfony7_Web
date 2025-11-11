@@ -57,6 +57,7 @@ class ClientCrudController extends AbstractCrudController
     {
         // --- Panneau Informations Générales ---
         yield FormField::addPanel('Informations Générales');
+        yield IdField::new('id')->onlyOnIndex();
         yield TextField::new('nom', 'Nom du client');
         yield TextField::new('provenance', 'Provenance')->setRequired(false);
         yield EmailField::new('email', 'Adresse e-mail');
@@ -82,8 +83,6 @@ class ClientCrudController extends AbstractCrudController
                 'title' => 'Entrez un numéro à 10 chiffres.'
             ],
         ]);
-
-        yield IdField::new('id')->onlyOnIndex();
 
         // --- Champ de choix du Type ---
         yield TextField::new('type')->onlyOnIndex();

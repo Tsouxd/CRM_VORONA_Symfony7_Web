@@ -6,6 +6,7 @@ use App\Entity\Commande;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use App\Entity\User;
+use App\Entity\Paiement;
 
 class CommandeRepository extends ServiceEntityRepository
 {
@@ -376,4 +377,75 @@ class CommandeRepository extends ServiceEntityRepository
         return $groupedCommands;
     }
 
+    public function findForComptableDashboard(array $filters = []): array
+    {
+        $qb = $this->createQueryBuilder('c')
+            // Jointures nécessaires
+            ->leftJoin('c.client', 'client')
+            ->leftJoin('c.commandeProduits', 'cp')
+            ->leftJoin('cp.produit', 'prod')
+            ->leftJoin('c.paiements', 'p', 'WITH', 'p.statut = :statutEffectue')
+
+            // On sélectionne l'entité principale d'abord
+            ->select('c')
+
+            // On ajoute des parenthèses autour du calcul complet pour lever l'ambiguïté
+            ->addSelect('(COALESCE(SUM(cp.quantite * prod.prix), 0) + c.fraisLivraison) as totalCommande')
+            // =========================================================================
+            
+            ->addSelect('COALESCE(SUM(p.montant), 0) as montantPaye')
+            
+            ->where('c.statut != :statutAnnulee')
+            ->groupBy('c.id, client.id')
+            ->orderBy('c.dateCommande', 'DESC')
+            
+            ->setParameter('statutEffectue', Paiement::STATUT_EFFECTUE)
+            ->setParameter('statutAnnulee', 'annulée');
+
+        
+        // Les filtres ne changent pas
+        if (!empty($filters['client'])) {
+            $qb->andWhere('client.id = :clientId')->setParameter('clientId', $filters['client']);
+        }
+        if (!empty($filters['date_debut'])) {
+            $qb->andWhere('c.dateCommande >= :dateDebut')->setParameter('dateDebut', $filters['date_debut']);
+        }
+        if (!empty($filters['date_fin'])) {
+             $dateFin = new \DateTime($filters['date_fin']);
+             $dateFin->modify('+1 day');
+             $qb->andWhere('c.dateCommande < :dateFin')->setParameter('dateFin', $dateFin);
+        }
+        if (!empty($filters['statut'])) {
+            $qb->andWhere('c.statutComptable = :statut')->setParameter('statut', $filters['statut']);
+        }
+        if (!empty($filters['non_solde'])) {
+            // ON APPLIQUE LA MÊME CORRECTION DANS LA CLAUSE HAVING
+            $qb->having('(COALESCE(SUM(cp.quantite * prod.prix), 0) + c.fraisLivraison) > COALESCE(SUM(p.montant), 0)');
+        }
+
+        $result = $qb->getQuery()->getResult();
+
+        // Le contrôleur s'attend à un format spécifique, nous allons le garantir
+        return array_map(function($row) {
+            return [
+                0 => $row[0], // L'objet Commande
+                'commande' => $row[0], // Pour la lisibilité (optionnel)
+                'totalCommande' => $row['totalCommande'],
+                'montantPaye' => $row['montantPaye'],
+            ];
+        }, $result);
+    }
+
+    public function findCommandesEchuesNonPayees(): array
+    {
+        return $this->createQueryBuilder('c')
+            ->where('c.dateEcheance IS NOT NULL') // Il faut une date d'échéance
+            ->andWhere('c.dateEcheance < :aujourdhui') // Dont la date est passée
+            // Qui ne sont ni PAYE, ni RECOUVREMENT
+            ->andWhere('c.statutComptable IN (:statuts)')
+            ->setParameter('aujourdhui', new \DateTimeImmutable('today'))
+            ->setParameter('statuts', [Commande::STATUT_COMPTABLE_ATTENTE, Commande::STATUT_COMPTABLE_PARTIEL])
+            ->getQuery()
+            ->getResult();
+    }
 }

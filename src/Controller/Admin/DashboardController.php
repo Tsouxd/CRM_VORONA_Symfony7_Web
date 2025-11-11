@@ -20,6 +20,7 @@ use App\Entity\Commande;
 use App\Entity\Fournisseur;
 use App\Entity\Facture;
 use App\Entity\Devis;
+use App\Entity\Tache;
 
 // --- Imports des Repositories (pour la logique du dashboard) ---
 use App\Repository\CommandeRepository;
@@ -335,6 +336,8 @@ class DashboardController extends AbstractDashboardController
         yield MenuItem::linkToCrud('Clients', 'fas fa-id-card', Client::class);
         yield MenuItem::linkToCrud('Fournisseurs', 'fas fa-truck-moving', Fournisseur::class);
         yield MenuItem::linkToCrud('Produits', 'fas fa-box', Produit::class);
+        yield MenuItem::section('Organisation');
+        yield MenuItem::linkToCrud('Suivi des Tâches', 'fa fa-tasks', Tache::class); // <-- AJOUTEZ CETTE LIGNE
 
         yield MenuItem::section('Suivi des Départements');
 

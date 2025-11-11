@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Détail Commande #{{ commande.id }} - Moonlight</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="{{ asset('utils/css_moon/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('utils/css_moon/fontAwesome.css') }}">
+    <link rel="stylesheet" href="{{ asset('utils/css_moon/templatemo-main.css') }}">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 128 128%22><text y=%221.2em%22 font-size=%2296%22>⚫️</text><text y=%221.3em%22 x=%220.2em%22 font-size=%2276%22 fill=%22%23fff%22></text></svg>">
+    <style>
+        body {
+            background-color: #1c1c2e; /* Fond sombre de base */
+            color: #fff;
+        }
+        .container {
+            padding-top: 50px;
+        }
+        .detail-card {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+        .detail-card-header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 20px;
+            font-weight: bold;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .detail-card-body {
+            padding: 20px;
+        }
+        .paiement-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .paiement-table th, .paiement-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .paiement-table th {
+            text-align: left;
+            text-transform: uppercase;
+            font-size: 12px;
+            color: #ccc;
+        }
+        .paiement-table tfoot tr {
+            background: rgba(0,0,0,0.2);
+            font-weight: bold;
+        }
+        .btn-back {
+            color: #fff;
+            background-color: #3498db;
+            border: none;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .btn-back:hover {
+            background-color: #2980b9;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 style="color: #fff;">Détail Commande #{{ commande.id }}</h1>
+            <a href="{{ path('app_comptable_dashboard') }}" class="btn-back">
+                <i class="fa fa-arrow-left"></i> Retour au tableau de bord
+            </a>
+        </div>
+
+        <div class="detail-card">
+            <div class="detail-card-header">
+                Informations sur la commande
+            </div>
+            <div class="detail-card-body">
+                <p><strong>Client :</strong> {{ commande.client.nom }}</p>
+                <p><strong>Date de commande :</strong> {{ commande.dateCommande|date('d/m/Y') }}</p>
+                <p><strong>Total de la commande :</strong> {{ commande.getTotalAvecFrais()|number_format(0, ',', ' ') }} MGA</p>
+                
+                {# === AJOUTS DEMANDÉS CI-DESSOUS === #}
+                
+                <p><strong>Mode de paiement :</strong> {{ commande.methodePaiement ?? 'Non spécifié' }}</p>
+
+                {% if commande.dateEcheance %}
+                    <p>
+                        <strong>Date d'échéance :</strong>
+                        {# Si la date est passée ET qu'il reste à payer, on l'affiche en rouge #}
+                        <span {% if commande.dateEcheance < "now" and commande.resteAPayer > 0 %}style="color: #e74c3c; font-weight: bold;" title="Échéance dépassée !"{% endif %}>
+                            {{ commande.dateEcheance|date('d/m/Y') }}
+                        </span>
+                    </p>
+                {% endif %}
+                
+                {# === FIN DES AJOUTS === #}
+
+            </div>
+        </div>
+
+        <div class="detail-card">
+            <div class="detail-card-header">
+                Liste des Paiements Enregistrés
+            </div>
+            <div class="detail-card-body p-0">
+                <table class="paiement-table">
+                    <thead>
+                        <tr>
+                            <th>Date du Paiement</th>
+                            <th>Moyen de Paiement</th>
+                            <th class="text-end">Montant</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% set totalPaye = 0 %}
+                    {% for paiement in commande.paiements %}
+                        {# On ne somme que les paiements effectués #}
+                        {% if paiement.statut == 'effectué' %}
+                            {% set totalPaye = totalPaye + paiement.montant %}
+                        {% endif %}
+                        <tr>
+                            <td>{{ paiement.datePaiement|date('d/m/Y H:i') }}</td>
+                            <td>
+                                {{ paiement.referencePaiement }} 
+                                {% if paiement.statut != 'effectué' %}
+                                    <span class="badge bg-warning text-dark">({{ paiement.statut }})</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ paiement.montant|number_format(0, ',', ' ') }} MGA</td>
+                            <td class="text-center">
+                                {% if paiement.statut == 'effectué' %}
+                                    <a href="{{ path('app_comptable_paiement_recu', {id: paiement.id}) }}" class="btn btn-sm btn-outline-info" title="Imprimer le reçu" target="_blank">
+                                        <i class="fa fa-print"></i>
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center py-4">Aucun paiement enregistré pour cette commande.</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="2">Total Payé (Effectué)</td>
+                            <td class="text-end">{{ totalPaye|number_format(0, ',', ' ') }} MGA</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

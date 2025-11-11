@@ -32,4 +32,15 @@ class PaiementRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    // src/Repository/PaiementRepository.php
+    public function findTotalPayePourCommande(int $commandeId): float
+    {
+        return (float) $this->createQueryBuilder('p')
+            ->select('SUM(p.montant)')
+            ->where('p.commande = :commandeId')
+            ->setParameter('commandeId', $commandeId)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }

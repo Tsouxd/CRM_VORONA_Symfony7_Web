@@ -14,6 +14,7 @@ security:
         # La seule règle dont tu as besoin pour l'instant :
         # Un ADMIN a tous les droits des autres rôles.
         ROLE_ADMIN: [ROLE_COMMERCIAL, ROLE_PAO, ROLE_PRODUCTION, ROLE_COMPTABLE]
+        ROLE_COMPTABLE: [ROLE_USER]
 
     firewalls:
         dev:
@@ -49,7 +50,8 @@ security:
         - { path: ^/commercial, roles: ROLE_COMMERCIAL }
         - { path: ^/production, roles: ROLE_PRODUCTION }
         - { path: ^/pao, roles: ROLE_PAO }
-        - { path: ^/comptable, roles: ROLE_COMPTABLE }
+        #- { path: ^/comptable, roles: ROLE_COMPTABLE }
+        - { path: ^/compta, roles: ROLE_COMPTABLE }
 
 when@test:
     security:

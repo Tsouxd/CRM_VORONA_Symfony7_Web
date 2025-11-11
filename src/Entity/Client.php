@@ -56,9 +56,14 @@ class Client
     #[ORM\Column(type: 'text', nullable: true)]
     private ?string $adresse = null;
 
+    #[ORM\OneToMany(mappedBy: 'client', targetEntity: Facture::class, cascade: ['remove'], orphanRemoval: true)]
+    private Collection $factures;
+
+
     public function __construct()
     {
         $this->commandes = new ArrayCollection();
+        $this->factures = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -218,5 +223,10 @@ class Client
             $this->provenance = $provenance;
 
             return $this;
+        }
+
+        public function getFactures(): Collection
+        {
+            return $this->factures;
         }
 }

@@ -36,6 +36,13 @@ use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 
 class FactureCrudController extends AbstractCrudController
 {
+    private EntityManagerInterface $entityManager;
+
+    public function __construct(EntityManagerInterface $entityManager)
+    {
+        $this->entityManager = $entityManager;
+    }
+
     public static function getEntityFqcn(): string
     {
         return Facture::class;
@@ -67,14 +74,32 @@ class FactureCrudController extends AbstractCrudController
 
     public function configureFields(string $pageName): iterable
     {
-        // CHAMP COMMANDE — création de facture à partir d'une commande
         if (Crud::PAGE_NEW === $pageName) {
             yield FormField::addPanel('Source de la Facture')->collapsible();
 
             yield AssociationField::new('commande', 'Créer à partir d\'une Commande')
-                ->setHelp('Sélectionnez une commande pour lier cette facture à une commande existante.')
+                ->setHelp('Seules les commandes non encore facturées sont listées.')
                 ->setRequired(false)
-                ->setFormTypeOption('placeholder', 'Aucune commande sélectionnée');
+                ->setFormTypeOption('placeholder', 'Aucune commande sélectionnée')
+                ->setQueryBuilder(function (QueryBuilder $qb) {
+                    // $qb est le QueryBuilder pour l'entité Commande.
+
+                    // a. On crée un nouveau QueryBuilder pour la sous-requête
+                    //    Il faut utiliser l'EntityManager pour cela.
+                    $subQueryBuilder = $this->entityManager->createQueryBuilder();
+                    
+                    // b. On construit la sous-requête qui sélectionne les ID des commandes
+                    //    qui sont déjà dans une facture.
+                    $subQuery = $subQueryBuilder
+                        ->select('IDENTITY(f.commande)') // IDENTITY() récupère l'ID de la relation
+                        ->from(Facture::class, 'f')
+                        ->where('f.commande IS NOT NULL'); // On s'assure de ne prendre que les factures liées
+
+                    // c. On modifie la requête principale ($qb) pour exclure les commandes
+                    //    dont l'ID est dans le résultat de la sous-requête.
+                    return $qb
+                        ->andWhere($qb->expr()->notIn('entity.id', $subQuery->getDQL()));
+                });
         }
 
         yield AssociationField::new('commande', 'Lier une Commande')
@@ -129,34 +154,20 @@ class FactureCrudController extends AbstractCrudController
         }
         yield TextField::new('livreur', 'Nom du livreur')->hideOnForm();
 
-        yield FormField::addPanel('')
-            ->setHelp(<<<'HTML'
-            <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                const commandeSelect = document.querySelector('#Facture_commande');
-                const livreurField = document.querySelector('#Facture_livreur')?.closest('.form-group');
-
-                function toggleLivreur() {
-                    if (!commandeSelect || !livreurField) return;
-                    livreurField.style.display = commandeSelect.value ? 'none' : 'block';
-                }
-
-                if (commandeSelect) {
-                    commandeSelect.addEventListener('change', toggleLivreur);
-                    toggleLivreur(); // état initial
-                }
-            });
-            </script>
-            HTML
-            )->onlyOnForms()->setCssClass('d-none'); // le panneau est invisible, ne sert que pour le script
-
         // Acompte et remise
         yield MoneyField::new('acompte', 'Acompte')
             ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
             ->setFormTypeOption('attr', ['class' => 'acompte']);
+        
+        if ($pageName === Crud::PAGE_NEW || $pageName === Crud::PAGE_EDIT) {
+            yield MoneyField::new('remise', 'Remise')
+                ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
+                ->setFormTypeOption('attr', ['class' => 'remise']);
+        }
 
-        yield NumberField::new('remise', 'Remise')
-            ->setFormTypeOption('attr', ['class' => 'remise']);
+        yield MoneyField::new('remise', 'Remise')
+            ->setCurrency('MGA')->setNumDecimals(0)->setFormTypeOption('divisor', 1)
+            ->hideOnForm();
 
         yield ChoiceField::new('modeDePaiement', 'Mode de paiement')
             ->setChoices([
@@ -190,6 +201,27 @@ class FactureCrudController extends AbstractCrudController
             ->setFormTypeOption('attr', ['class' => 'facture-total-general']);
 
         yield DateTimeField::new('dateCreation', 'Date de création')->hideOnForm();
+
+        yield FormField::addPanel('')
+            ->setHelp(<<<'HTML'
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                const commandeSelect = document.querySelector('#Facture_commande');
+                const livreurField = document.querySelector('#Facture_livreur')?.closest('.form-group');
+
+                function toggleLivreur() {
+                    if (!commandeSelect || !livreurField) return;
+                    livreurField.style.display = commandeSelect.value ? 'none' : 'block';
+                }
+
+                if (commandeSelect) {
+                    commandeSelect.addEventListener('change', toggleLivreur);
+                    toggleLivreur(); // état initial
+                }
+            });
+            </script>
+            HTML
+            )->onlyOnForms()->setCssClass('d-none'); // le panneau est invisible, ne sert que pour le script
 
         yield FormField::addPanel('')->setHelp(<<<'HTML'
         <script>
@@ -275,7 +307,7 @@ class FactureCrudController extends AbstractCrudController
                             'select[name$="[client]"]',
                             'div[id="Facture_lignes"]',
                             'input[name$="[fraisLivraison]"]',
-                            //'input[name$="[acompte]"]',
+                            'input[name$="[acompte]"]',
                             'select[name$="[modeDePaiement]"]',
                             'input[name$="[detailsPaiement]"]',
                             'input[name$="[total]"]',

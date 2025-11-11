@@ -2,6 +2,7 @@
 namespace App\Controller\Production;
 
 use App\Entity\Commande;
+use App\Entity\Tache;
 use App\Repository\CommandeProduitRepository;
 use App\Repository\CommandeRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
@@ -187,6 +188,10 @@ class ProductionDashboardController extends AbstractDashboardController
         }
 
         yield MenuItem::linkToDashboard('Tableau de bord', 'fa fa-home');
+
+        yield MenuItem::section('Organisation');
+        yield MenuItem::linkToCrud('Suivi des Tâches', 'fa fa-tasks', Tache::class); // <-- AJOUTEZ CETTE LIGNE
+
         yield MenuItem::linkToCrud("Commandes à traiter ({$travauxAFaireCount})", 'fa fa-industry', Commande::class)
             ->setController(ProductionCommandeCrudController::class)
             ->setQueryParameter('filtre', 'a_faire');

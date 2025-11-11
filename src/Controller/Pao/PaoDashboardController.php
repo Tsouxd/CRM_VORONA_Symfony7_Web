@@ -2,6 +2,7 @@
 namespace App\Controller\Pao;
 
 use App\Entity\Commande;
+use App\Entity\Tache;
 use App\Repository\CommandeProduitRepository;
 use App\Repository\CommandeRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
@@ -261,6 +262,9 @@ class PaoDashboardController extends AbstractDashboardController
         }
 
         yield MenuItem::linktoDashboard('Tableau de bord', 'fa fa-home');
+
+        yield MenuItem::section('Organisation');
+        yield MenuItem::linkToCrud('Suivi des Tâches', 'fa fa-tasks', Tache::class); // <-- AJOUTEZ CETTE LIGNE
 
         // Menu Travaux à faire
         yield MenuItem::linkToCrud("Travaux à faire ({$travauxAFaireCount})", 'fa fa-tasks', Commande::class)

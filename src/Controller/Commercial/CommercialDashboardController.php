@@ -9,6 +9,7 @@ use App\Entity\Facture;
 use App\Entity\Fournisseur;
 use App\Entity\Produit;
 use App\Entity\Devis;
+use App\Entity\Tache;
 use App\Repository\DevisRepository;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
@@ -220,5 +221,9 @@ final class CommercialDashboardController extends AbstractDashboardController
 
         yield MenuItem::linkToCrud('Factures', 'fas fa-file-invoice', Facture::class)
             ->setController(FactureCrudController::class);
+        
+        yield MenuItem::section('Organisation');
+        yield MenuItem::linkToCrud('Suivi des Tâches', 'fa fa-tasks', Tache::class); // <-- AJOUTEZ CETTE LIGNE
+
     }
 }

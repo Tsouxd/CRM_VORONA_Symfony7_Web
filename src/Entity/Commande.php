@@ -15,6 +15,7 @@ use Doctrine\ORM\Event\PreUpdateEventArgs;
 use App\Entity\Paiement;
 /*use Doctrine\ORM\Event\PostPersistEventArgs;
 use Doctrine\ORM\Event\PostUpdateEventArgs;*/
+use DateTimeImmutable;
 
 #[ORM\Entity(repositoryClass: CommandeRepository::class)]
 #[ORM\HasLifecycleCallbacks]
@@ -44,6 +45,11 @@ class Commande
     public const STATUT_DEVIS_VALIDEE = 'Validée';
     public const STATUT_DEVIS_NON_VALIDEE = 'Non validée';
 
+    public const STATUT_COMPTABLE_ATTENTE = 'EN_ATTENTE';
+    public const STATUT_COMPTABLE_PARTIEL = 'PARTIEL';
+    public const STATUT_COMPTABLE_PAYE = 'PAYE';
+    public const STATUT_COMPTABLE_RECOUVREMENT = 'RECOUVREMENT';
+
     #[ORM\Id, ORM\GeneratedValue, ORM\Column]
     private ?int $id = null;
 
@@ -53,8 +59,8 @@ class Commande
     #[ORM\Column(type: "boolean")]
     private bool $isFacture = false;
 
-    #[ORM\ManyToOne(inversedBy: 'commandes', cascade: ['persist'])]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\ManyToOne(targetEntity: Client::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
     private ?Client $client = null;
 
     #[ORM\Column(type: 'string', length: 20)]
@@ -147,7 +153,8 @@ class Commande
     #[ORM\Column(type: "string", length: 50, nullable: true)]
     private ?string $statutDevis = null;
 
-    #[ORM\OneToOne(inversedBy: 'commandeGeneree', cascade: ['persist', 'remove'])]
+    #[ORM\ManyToOne(inversedBy: 'commandeGeneree', cascade: ['persist'])]
+    #[ORM\JoinColumn(onDelete: "CASCADE")]
     private ?Devis $devisOrigine = null;
 
     #[ORM\ManyToOne(targetEntity: User::class, inversedBy: 'commandesPao')] // On pointe vers User
@@ -194,6 +201,18 @@ class Commande
 
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $finition = null;
+
+    #[ORM\OneToOne(mappedBy: 'commande', targetEntity: Facture::class)]
+    private ?Facture $facture = null;
+
+    #[ORM\Column(type: 'string', length: 50, options: ['default' => self::STATUT_COMPTABLE_ATTENTE])]
+    private ?string $statutComptable = self::STATUT_COMPTABLE_ATTENTE;
+
+    #[ORM\Column(type: 'boolean', options: ['default' => false])]
+    private bool $verifieComptable = false;
+
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $dateEcheance = null;
 
     public function __construct()
     {
@@ -528,11 +547,6 @@ class Commande
         }
     }
 
-    public function __toString(): string
-    {
-        return 'Commande n°' . $this->getId();
-    }
-
     public function addBonsDeLivraison(BonDeLivraison $bonsDeLivraison): static
     {
         if (!$this->bonsDeLivraison->contains($bonsDeLivraison)) {
@@ -570,33 +584,44 @@ class Commande
     public function getMethodePaiement(): ?string { return $this->methodePaiement; }
     public function setMethodePaiement(?string $methodePaiement): static { $this->methodePaiement = $methodePaiement; return $this; }
 
-    /**
-    * @param string|null $moyenPaiement Le moyen de paiement (Espèces, CB...)
-    * @param string|null $detailsPaiement Les détails/références du paiement
-    */
-    public function genererPaiementsAutomatiques(?string $referencePaiement = null, ?string $detailsPaiement = null): void
+    public function recalculerPaiementsPourUpdate(?string $referencePaiement = null, ?string $detailsPaiement = null): void
     {
         $totalCommande = $this->getTotalAvecFrais();
         if ($totalCommande <= 0) {
             return;
         }
 
-        // On réinitialise les paiements existants pour repartir sur une base propre.
-        // C'est crucial si l'utilisateur change la méthode de paiement.
-        $this->getPaiements()->clear();
+        // Par défaut, si rien n'est fourni
+        if (empty($referencePaiement)) {
+            $referencePaiement = 'Espèce';
+        }
 
         $methode = $this->getMethodePaiement();
 
-        // On crée le ou les paiements en fonction de la méthode choisie
+        // On récupère les paiements existants
+        $paiementsExistants = $this->getPaiements()->toArray();
+
+        // On vide les paiements automatiques
+        foreach ($this->getPaiements() as $p) {
+            $p->setCommande(null);
+        }
+        $this->getPaiements()->clear();
+
         switch ($methode) {
             case '100% commande':
                 $paiement = new Paiement();
-                $paiement->setMontant($totalCommande);
-                $paiement->setDatePaiement(new \DateTime());
-                $paiement->setReferencePaiement($referencePaiement);
-                $paiement->setDetailsPaiement($detailsPaiement);
-                //$paiement->setReferencePaiement('Paiement intégral à la commande');
-                $paiement->setStatut(Paiement::STATUT_EFFECTUE);
+                $paiement->setMontant($totalCommande)
+                        ->setDatePaiement(new \DateTime())
+                        ->setStatut(Paiement::STATUT_EFFECTUE);
+
+                if (!empty($paiementsExistants)) {
+                    $paiement->setReferencePaiement($paiementsExistants[0]->getReferencePaiement() ?? $referencePaiement);
+                    $paiement->setDetailsPaiement($paiementsExistants[0]->getDetailsPaiement() ?? $detailsPaiement);
+                } else {
+                    $paiement->setReferencePaiement($referencePaiement);
+                    $paiement->setDetailsPaiement(is_array($detailsPaiement) ? json_encode($detailsPaiement, JSON_UNESCAPED_UNICODE) : $detailsPaiement);
+                }
+
                 $this->addPaiement($paiement);
                 break;
 
@@ -604,46 +629,154 @@ class Commande
                 $acompte = round($totalCommande * 0.5);
                 $solde = $totalCommande - $acompte;
 
-                // L'acompte, considéré comme payé
                 $paiementAcompte = new Paiement();
-                $paiementAcompte->setMontant($acompte);
-                $paiementAcompte->setDatePaiement(new \DateTime());
-                $paiementAcompte->setReferencePaiement($referencePaiement);
-                $paiementAcompte->setDetailsPaiement($detailsPaiement);
-                //$paiementAcompte->setReferencePaiement('Acompte 50%');
-                $paiementAcompte->setStatut(Paiement::STATUT_EFFECTUE);
+                $paiementAcompte->setMontant($acompte)
+                                ->setDatePaiement(new \DateTime())
+                                ->setStatut(Paiement::STATUT_EFFECTUE);
 
-                // Le solde, à payer plus tard
                 $paiementSolde = new Paiement();
-                $paiementSolde->setMontant($solde);
-                $paiementSolde->setDatePaiement(new \DateTime());
-                $paiementSolde->setReferencePaiement('Solde 50% à la livraison');
-                $paiementSolde->setStatut(Paiement::STATUT_A_VENIR);
+                $paiementSolde->setMontant($solde)
+                            ->setDatePaiement(new \DateTime())
+                            ->setStatut(Paiement::STATUT_A_VENIR);
+
+                if (!empty($paiementsExistants)) {
+                    $paiementAcompte->setReferencePaiement($paiementsExistants[0]->getReferencePaiement() ?? $referencePaiement);
+                    $paiementAcompte->setDetailsPaiement($paiementsExistants[0]->getDetailsPaiement() ?? $detailsPaiement);
+
+                    $paiementSolde->setReferencePaiement($paiementsExistants[0]->getReferencePaiement() ?? $referencePaiement);
+                    $paiementSolde->setDetailsPaiement($paiementsExistants[0]->getDetailsPaiement() ?? $detailsPaiement);
+                } else {
+                    $paiementAcompte->setReferencePaiement($referencePaiement);
+                    $paiementAcompte->setDetailsPaiement(is_array($detailsPaiement) ? json_encode($detailsPaiement, JSON_UNESCAPED_UNICODE) : $detailsPaiement);
+
+                    $paiementSolde->setReferencePaiement($referencePaiement);
+                    $paiementSolde->setDetailsPaiement(is_array($detailsPaiement) ? json_encode($detailsPaiement, JSON_UNESCAPED_UNICODE) : $detailsPaiement);
+                }
 
                 $this->addPaiement($paiementAcompte);
                 $this->addPaiement($paiementSolde);
                 break;
-            
+
+            case '100% à la livraison':
+            case '30 jours après réception de la facture':
+                $paiement = new Paiement();
+                $paiement->setMontant($totalCommande)
+                        ->setDatePaiement(new \DateTime())
+                        ->setStatut(Paiement::STATUT_A_VENIR);
+
+                if (!empty($paiementsExistants)) {
+                    $paiement->setReferencePaiement($paiementsExistants[0]->getReferencePaiement() ?? $referencePaiement);
+                    $paiement->setDetailsPaiement($paiementsExistants[0]->getDetailsPaiement() ?? $detailsPaiement);
+                } else {
+                    $paiement->setReferencePaiement($referencePaiement);
+                    $paiement->setDetailsPaiement(is_array($detailsPaiement) ? json_encode($detailsPaiement, JSON_UNESCAPED_UNICODE) : $detailsPaiement);
+                }
+
+                $this->addPaiement($paiement);
+                break;
+
+            default:
+                // Méthode non reconnue : aucun paiement créé
+                break;
+        }
+
+        $this->updateStatutPaiement();
+    }
+
+    public function genererPaiementsAutomatiques(?string $referencePaiement = null, ?string $detailsPaiement = null): void
+    {
+        $totalCommande = $this->getTotalAvecFrais();
+        if ($totalCommande <= 0) {
+            return;
+        }
+
+        // Réinitialisation des paiements existants
+        foreach ($this->getPaiements() as $paiementExistant) {
+            $paiementExistant->setCommande(null);
+        }
+        $this->getPaiements()->clear();
+
+        $methode = $this->getMethodePaiement();
+        $paiementsExistants = $this->getPaiements(); // récupère la collection actuelle (vide après clear)
+
+        // Fonction helper pour gérer reference/details en toute sécurité
+        $setReferenceEtDetails = function(Paiement $paiement) use ($paiementsExistants, $referencePaiement, $detailsPaiement) {
+            if (!$paiementsExistants->isEmpty()) {
+                $paiement->setReferencePaiement($paiementsExistants[0]->getReferencePaiement() ?? $referencePaiement);
+
+                $details = $paiementsExistants[0]->getDetailsPaiement() ?? $detailsPaiement;
+                if (is_array($details)) {
+                    $paiement->setDetailsPaiement(json_encode($details, JSON_UNESCAPED_UNICODE));
+                } else {
+                    $paiement->setDetailsPaiement($details);
+                }
+            } else {
+                $paiement->setReferencePaiement($referencePaiement);
+
+                if (is_array($detailsPaiement)) {
+                    $paiement->setDetailsPaiement(json_encode($detailsPaiement, JSON_UNESCAPED_UNICODE));
+                } else {
+                    $paiement->setDetailsPaiement($detailsPaiement);
+                }
+            }
+        };
+
+        switch ($methode) {
+            case '100% commande':
+                $paiement = new Paiement();
+                $paiement->setMontant($totalCommande)
+                        ->setDatePaiement(new \DateTime())
+                        ->setStatut(Paiement::STATUT_EFFECTUE);
+                $setReferenceEtDetails($paiement);
+                $this->addPaiement($paiement);
+                break;
+
+            case '50% commande, 50% livraison':
+                $acompte = round($totalCommande * 0.5);
+                $solde = $totalCommande - $acompte;
+
+                // Paiement de l'acompte
+                $paiementAcompte = new Paiement();
+                $paiementAcompte->setMontant($acompte)
+                                ->setDatePaiement(new \DateTime())
+                                ->setStatut(Paiement::STATUT_EFFECTUE);
+                $setReferenceEtDetails($paiementAcompte);
+
+                // Paiement du solde
+                $paiementSolde = new Paiement();
+                $paiementSolde->setMontant($solde)
+                            ->setDatePaiement(new \DateTime())
+                            ->setStatut(Paiement::STATUT_A_VENIR);
+                $setReferenceEtDetails($paiementSolde);
+
+                $this->addPaiement($paiementAcompte);
+                $this->addPaiement($paiementSolde);
+                break;
+
             case '100% à la livraison':
                 $paiement = new Paiement();
-                $paiement->setMontant($totalCommande);
-                $paiement->setDatePaiement(new \DateTime());
-                $paiement->setReferencePaiement('Paiement 100% à la livraison');
-                $paiement->setStatut(Paiement::STATUT_A_VENIR);
+                $paiement->setMontant($totalCommande)
+                        ->setDatePaiement(new \DateTime())
+                        ->setStatut(Paiement::STATUT_A_VENIR);
+                $setReferenceEtDetails($paiement);
                 $this->addPaiement($paiement);
                 break;
 
             case '30 jours après réception de la facture':
                 $paiement = new Paiement();
-                $paiement->setMontant($totalCommande);
-                $paiement->setDatePaiement(new \DateTime());
-                $paiement->setReferencePaiement('Paiement à 30 jours');
-                $paiement->setStatut(Paiement::STATUT_A_VENIR);
+                $paiement->setMontant($totalCommande)
+                        ->setDatePaiement(new \DateTime())
+                        ->setStatut(Paiement::STATUT_A_VENIR);
+                $setReferenceEtDetails($paiement);
                 $this->addPaiement($paiement);
+                break;
+
+            default:
+                // Méthode non reconnue : aucun paiement créé
                 break;
         }
 
-        // On met à jour le statut global de la commande
+        // Mise à jour du statut global de la commande
         $this->updateStatutPaiement();
     }
 
@@ -708,5 +841,60 @@ class Commande
     {
         $this->finition = $finition;
         return $this;
+    }
+
+    public function getFacture(): ?Facture
+    {
+        return $this->facture;
+    }
+
+    // Le setter n'est pas obligatoire car la relation est gérée par Facture, 
+    // mais il peut être utile.
+    public function setFacture(?Facture $facture): static
+    {
+        // s'assure que la relation est bien bidirectionnelle
+        if ($facture !== null && $facture->getCommande() !== $this) {
+            $facture->setCommande($this);
+        }
+        $this->facture = $facture;
+        return $this;
+    }
+
+    public function getStatutComptable(): ?string
+    {
+        return $this->statutComptable;
+    }
+
+    public function setStatutComptable(string $statutComptable): static
+    {
+        $this->statutComptable = $statutComptable;
+        return $this;
+    }
+
+    public function isVerifieComptable(): bool
+    {
+        return $this->verifieComptable;
+    }
+
+    public function setVerifieComptable(bool $verifieComptable): static
+    {
+        $this->verifieComptable = $verifieComptable;
+        return $this;
+    }
+
+    public function getDateEcheance(): ?\DateTimeImmutable
+    {
+        return $this->dateEcheance;
+    }
+
+    public function setDateEcheance(?\DateTimeImmutable $dateEcheance): static
+    {
+        $this->dateEcheance = $dateEcheance;
+        return $this;
+    }
+
+    public function __toString(): string
+    {
+        return 'Commande n°' . $this->getId() . ' - ' . ($this->getClient() ? $this->getClient()->getNom() : 'Client inconnu');
     }
 }

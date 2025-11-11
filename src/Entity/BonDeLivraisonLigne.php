@@ -11,7 +11,7 @@ class BonDeLivraisonLigne
     private ?int $id = null;
 
     #[ORM\ManyToOne(inversedBy: 'lignes')]
-    #[ORM\JoinColumn(nullable: false)]
+    #[ORM\JoinColumn(nullable: false, onDelete: "CASCADE")]
     private ?BonDeLivraison $bonDeLivraison = null;
 
     #[ORM\Column(length: 255)]

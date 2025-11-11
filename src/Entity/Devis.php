@@ -55,7 +55,7 @@ class Devis
     #[ORM\Column]
     private ?bool $batOk = false;
 
-    #[ORM\OneToOne(mappedBy: 'devisOrigine', targetEntity: Commande::class)]
+    #[ORM\OneToOne(mappedBy: 'devisOrigine', cascade: ['persist'])]
     private ?Commande $commandeGeneree = null;
 
     #[ORM\Column(type: 'float', nullable: true)]

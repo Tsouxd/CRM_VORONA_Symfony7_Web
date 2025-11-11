@@ -53,13 +53,71 @@
             text-align: right;
         }
         /* ======================================= */
+        /* NOUVEAUX STYLES POUR LE DASHBOARD COMPTABLE */
+        .dashboard-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 8px;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+        .dashboard-card .card-title {
+            text-transform: uppercase;
+            font-size: 14px;
+            color: #ccc;
+        }
+        .dashboard-card .card-text {
+            font-size: 2em;
+            font-weight: bold;
+        }
+        .compta-table {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            overflow: hidden; /* Pour que le radius s'applique aux coins du thead */
+        }
+        .compta-table table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #fff;
+        }
+        .compta-table th, .compta-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .compta-table th {
+            background: rgba(0,0,0,0.3);
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+        .compta-table tbody tr:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        .compta-table .badge { padding: 5px 10px; border-radius: 12px; font-size: 11px; }
+        .compta-table .btn-group .btn { 
+            padding: 4px 8px; 
+            font-size: 12px; 
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            margin-left: 2px;
+        }
+        .compta-table .btn-group .btn:hover { background: rgba(255,255,255,0.2); }
+        .filter-form { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 8px; margin-bottom: 25px; }
+        .filter-form label { color: #ccc; }
+        .filter-form .form-control, .filter-form .form-select {
+            background: rgba(255,255,255,0.1); color: #fff; border-color: rgba(255,255,255,0.2);
+        }
+        .filter-form .form-control::placeholder { color: #aaa; }
+        .filter-form option { background: #333; }
 
     </style>
 </head>
 <body>
     <nav>
         <ul>
-            <li><a href="#1"><i class="fa fa-home"></i> <em>Tableau de bord</em></a></li>
+            <li><a href="#1"><i class="fa fa-home"></i> <em>Suivi Commandes</em></a></li>
             <li><a href="#2"><i class="fa fa-calculator"></i> <em>Arrêt de Caisse</em></a></li>
             <li><a href="#3"><i class="fa fa-history"></i> <em>Historique</em></a></li>
             <li><a href="#4"><i class="fa fa-cog"></i> <em>Gestion</em></a></li>
@@ -67,25 +125,123 @@
     </nav>
 
     <div class="slides">
-        <!-- Slide 1 -->
+        <!-- Slide 1: NOUVEAU Tableau de Bord Comptable -->
         <div class="slide" id="1">
-            <div class="content first-content">
+            <div class="content second-content">
                 <div class="container-fluid">
-                    <div class="col-md-3"><img src="{{ asset('utils/images_moon/calculator3.png') }}" alt="Comptable"></div>
-                    <div class="col-md-9">
-                        <h2>Arrêt de Caisse</h2>
-                        {% for message in app.flashes('success') %}
-                            <div style="background: #27ae60; color: white; padding: 15px; border-radius: 5px; margin-top: 20px;">
-                                {{ message }}
-                            </div>
+                    <h2 style="color: #fff;">Commandes — Comptabilité</h2>
+                    
+                    {% for type, messages in app.flashes %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ type }}">{{ message }}</div>
                         {% endfor %}
-                        {% if hasPaymentsToClose %}
-                            <div class="main-btn" style="margin-top: 20px;"><a href="#2">Démarrer l'Arrêt de Caisse</a></div>
-                        {% else %}
-                            <div style="background: rgba(40, 167, 69, 0.8); color: white; padding: 15px; border-radius: 5px;">
-                                <strong>Caisse à jour !</strong> Aucun paiement en attente de clôture.
+                    {% endfor %}
+
+                    <!-- Bandeau de synthèse -->
+                    <div class="row">
+                        <div class="col-md-3"><div class="dashboard-card"><h5 class="card-title">Total à Payer</h5><p class="card-text">{{ synthese.totalAPayer|number_format(0, ',', ' ') }}</p></div></div>
+                        <div class="col-md-3"><div class="dashboard-card"><h5 class="card-title">Montants Payés</h5><p class="card-text">{{ synthese.totalPaye|number_format(0, ',', ' ') }}</p></div></div>
+                        <div class="col-md-3"><div class="dashboard-card"><h5 class="card-title">Reste Global</h5><p class="card-text">{{ synthese.resteGlobal|number_format(0, ',', ' ') }}</p></div></div>
+                    </div>
+
+                    <!-- Filtres -->
+                    <div class="filter-form">
+                        <form method="get" action="{{ path('app_comptable_dashboard') }}" class="row g-3 align-items-end">
+                             <div class="col-md-2" style="padding-top: 30px;">
+                                <div class="form-check">
+                                    <input type="checkbox" name="non_solde" id="non_solde" value="1" class="form-check-input" {{ filters.non_solde ? 'checked' }}>
+                                    <label for="non_solde" class="form-check-label">Reste > 0</label>
+                                </div>
                             </div>
-                        {% endif %}
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary">Filtrer</button>
+                                <a href="{{ path('app_comptable_dashboard') }}" class="btn btn-secondary">Reset</a>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Liste des commandes -->
+                    <div class="compta-table">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th><th>Client</th><th>Total</th><th>Payé</th><th>Reste</th><th>Statut</th><th>Vérifié</th><th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for data in commandes %}
+                                    {% set cmd = data.commande %}
+                                    {% set reste = data.resteAPayer %}
+                                    {% set montantPaye = data.montantPaye %}
+
+                                    {# ============================================================= #}
+                                    {# == NOUVELLE LOGIQUE DE CALCUL DU STATUT POUR L'AFFICHAGE == #}
+                                    {# ============================================================= #}
+                                    
+                                    {# On définit le statut à afficher en suivant les règles métier #}
+                                    {% set statutAffiche = 'EN_ATTENTE' %} {# Valeur par défaut si rien n'est payé #}
+
+                                    {% if montantPaye > 0 and reste > 0 %}
+                                        {% set statutAffiche = 'PARTIEL' %}
+                                    {% elseif reste <= 0 %}
+                                        {% set statutAffiche = 'PAYE' %}
+                                    {% endif %}
+
+                                    {# Le statut RECOUVREMENT est prioritaire sur les statuts calculés #}
+                                    {% if cmd.statutComptable == 'RECOUVREMENT' %}
+                                        {% set statutAffiche = 'RECOUVREMENT' %}
+                                    {% endif %}
+                                    
+                                    {# ------------------------------------------------------------- #}
+
+                                    {% set statut_badge = {
+                                        'EN_ATTENTE': 'secondary', 
+                                        'PARTIEL': 'warning', 
+                                        'PAYE': 'success', 
+                                        'RECOUVREMENT': 'danger'
+                                    } %}
+
+                                    <tr>
+                                        <td>{{ cmd.dateCommande|date('d/m/Y') }}</td>
+                                        <td>{{ cmd.client.nom }}</td>
+                                        <td>{{ data.totalCommande|number_format(0, ',', ' ') }}</td>
+                                        <td>{{ montantPaye|number_format(0, ',', ' ') }}</td>
+                                        <td class="font-weight-bold">{{ reste|number_format(0, ',', ' ') }}</td>
+                                        
+                                        {# On utilise notre nouvelle variable `statutAffiche` #}
+                                        <td><span class="badge bg-{{ statut_badge[statutAffiche] }}">{{ statutAffiche|replace({'_': ' '}) }}</span></td>
+                                        
+                                        <td>{{ (cmd.isVerifieComptable ?? false) ? 'Oui' : 'Non' }}</td>
+
+                                        <td>
+                                            <div class="btn-group">
+                                                <a href="{{ path('app_comptable_commande_detail', {id: cmd.id}) }}" class="btn">Détail</a>
+                                                
+                                                <form method="post" action="{{ path('app_comptable_commande_verifier', {id: cmd.id}) }}" onsubmit="return confirm('Vérifier cette commande ?');" class="d-inline">
+                                                    <button type="submit" class="btn" {% if cmd.isVerifieComptable %}disabled{% endif %}>Vérifier</button>
+                                                </form>
+
+                                                {% if reste > 0 %}
+                                                    <form method="post" action="{{ path('app_comptable_commande_recouvrement', {id: cmd.id}) }}" class="d-inline">
+                                                        {# On utilise `statutAffiche` pour la condition disabled #}
+                                                        <button type="submit" class="btn" {% if statutAffiche == 'RECOUVREMENT' %}disabled{% endif %}>Recouvrement</button>
+                                                    </form>
+                                                {% endif %}
+                                                
+                                                {% if reste <= 0 %}
+                                                    <form method="post" action="{{ path('app_comptable_commande_marquer_paye', {id: cmd.id}) }}" class="d-inline">
+                                                        {# On utilise `statutAffiche` pour la condition disabled #}
+                                                        <button type="submit" class="btn" {% if statutAffiche == 'PAYE' %}disabled{% endif %}>Payé</button>
+                                                    </form>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% else %}
+                                    <tr><td colspan="8" class="text-center">Aucune commande trouvée.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -114,7 +270,7 @@
                                             <td><strong>{{ referencePaiement }}</strong></td>
                                             <td class="numeric" data-theorique="{{ theorique }}">{{ theorique|number_format(0, ',', ' ') }} MGA</td>
                                             <td>
-                                                {% if referencePaiement == 'Espèces' %}
+                                                {% if referencePaiement == 'Espèce' %}
                                                     {# === NOUVELLE STRUCTURE POUR LE BILLETAGE === #}
                                                     <div class="billetage-container">
                                                         {% for valeur in [20000, 10000, 5000, 2000, 1000, 500, 200, 100] %}
@@ -179,7 +335,7 @@
                                 <td style="padding: 12px; border: none;">#{{ cloture.id }}</td>
                                 <td style="padding: 12px; border: none;">{{ cloture.dateCloture|date('d/m/Y H:i') }}</td>
                                 <td style="padding: 12px; border: none;">{{ cloture.utilisateur.userIdentifier }}</td>
-                                {% set ecartEspeces = cloture.detailsPaiements['Espèces'].ecart|default(0) %}
+                                {% set ecartEspeces = cloture.detailsPaiements['Espèce'].ecart|default(0) %}
                                 <td style="padding: 12px; border: none;" 
                                     class="{% if ecartEspeces < 0 %}text-danger{% elseif ecartEspeces > 0 %}text-warning{% else %}text-success{% endif %}">
                                     {{ ecartEspeces|number_format(0, ',', ' ') }} MGA
@@ -209,7 +365,7 @@
                                                     <td>{{ data.compte|number_format(0, ',', ' ') }} MGA</td>
                                                     <td>{{ data.ecart|number_format(0, ',', ' ') }} MGA</td>
                                                 </tr>
-                                                {% if methode == 'Espèces' and data.billetage is defined %}
+                                                {% if methode == 'Espèce' and data.billetage is defined %}
                                                     <tr>
                                                         <td colspan="4" style="padding-left: 30px;">
                                                             <em>Détail du billetage compté :</em><br>
@@ -315,7 +471,7 @@
                 const ref = row.querySelector('td strong').textContent.trim();
                 let compte = 0;
 
-                if (ref === 'Espèces') {
+                if (ref === 'Espèce') {
                     // Boucle sur chaque ligne de billet
                     row.querySelectorAll('.billet-row').forEach(billetRow => {
                         const input = billetRow.querySelector('.billet-count');
@@ -333,7 +489,7 @@
                     compte = parseFloat(row.querySelector('.amount-counted').value) || 0;
                 }
 
-                const ecart = ref === 'Espèces' ? compte - (theo + fondInitial) : compte - theo;
+                const ecart = ref === 'Espèce' ? compte - (theo + fondInitial) : compte - theo;
                 row.querySelector('.ecart').textContent = formatCurrency(ecart);
 
                 totalTheo += theo;

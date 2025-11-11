@@ -374,17 +374,21 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             return; 
         }
 
-        // 1. Récupération des données brutes du formulaire soumis
+        // Récupération des données brutes du formulaire
         $formData = $this->requestStack->getCurrentRequest()->request->all()['Commande'] ?? [];
         $referencePaiement = $formData['referencePaiement'] ?? null;
         $detailsPaiement = $formData['detailsPaiement'] ?? null;
-        
-        // 2. On appelle la méthode de génération en lui passant les nouvelles infos
-        //    au lieu de l'appeler sans arguments.
+
+        // Si aucune référence fournie, mettre "Espèces" par défaut
+        if (empty($referencePaiement)) {
+            $referencePaiement = 'Espèce';
+        }
+
+        // Génération des paiements
         $entityInstance->genererPaiementsAutomatiques($referencePaiement, $detailsPaiement);
 
         $this->addFlash('success', 'La commande a été créée');
-        
+
         parent::persistEntity($entityManager, $entityInstance);
     }
 
@@ -393,6 +397,30 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         if (!$entityInstance instanceof Commande) {
             return;
         }
+
+        if (null === $entityInstance->getClient()) {
+            $this->addFlash('danger', 'La commande n\'a pas pu être mise à jour car aucun client n\'a été sélectionné ou créé.');
+            return;
+        }
+
+        // 1. Récupération des données brutes du formulaire
+        $formData = $this->requestStack->getCurrentRequest()->request->all()['Commande'] ?? [];
+        $referencePaiement = $formData['referencePaiement'] ?? null;
+        $detailsPaiement = $formData['detailsPaiement'] ?? null;
+        $nouvelleMethodePaiement = $formData['methodePaiement'] ?? null;
+
+        // 2. Si aucune référence fournie, mettre "Espèce" par défaut
+        if (empty($referencePaiement)) {
+            $referencePaiement = 'Espèce';
+        }
+
+        // 3. Mettre à jour la méthode de paiement si elle a changé
+        if ($nouvelleMethodePaiement) {
+            $entityInstance->setMethodePaiement($nouvelleMethodePaiement);
+        }
+
+        // 4. Recalcul des paiements automatiques
+        $entityInstance->recalculerPaiementsPourUpdate();
 
         $this->addFlash('success', 'La commande a été mise à jour.');
 
@@ -491,7 +519,7 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             });
 
         yield TextField::new('bonDeCommande', 'N° de bon de commande')
-            ->setRequired(true)
+            ->setRequired(false)
             ->hideOnIndex();
 
         yield DateTimeField::new('dateCommande', 'Date de Commande')
