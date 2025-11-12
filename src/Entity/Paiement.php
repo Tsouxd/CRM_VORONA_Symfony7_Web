@@ -28,7 +28,7 @@ class Paiement
     private float $montant = 0.0; // Le montant de CE paiement, saisi par l'utilisateur
 
     #[ORM\ManyToOne(targetEntity: ArretDeCaisse::class, inversedBy: 'paiements')]
-    #[ORM\JoinColumn(nullable: true)] // Un paiement n'a pas d'arrêt de caisse tant qu'il n'est pas clôturé
+    #[ORM\JoinColumn(onDelete: "SET NULL", nullable: true)]
     private ?ArretDeCaisse $arretDeCaisse = null;
 
     #[ORM\ManyToOne(targetEntity: Commande::class, inversedBy: 'paiements')]
@@ -97,7 +97,7 @@ class Paiement
         return sprintf(
             'Paiement de %s MGA (%s)',
             $montantFormatted,
-            $this->getReferencePaiement() // <-- LA CORRECTION EST ICI
+            $this->getReferencePaiement() 
         );
     }
 }

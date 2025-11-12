@@ -5,6 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <title>Application Comptable - Moonlight</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <link rel="stylesheet" href="{{ asset('utils/css_moon/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('utils/css_moon/fontAwesome.css') }}">
     <link rel="stylesheet" href="{{ asset('utils/css_moon/templatemo-main.css') }}">
@@ -23,7 +24,7 @@
         .cloture-submit-btn:hover { background: #2ecc71; }
         
         /* Détails historiques */
-        .details-row { display: none; background: rgba(255,255,255,0.8); }
+        .details-row { display: none; }
         .details-row td { padding: 10px; }
         .toggle-btn { cursor: pointer; color: #007bff; text-decoration: underline; }
 
@@ -112,6 +113,423 @@
         .filter-form .form-control::placeholder { color: #aaa; }
         .filter-form option { background: #333; }
 
+        /* Le conteneur qui utilise Flexbox pour l'alignement "space-between" */
+        .summary-container {
+            display: flex;
+            justify-content: space-between; /* Espace les éléments uniformément */
+            flex-wrap: wrap; /* Permet aux cartes de passer à la ligne sur petits écrans */
+            gap: 20px; /* Espace constant entre les cartes */
+            margin-bottom: 30px; /* Marge sous le conteneur */
+        }
+
+        /* Le nouveau style de carte, plus moderne */
+        .summary-card {
+            flex: 1; /* Permet aux cartes de grandir pour remplir l'espace */
+            min-width: 280px; /* Largeur minimale avant de passer à la ligne */
+            display: flex; /* Utilise Flexbox pour aligner l'icône et le texte */
+            align-items: center;
+            gap: 20px;
+            padding: 25px;
+            color: #fff;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(8px); /* Effet "verre dépoli" moderne */
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .summary-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Style pour le cercle de l'icône */
+        .summary-card-icon {
+            flex-shrink: 0; /* Empêche l'icône de rétrécir */
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        /* Couleurs spécifiques pour chaque icône */
+        .summary-card-icon.icon-due { color: #f39c12; } /* Jaune/Orange pour "à payer" */
+        .summary-card-icon.icon-paid { color: #2ecc71; } /* Vert pour "payé" */
+        .summary-card-icon.icon-balance { color: #e74c3c; } /* Rouge pour "reste" (dette) */
+
+        /* Conteneur pour le texte */
+        .summary-card-content {
+            text-align: left;
+        }
+
+        /* Style du titre de la carte (ex: "Total à Payer") */
+        .summary-card .card-title {
+            margin: 0 0 5px 0;
+            font-size: 0.9em;
+            font-weight: 500;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Style du montant */
+        .summary-card .card-text {
+            margin: 0;
+            font-size: 2.2em;
+            font-weight: 600;
+            letter-spacing: -1px;
+            color: #fff;
+        }
+
+        /* ======================================================= */
+        /* === STYLE DE LA BARRE D'OUTILS ET FILTRES === */
+        /* ======================================================= */
+
+        /* Le conteneur principal du formulaire */
+        .filter-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap; /* Pour la responsivité */
+            gap: 20px;
+            padding: 15px 25px;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+        }
+
+        /* Groupe pour les options de filtre (le toggle) */
+        .filter-toolbar .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Style du toggle switch (interrupteur) de Bootstrap */
+        .filter-toolbar .form-switch .form-check-label {
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+        }
+        .filter-toolbar .form-switch .form-check-input {
+            cursor: pointer;
+            width: 2.5em;
+            height: 1.4em;
+            background-color: rgba(0,0,0,0.3);
+            border-color: rgba(255,255,255,0.2);
+        }
+        .filter-toolbar .form-switch .form-check-input:checked {
+            background-color: #2ecc71; /* Vert succès */
+            border-color: #2ecc71;
+        }
+
+        /* Groupe pour les boutons d'action */
+        .filter-toolbar .action-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Style commun pour les boutons dans la barre d'outils */
+        .filter-toolbar .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px; /* Espace entre l'icône et le texte */
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 8px 16px;
+            transition: all 0.2s ease-in-out;
+        }
+
+        /* Style spécifique du bouton "Filtrer" */
+        .filter-toolbar .btn-primary {
+            background-color: #4a90e2; /* Bleu moderne */
+            color: #fff;
+        }
+        .filter-toolbar .btn-primary:hover {
+            background-color: #5aa1f3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(74, 144, 226, 0.3);
+        }
+
+        /* Style spécifique du bouton "Reset" (moins visible) */
+        .filter-toolbar .btn-secondary {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .filter-toolbar .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+
+        /* ======================================================= */
+        /* ===       STYLE PROFESSIONNEL POUR LE TABLEAU       === */
+        /* ======================================================= */
+
+        /* Conteneur principal du tableau */
+        .data-table-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            padding: 10px 25px 25px 25px;
+            overflow-x: auto; /* Assure la responsivité sur petits écrans */
+        }
+
+        .data-table-container table {
+            width: 100%;
+            border-collapse: collapse; /* Essentiel pour un design propre */
+            color: #fff;
+        }
+
+        /* En-tête du tableau (thead) */
+        .data-table-container th {
+            padding: 16px 15px;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.6);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Cellules du tableau (tbody) */
+        .data-table-container td {
+            padding: 18px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            vertical-align: middle; /* Alignement vertical parfait */
+        }
+
+        /* Supprime la bordure de la dernière ligne pour un look net */
+        .data-table-container tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Effet de survol subtil sur les lignes */
+        .data-table-container tbody tr:hover {
+            background-color: rgba(74, 144, 226, 0.1); /* Bleu subtil au survol */
+        }
+
+        /* Classes d'alignement pour la lisibilité */
+        .data-table-container .text-end { text-align: right; }
+        .data-table-container .text-center { text-align: center; }
+
+        /* Mise en évidence du nom du client et du reste à payer */
+        .data-table-container .client-name {
+            font-weight: 500;
+            color: #fff;
+        }
+        .data-table-container .amount-due {
+            font-weight: 700;
+            color: #f39c12; /* Couleur 'warning' pour attirer l'attention */
+        }
+
+        /* Style des badges de statut (plus modernes) */
+        .data-table-container .badge {
+            padding: 5px 12px;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+
+        /* Icône pour le statut "Vérifié" */
+        .data-table-container .status-icon {
+            font-size: 1.2em;
+        }
+        .data-table-container .status-icon.verified { color: #2ecc71; }
+        .data-table-container .status-icon.not-verified { color: rgba(255, 255, 255, 0.3); }
+
+        /* Groupe de boutons d'action avec icônes */
+        .data-table-container .action-buttons {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        .data-table-container .action-buttons form { display: contents; } /* Astuce pour l'alignement flex */
+
+        .data-table-container .action-buttons .btn-action {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%; /* Boutons ronds */
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: none;
+            font-size: 1em;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .data-table-container .action-buttons .btn-action:hover {
+            background: #4a90e2; /* Bleu au survol */
+            color: #fff;
+            transform: scale(1.1);
+        }
+        .data-table-container .action-buttons .btn-action:disabled {
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.3);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Message pour tableau vide */
+        .data-table-container .empty-row td {
+            text-align: center;
+            padding: 50px 0;
+            color: rgba(255, 255, 255, 0.5);
+            font-style: italic;
+        }
+
+        /* ======================================================= */
+        /* ===     STYLE PROFESSIONNEL POUR L'HISTORIQUE       === */
+        /* ======================================================= */
+
+        /* Conteneur principal pour le tableau de l'historique */
+        .history-table-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(8px);
+            overflow: hidden; /* Important pour que les coins arrondis s'appliquent au tableau */
+        }
+
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            color: var(--text-primary, #fff); /* Utilise la variable si elle existe, sinon blanc */
+        }
+
+        /* Lignes principales (résumé de la clôture) et en-tête */
+        .history-table th,
+        .history-table .summary-row td {
+            padding: 18px 25px;
+            border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .history-table thead th {
+            font-size: 0.8em;
+            color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+            text-transform: uppercase;
+            font-weight: 500;
+            border-bottom-width: 2px; /* Ligne plus épaisse pour l'en-tête */
+        }
+
+        /* Style des valeurs d'écart avec des couleurs */
+        .history-table .ecart-value { font-weight: 600; }
+        .history-table .ecart-negative { color: var(--danger-color, #e74c3c); }
+        .history-table .ecart-positive { color: var(--warning-color, #f39c12); }
+        .history-table .ecart-zero { color: var(--success-color, #2ecc71); }
+
+        /* Bouton pour afficher/cacher les détails */
+        .history-table .toggle-details-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            color: var(--primary-color, #4a90e2);
+            font-weight: 500;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: all 0.2s ease;
+        }
+        .history-table .toggle-details-btn:hover {
+            background-color: rgba(74, 144, 226, 0.1);
+        }
+        .history-table .toggle-details-btn i {
+            transition: transform 0.3s ease;
+        }
+        .history-table .toggle-details-btn.expanded i {
+            transform: rotate(180deg);
+        }
+
+        /* Ligne des détails (cachée par défaut) */
+        .history-table .details-row {
+            display: none;
+        }
+        .history-table .details-row.show {
+            display: table-row; /* Révélée via JS */
+        }
+
+        /* Contenu de la ligne des détails (le conteneur principal) */
+        .cloture-details-content {
+            /* Fond transparent pour un effet de profondeur */
+            background-color: rgba(0, 0, 0, 0.25); 
+            padding: 25px;
+            /* Ligne de séparation subtile avec la ligne de résumé */
+            border-top: 1px solid rgba(255, 255, 255, 0.1); 
+            color: #fff;
+        }
+        .cloture-details-content h5 {
+            font-weight: 500;
+            margin-top: 0;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        /* Sous-tableau dans les détails (plus intégré) */
+        .details-sub-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: rgba(255, 255, 255, 0.05); /* Fond très subtil pour le différencier */
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+            color: #fff;
+            overflow: hidden; /* Pour que le border-radius s'applique aux coins */
+        }
+
+        .details-sub-table th, .details-sub-table td {
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: left;
+            vertical-align: middle;
+        }
+        /* Supprime la bordure de la dernière ligne */
+        .details-sub-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .details-sub-table th {
+            background-color: rgba(255, 255, 255, 0.08); /* En-tête légèrement plus clair */
+            font-size: 0.8em;
+            font-weight: 500;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        /* Détail du billetage (plus lisible) */
+        .billetage-details {
+            padding-left: 30px !important;
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+            font-size: 0.9em;
+            background-color: rgba(0, 0, 0, 0.2); /* Fond encore plus sombre pour le nicher */
+        }
+
+        /* Style des notes */
+        .cloture-details-content p {
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+        }
+        .cloture-details-content p strong {
+            color: #fff;
+            font-weight: 500;
+        }
+
     </style>
 </head>
 <body>
@@ -138,34 +556,82 @@
                     {% endfor %}
 
                     <!-- Bandeau de synthèse -->
-                    <div class="row">
-                        <div class="col-md-3"><div class="dashboard-card"><h5 class="card-title">Total à Payer</h5><p class="card-text">{{ synthese.totalAPayer|number_format(0, ',', ' ') }}</p></div></div>
-                        <div class="col-md-3"><div class="dashboard-card"><h5 class="card-title">Montants Payés</h5><p class="card-text">{{ synthese.totalPaye|number_format(0, ',', ' ') }}</p></div></div>
-                        <div class="col-md-3"><div class="dashboard-card"><h5 class="card-title">Reste Global</h5><p class="card-text">{{ synthese.resteGlobal|number_format(0, ',', ' ') }}</p></div></div>
+                    <div class="summary-container">
+
+                        <!-- Carte 1: Total à Payer -->
+                        <div class="summary-card">
+                            <div class="summary-card-icon icon-due">
+                                <i class="fa fa-file-invoice-dollar"></i>
+                            </div>
+                            <div class="summary-card-content">
+                                <h5 class="card-title">Total à Payer</h5>
+                                <p class="card-text">{{ synthese.totalAPayer|number_format(0, ',', ' ') }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Carte 2: Montants Payés -->
+                        <div class="summary-card">
+                            <div class="summary-card-icon icon-paid">
+                                <i class="fa fa-check-double"></i>
+                            </div>
+                            <div class="summary-card-content">
+                                <h5 class="card-title">Montants Payés</h5>
+                                <p class="card-text">{{ synthese.totalPaye|number_format(0, ',', ' ') }}</p>
+                            </div>
+                        </div>
+
+                        <!-- Carte 3: Reste Global -->
+                        <div class="summary-card">
+                            <div class="summary-card-icon icon-balance">
+                                <i class="fa fa-balance-scale-right"></i>
+                            </div>
+                            <div class="summary-card-content">
+                                <h5 class="card-title">Reste Global</h5>
+                                <p class="card-text">{{ synthese.resteGlobal|number_format(0, ',', ' ') }}</p>
+                            </div>
+                        </div>
+
                     </div>
 
                     <!-- Filtres -->
-                    <div class="filter-form">
-                        <form method="get" action="{{ path('app_comptable_dashboard') }}" class="row g-3 align-items-end">
-                             <div class="col-md-2" style="padding-top: 30px;">
-                                <div class="form-check">
-                                    <input type="checkbox" name="non_solde" id="non_solde" value="1" class="form-check-input" {{ filters.non_solde ? 'checked' }}>
-                                    <label for="non_solde" class="form-check-label">Reste > 0</label>
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-primary">Filtrer</button>
-                                <a href="{{ path('app_comptable_dashboard') }}" class="btn btn-secondary">Reset</a>
-                            </div>
-                        </form>
-                    </div>
+                    <form method="get" action="{{ path('app_comptable_dashboard') }}" class="filter-toolbar">
 
-                    <!-- Liste des commandes -->
-                    <div class="compta-table">
+                        <!-- Section des options de filtre -->
+                        <div class="filter-group">
+                            <div class="form-check form-switch">
+                                <input type="checkbox" name="non_solde" id="non_solde" value="1" class="form-check-input" role="switch" {{ filters.non_solde ? 'checked' }}>
+                                <label for="non_solde" class="form-check-label">Afficher uniquement les restes à payer</label>
+                            </div>
+                            <!-- Vous pouvez ajouter d'autres filtres ici -->
+                        </div>
+
+                        <!-- Section des boutons d'action -->
+                        <div class="action-group">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fa fa-filter"></i>
+                                <span>Filtrer</span>
+                            </button>
+                            <a href="{{ path('app_comptable_dashboard') }}" class="btn btn-secondary">
+                                <i class="fa fa-sync-alt"></i>
+                                <span>Reset</span>
+                            </a>
+                        </div>
+
+                    </form>
+
+                    <!-- Conteneur du tableau des commandes (Nouveau Design) -->
+                    <div class="data-table-container">
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Date</th><th>Client</th><th>Total</th><th>Payé</th><th>Reste</th><th>Statut</th><th>Vérifié</th><th>Actions</th>
+                                    <th>Date</th>
+                                    <th>Client</th>
+                                    <th class="text-end">Total</th>
+                                    <th class="text-end">Payé</th>
+                                    <th class="text-end">Reste</th>
+                                    <th class="text-center">Statut</th>
+                                    <th class="text-center">Vérifié</th>
+                                    <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -174,26 +640,12 @@
                                     {% set reste = data.resteAPayer %}
                                     {% set montantPaye = data.montantPaye %}
 
-                                    {# ============================================================= #}
-                                    {# == NOUVELLE LOGIQUE DE CALCUL DU STATUT POUR L'AFFICHAGE == #}
-                                    {# ============================================================= #}
+                                    {# La logique métier pour le statut reste la même #}
+                                    {% set statutAffiche = 'EN_ATTENTE' %}
+                                    {% if montantPaye > 0 and reste > 0 %}{% set statutAffiche = 'PARTIEL' %}{% endif %}
+                                    {% if reste <= 0 %}{% set statutAffiche = 'PAYE' %}{% endif %}
+                                    {% if cmd.statutComptable == 'RECOUVREMENT' %}{% set statutAffiche = 'RECOUVREMENT' %}{% endif %}
                                     
-                                    {# On définit le statut à afficher en suivant les règles métier #}
-                                    {% set statutAffiche = 'EN_ATTENTE' %} {# Valeur par défaut si rien n'est payé #}
-
-                                    {% if montantPaye > 0 and reste > 0 %}
-                                        {% set statutAffiche = 'PARTIEL' %}
-                                    {% elseif reste <= 0 %}
-                                        {% set statutAffiche = 'PAYE' %}
-                                    {% endif %}
-
-                                    {# Le statut RECOUVREMENT est prioritaire sur les statuts calculés #}
-                                    {% if cmd.statutComptable == 'RECOUVREMENT' %}
-                                        {% set statutAffiche = 'RECOUVREMENT' %}
-                                    {% endif %}
-                                    
-                                    {# ------------------------------------------------------------- #}
-
                                     {% set statut_badge = {
                                         'EN_ATTENTE': 'secondary', 
                                         'PARTIEL': 'warning', 
@@ -203,42 +655,58 @@
 
                                     <tr>
                                         <td>{{ cmd.dateCommande|date('d/m/Y') }}</td>
-                                        <td>{{ cmd.client.nom }}</td>
-                                        <td>{{ data.totalCommande|number_format(0, ',', ' ') }}</td>
-                                        <td>{{ montantPaye|number_format(0, ',', ' ') }}</td>
-                                        <td class="font-weight-bold">{{ reste|number_format(0, ',', ' ') }}</td>
+                                        <td class="client-name">{{ cmd.client.nom }}</td>
+                                        <td class="text-end">{{ data.totalCommande|number_format(0, ',', ' ') }}</td>
+                                        <td class="text-end">{{ montantPaye|number_format(0, ',', ' ') }}</td>
+                                        <td class="text-end amount-due">{{ reste|number_format(0, ',', ' ') }}</td>
                                         
-                                        {# On utilise notre nouvelle variable `statutAffiche` #}
-                                        <td><span class="badge bg-{{ statut_badge[statutAffiche] }}">{{ statutAffiche|replace({'_': ' '}) }}</span></td>
+                                        <td class="text-center">
+                                            <span class="badge rounded-pill text-bg-{{ statut_badge[statutAffiche] }}">{{ statutAffiche|replace({'_': ' '}) }}</span>
+                                        </td>
                                         
-                                        <td>{{ (cmd.isVerifieComptable ?? false) ? 'Oui' : 'Non' }}</td>
+                                        <td class="text-center">
+                                            {% if cmd.isVerifieComptable %}
+                                                <i class="fa fa-check-circle status-icon verified" title="Vérifié"></i>
+                                            {% else %}
+                                                <i class="fa fa-circle status-icon not-verified" title="Non vérifié"></i>
+                                            {% endif %}
+                                        </td>
 
                                         <td>
-                                            <div class="btn-group">
-                                                <a href="{{ path('app_comptable_commande_detail', {id: cmd.id}) }}" class="btn">Détail</a>
+                                            <div class="action-buttons">
+                                                <a href="{{ path('app_comptable_commande_detail', {id: cmd.id}) }}" class="btn-action" title="Voir le détail">
+                                                    <i class="fa fa-eye"></i>
+                                                </a>
                                                 
-                                                <form method="post" action="{{ path('app_comptable_commande_verifier', {id: cmd.id}) }}" onsubmit="return confirm('Vérifier cette commande ?');" class="d-inline">
-                                                    <button type="submit" class="btn" {% if cmd.isVerifieComptable %}disabled{% endif %}>Vérifier</button>
+                                                <form method="post" action="{{ path('app_comptable_commande_verifier', {id: cmd.id}) }}" onsubmit="return confirm('Vérifier cette commande ?');">
+                                                    <button type="submit" class="btn-action" title="Marquer comme vérifié" {% if cmd.isVerifieComptable %}disabled{% endif %}>
+                                                        <i class="fa fa-check"></i>
+                                                    </button>
                                                 </form>
 
                                                 {% if reste > 0 %}
-                                                    <form method="post" action="{{ path('app_comptable_commande_recouvrement', {id: cmd.id}) }}" class="d-inline">
-                                                        {# On utilise `statutAffiche` pour la condition disabled #}
-                                                        <button type="submit" class="btn" {% if statutAffiche == 'RECOUVREMENT' %}disabled{% endif %}>Recouvrement</button>
+                                                    <form method="post" action="{{ path('app_comptable_commande_recouvrement', {id: cmd.id}) }}">
+                                                        <button type="submit" class="btn-action" title="Passer en recouvrement" {% if statutAffiche == 'RECOUVREMENT' %}disabled{% endif %}>
+                                                            <i class="fa fa-exclamation-triangle"></i>
+                                                        </button>
                                                     </form>
                                                 {% endif %}
                                                 
-                                                {% if reste <= 0 %}
-                                                    <form method="post" action="{{ path('app_comptable_commande_marquer_paye', {id: cmd.id}) }}" class="d-inline">
-                                                        {# On utilise `statutAffiche` pour la condition disabled #}
-                                                        <button type="submit" class="btn" {% if statutAffiche == 'PAYE' %}disabled{% endif %}>Payé</button>
+                                                {# J'ai commenté ce bouton car il est redondant avec le statut "PAYE", mais vous pouvez le réactiver si besoin #}
+                                                {# {% if reste <= 0 %}
+                                                    <form method="post" action="{{ path('app_comptable_commande_marquer_paye', {id: cmd.id}) }}">
+                                                        <button type="submit" class="btn-action" title="Marquer comme Payé" {% if statutAffiche == 'PAYE' %}disabled{% endif %}>
+                                                            <i class="fa fa-money-bill-wave"></i>
+                                                        </button>
                                                     </form>
-                                                {% endif %}
+                                                {% endif %} #}
                                             </div>
                                         </td>
                                     </tr>
                                 {% else %}
-                                    <tr><td colspan="8" class="text-center">Aucune commande trouvée.</td></tr>
+                                    <tr class="empty-row">
+                                        <td colspan="8">Aucune commande ne correspond à vos critères de recherche.</td>
+                                    </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
@@ -316,79 +784,96 @@
 
         <!-- Slide 3 (Historique) -->
         <div class="slide" id="3">
-             <div class="content fourth-content">
+            <div class="content fourth-content">
                 <div class="container-fluid">
-                    <h2 style="color: #fff">Historique des 10 dernières clôtures</h2>
-                    <table class="table table-hover">
-                        <thead>
-                            <tr style="background: #fff; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
-                                <th style="padding: 14px; border: none; font-weight:600; color:#333;">ID</th>
-                                <th style="padding: 14px; border: none; font-weight:600; color:#333;">Date</th>
-                                <th style="padding: 14px; border: none; font-weight:600; color:#333;">Utilisateur</th>
-                                <th style="padding: 14px; border: none; font-weight:600; color:#333;">Écart Espèces</th>
-                                <th style="padding: 14px; border: none; font-weight:600; color:#333;">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                        {% for cloture in pastClotures %}
-                            <tr style="background: #fff; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);">
-                                <td style="padding: 12px; border: none;">#{{ cloture.id }}</td>
-                                <td style="padding: 12px; border: none;">{{ cloture.dateCloture|date('d/m/Y H:i') }}</td>
-                                <td style="padding: 12px; border: none;">{{ cloture.utilisateur.userIdentifier }}</td>
-                                {% set ecartEspeces = cloture.detailsPaiements['Espèce'].ecart|default(0) %}
-                                <td style="padding: 12px; border: none;" 
-                                    class="{% if ecartEspeces < 0 %}text-danger{% elseif ecartEspeces > 0 %}text-warning{% else %}text-success{% endif %}">
-                                    {{ ecartEspeces|number_format(0, ',', ' ') }} MGA
-                                </td>
-                                <td style="padding: 12px; border: none;">
-                                    <span class="toggle-btn" 
-                                        data-id="{{ cloture.id }}" 
-                                        style="cursor:pointer; color:#007bff; font-weight:500;">
-                                        Voir détails
-                                    </span>
-                                </td>
-                            </tr>
-                            <tr class="details-row" id="details-{{ cloture.id }}">
-                                <td colspan="5">
-                                    <div style="padding: 15px;">
-                                        <h5>Détails de la clôture #{{ cloture.id }}</h5>
-                                        <!-- <p><strong>Fond de caisse initial :</strong> {{ cloture.fondDeCaisseInitial|number_format(0, ',', ' ') }} MGA</p> -->
-                                        <table class="table table-bordered">
-                                            <thead>
-                                                <tr style="background: #eee;"><th>Méthode</th><th>Théorique</th><th>Compté</th><th>Écart</th></tr>
-                                            </thead>
-                                            <tbody>
-                                            {% for methode, data in cloture.detailsPaiements %} 
-                                                <tr>
-                                                    <td><strong>{{ methode }}</strong></td>
-                                                    <td>{{ data.theorique|number_format(0, ',', ' ') }} MGA</td>
-                                                    <td>{{ data.compte|number_format(0, ',', ' ') }} MGA</td>
-                                                    <td>{{ data.ecart|number_format(0, ',', ' ') }} MGA</td>
-                                                </tr>
-                                                {% if methode == 'Espèce' and data.billetage is defined %}
+                    <h2 style="color: #fff; margin-bottom: 25px;">Historique des 10 dernières clôtures</h2>
+
+                    <!-- Conteneur principal pour le tableau stylisé -->
+                    <div class="history-table-container">
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Date</th>
+                                    <th>Utilisateur</th>
+                                    <th>Écart Espèces</th>
+                                    <th style="text-align: center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            {% for cloture in pastClotures %}
+                                <!-- Ligne de résumé de la clôture -->
+                                <tr class="summary-row">
+                                    <td>#{{ cloture.id }}</td>
+                                    <td>{{ cloture.dateCloture|date('d/m/Y H:i') }}</td>
+                                    <td>{{ cloture.utilisateur.userIdentifier }}</td>
+                                    
+                                    {% set ecartEspeces = cloture.detailsPaiements['Espèce'].ecart|default(0) %}
+                                    <td class="ecart-value {% if ecartEspeces < 0 %}ecart-negative{% elseif ecartEspeces > 0 %}ecart-positive{% else %}ecart-zero{% endif %}">
+                                        {{ ecartEspeces|number_format(0, ',', ' ') }} MGA
+                                    </td>
+
+                                    <td style="text-align: center;">
+                                        <button class="toggle-details-btn" data-target-id="{{ cloture.id }}">
+                                            Détails
+                                            <i class="fas fa-chevron-down"></i> <!-- Icône Font Awesome -->
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <!-- Ligne des détails (cachée par défaut) -->
+                                <tr class="details-row" id="details-{{ cloture.id }}">
+                                    <td colspan="5">
+                                        <div class="cloture-details-content">
+                                            <h5>Détails de la clôture n°{{ cloture.id }}</h5>
+                                            
+                                            <table class="details-sub-table">
+                                                <thead>
                                                     <tr>
-                                                        <td colspan="4" style="padding-left: 30px;">
-                                                            <em>Détail du billetage compté :</em><br>
-                                                            {% for val, qte in data.billetage|sort((a, b) => b <=> a) %}
-                                                                &bull; {{ val|number_format(0, ',', ' ') }} MGA x {{ qte }} = {{ (val * qte)|number_format(0, ',', ' ') }} MGA<br>
-                                                            {% endfor %}
-                                                        </td>
+                                                        <th>Méthode</th>
+                                                        <th>Théorique</th>
+                                                        <th>Compté</th>
+                                                        <th>Écart</th>
                                                     </tr>
-                                                {% endif %}
-                                            {% endfor %}
-                                            </tbody>
-                                        </table>
-                                        {% if cloture.notes %}
-                                            <p><strong>Notes :</strong> {{ cloture.notes|nl2br }}</p>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                        {% else %}
-                            <tr><td colspan="5">Aucun historique de clôture.</td></tr>
-                        {% endfor %}
-                        </tbody>
-                    </table>
+                                                </thead>
+                                                <tbody>
+                                                {% for methode, data in cloture.detailsPaiements %} 
+                                                    <tr>
+                                                        <td><strong>{{ methode }}</strong></td>
+                                                        <td>{{ data.theorique|number_format(0, ',', ' ') }} MGA</td>
+                                                        <td>{{ data.compte|number_format(0, ',', ' ') }} MGA</td>
+                                                        <td>{{ data.ecart|number_format(0, ',', ' ') }} MGA</td>
+                                                    </tr>
+                                                    {% if methode == 'Espèce' and data.billetage is defined and data.billetage|length > 0 %}
+                                                        <tr>
+                                                            <td colspan="4" class="billetage-details">
+                                                                <center><em >Détail du billetage compté :</em><center/>
+                                                                {% for val, qte in data.billetage|sort((a, b) => b <=> a) %}
+                                                                    &bull; {{ val|number_format(0, ',', ' ') }} MGA x {{ qte }} = {{ (val * qte)|number_format(0, ',', ' ') }} MGA<br>
+                                                                {% endfor %}
+                                                            </td>
+                                                        </tr>
+                                                    {% endif %}
+                                                {% endfor %}
+                                                </tbody>
+                                            </table>
+
+                                            {% if cloture.notes %}
+                                                <p><strong>Notes : </strong>{{ cloture.notes|nl2br }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" style="text-align: center; padding: 40px; color: rgba(255,255,255,0.5);">
+                                        Aucun historique de clôture à afficher.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -443,27 +928,37 @@
                 </div>
             </div>
         </div>
-
-
     </div>
 
     {# On inclut jQuery car main.js en dépendait probablement #}
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
     <script src="{{ asset('utils/js_moon/main.js') }}"></script>
 
-    {# === SCRIPT JAVASCRIPT MIS À JOUR === #}
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         
+        // --- PARTIE 1 : LOGIQUE DE L'ARRÊT DE CAISSE ---
+        
         function formatCurrency(value) {
-            return new Intl.NumberFormat('fr-FR').format(value) + ' MGA';
+            // S'assure que la valeur est un nombre avant de formater
+            const numberValue = Number(value);
+            if (isNaN(numberValue)) {
+                return '0 MGA';
+            }
+            return new Intl.NumberFormat('fr-FR').format(numberValue) + ' MGA';
         }
 
         function updateAllEcarts() {
-            const fondInitial = parseFloat(document.getElementById('fond_de_caisse_initial')?.value) || 0;
+            // On vérifie si le formulaire existe avant de continuer
+            const clotureForm = document.getElementById('cloture-caisse-form');
+            if (!clotureForm) {
+                return; // Si on n'est pas sur la page de clôture, on ne fait rien
+            }
+
+            const fondInitial = 0; // La valeur est commentée dans le HTML, donc on la met à 0
             let totalTheo = 0, totalCompte = 0, totalEcart = 0;
 
-            document.querySelectorAll('.cloture-table tbody tr').forEach(row => {
+            clotureForm.querySelectorAll('.cloture-table tbody tr').forEach(row => {
                 const theoEl = row.querySelector('[data-theorique]');
                 if (!theoEl) return;
 
@@ -472,51 +967,61 @@
                 let compte = 0;
 
                 if (ref === 'Espèce') {
-                    // Boucle sur chaque ligne de billet
                     row.querySelectorAll('.billet-row').forEach(billetRow => {
                         const input = billetRow.querySelector('.billet-count');
                         const qte = parseInt(input.value) || 0;
-                        const valeur = parseInt(input.dataset.valeur); // On utilise notre data-attribut
-                        
+                        const valeur = parseInt(input.dataset.valeur);
                         const subtotal = qte * valeur;
-                        
-                        // Mise à jour du sous-total de la ligne
                         billetRow.querySelector('.billet-subtotal').textContent = formatCurrency(subtotal);
-                        
-                        compte += subtotal; // On ajoute au total compté pour les espèces
+                        compte += subtotal;
                     });
                 } else {
-                    compte = parseFloat(row.querySelector('.amount-counted').value) || 0;
+                    const countedInput = row.querySelector('.amount-counted');
+                    if (countedInput) {
+                       compte = parseFloat(countedInput.value) || 0;
+                    }
                 }
 
-                const ecart = ref === 'Espèce' ? compte - (theo + fondInitial) : compte - theo;
+                const ecart = compte - theo;
                 row.querySelector('.ecart').textContent = formatCurrency(ecart);
 
                 totalTheo += theo;
                 totalCompte += compte;
                 totalEcart += ecart;
             });
-
+            
             document.getElementById('total-theorique').textContent = formatCurrency(totalTheo);
             document.getElementById('total-compte').textContent = formatCurrency(totalCompte);
             document.getElementById('total-ecart').textContent = formatCurrency(totalEcart);
         }
 
+        // Ajout d'un écouteur sur le body pour déléguer les événements 'input'
         document.body.addEventListener('input', e => {
-            if (e.target.classList.contains('amount-counted') || e.target.classList.contains('billet-count') || e.target.id === 'fond_de_caisse_initial') {
+            if (e.target.matches('.amount-counted, .billet-count')) {
                 updateAllEcarts();
             }
         });
 
-        document.querySelectorAll('.toggle-btn').forEach(btn => {
+        // Lancer un premier calcul au chargement de la page pour le slide 2
+        updateAllEcarts();
+
+
+        // --- PARTIE 2 : LOGIQUE DE L'HISTORIQUE ---
+        
+        // On cible directement les boutons, sans écouteur imbriqué
+        document.querySelectorAll('.toggle-details-btn').forEach(btn => {
             btn.addEventListener('click', () => {
-                const row = document.getElementById('details-' + btn.dataset.id);
-                row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
+                const targetId = btn.dataset.targetId; 
+                const row = document.getElementById('details-' + targetId);
+
+                if (row) {
+                    const isVisible = row.style.display === 'table-row';
+                    row.style.display = isVisible ? 'none' : 'table-row';
+                    btn.classList.toggle('expanded', !isVisible);
+                }
             });
         });
-        
-        // Lancer un premier calcul au chargement de la page
-        updateAllEcarts();
+
     });
     </script>
 </body>

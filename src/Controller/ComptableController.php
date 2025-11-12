@@ -165,7 +165,7 @@ class ComptableController extends AbstractController
             $compte = 0;
             $billetage = [];
 
-            if ($reference === 'Espèces') {
+            if ($reference === 'Espèce') {
                 $valeurs = [20000, 10000, 5000, 2000, 1000, 500, 200, 100];
                 foreach ($valeurs as $val) {
                     $qte = (int) $request->request->get('billet_' . $val, 0);
