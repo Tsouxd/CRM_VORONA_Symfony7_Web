@@ -214,6 +214,30 @@ class Commande
     #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $dateEcheance = null;
 
+    #[Vich\UploadableField(mapping: 'commandes_fichiers', fileNameProperty: 'modificationFileName')]
+    private ?File $modificationFile = null;
+
+    #[Vich\UploadableField(mapping: 'commandes_fichiers2', fileNameProperty: 'modificationFileName2')]
+    private ?File $modificationFile2 = null;
+
+    #[Vich\UploadableField(mapping: 'commandes_fichiers3', fileNameProperty: 'modificationFileName3')]
+    private ?File $modificationFile3 = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $modificationFileName = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $modificationFileName2 = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $paoMotifModification2 = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $modificationFileName3 = null;
+
+    #[ORM\Column(type: Types::TEXT, nullable: true)]
+    private ?string $paoMotifModification3 = null;
+
     public function __construct()
     {
         $this->commandeProduits = new ArrayCollection();
@@ -892,6 +916,90 @@ class Commande
         $this->dateEcheance = $dateEcheance;
         return $this;
     }
+
+    public function setModificationFile(?File $modificationFile = null): void
+    {
+        $this->modificationFile = $modificationFile;
+
+        if (null !== $modificationFile) {
+            // Il est nécessaire de modifier au moins un champ pour que les listeners Doctrine
+            // se déclenchent et que le fichier soit sauvegardé.
+            $this->updatedAt = new \DateTimeImmutable();
+        }
+    }
+
+    public function getModificationFile(): ?File
+    {
+        return $this->modificationFile;
+    }
+
+    public function setModificationFileName(?string $modificationFileName): void
+    {
+        $this->modificationFileName = $modificationFileName;
+    }
+
+    public function getModificationFileName(): ?string
+    {
+        return $this->modificationFileName;
+    }
+
+    public function setModificationFile2(?File $modificationFile2 = null): void
+    {
+        $this->modificationFile2 = $modificationFile2;
+
+        if (null !== $modificationFile2) {
+            // Il est nécessaire de modifier au moins un champ pour que les listeners Doctrine
+            // se déclenchent et que le fichier soit sauvegardé.
+            $this->updatedAt = new \DateTimeImmutable();
+        }
+    }
+
+    public function getModificationFile2(): ?File
+    {
+        return $this->modificationFile2;
+    }
+
+    public function setModificationFileName2(?string $modificationFileName2): void
+    {
+        $this->modificationFileName2 = $modificationFileName2;
+    }
+
+    public function getModificationFileName2(): ?string
+    {
+        return $this->modificationFileName2;
+    }
+
+    public function getPaoMotifModification2(): ?string { return $this->paoMotifModification2; }
+    public function setPaoMotifModification2(?string $paoMotifModification2): self { $this->paoMotifModification2 = $paoMotifModification2; return $this; }
+
+    public function setModificationFile3(?File $modificationFile3 = null): void
+    {
+        $this->modificationFile3 = $modificationFile3;
+
+        if (null !== $modificationFile3) {
+            // Il est nécessaire de modifier au moins un champ pour que les listeners Doctrine
+            // se déclenchent et que le fichier soit sauvegardé.
+            $this->updatedAt = new \DateTimeImmutable();
+        }
+    }
+
+    public function getModificationFile3(): ?File
+    {
+        return $this->modificationFile3;
+    }
+
+    public function setModificationFileName3(?string $modificationFileName3): void
+    {
+        $this->modificationFileName3 = $modificationFileName3;
+    }
+
+    public function getModificationFileName3(): ?string
+    {
+        return $this->modificationFileName3;
+    }
+
+    public function getPaoMotifModification3(): ?string { return $this->paoMotifModification3; }
+    public function setPaoMotifModification3(?string $paoMotifModification3): self { $this->paoMotifModification3 = $paoMotifModification3; return $this; }
 
     public function __toString(): string
     {

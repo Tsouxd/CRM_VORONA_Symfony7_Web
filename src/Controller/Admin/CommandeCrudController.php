@@ -773,11 +773,74 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
                 Commande::BAT_MODIFICATION => 'danger',
                 Commande::BAT_PRODUCTION => 'success',
             ]);
-            
+
+        yield Field::new('modificationFile', 'Pièce jointe de modification (optionnel)')
+            ->setFormType(VichFileType::class)
+            ->setFormTypeOption('allow_delete', false) // Optionnel: empêche la suppression facile
+            ->setHelp('Joindre un fichier pour illustrer la modification (PDF, image...).')
+            ->setCssClass('bat-pj-field')
+            ->onlyOnForms();
+
+        yield Field::new('modificationFile2', 'Pièce jointe de modification 2 (optionnel)')
+            ->setFormType(VichFileType::class)
+            ->setFormTypeOption('allow_delete', false) // Optionnel: empêche la suppression facile
+            ->setHelp('Joindre un fichier pour illustrer la modification (PDF, image...).')
+            ->setCssClass('bat-pj-field-deux')
+            ->onlyOnForms();
+
+        yield Field::new('modificationFile3', 'Pièce jointe de modification 3 (optionnel)')
+            ->setFormType(VichFileType::class)
+            ->setFormTypeOption('allow_delete', false) // Optionnel: empêche la suppression facile
+            ->setHelp('Joindre un fichier pour illustrer la modification (PDF, image...).')
+            ->setCssClass('bat-pj-field-trois')
+            ->onlyOnForms();
+                
         // Champ de SAISIE pour la PROCHAINE modification
         yield TextareaField::new('paoMotifModification', 'Motif de la modification à faire')
             ->setHelp('À remplir OBLIGATOIREMENT si vous demandez une modification.')
             ->setCssClass('bat-motif-field');
+
+        // Pour afficher le fichier sur les pages index/detail
+        yield TextField::new('modificationFileName', 'Pièce jointe modif.')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/fichiers/commandes/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })
+            ->hideOnForm()
+            ->renderAsHtml();
+
+        // Pour afficher le fichier sur les pages index/detail
+        yield TextField::new('modificationFileName2', 'Pièce jointe modif2.')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/fichiers/commandes2/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })
+            ->hideOnForm()
+            ->renderAsHtml();
+
+        // Pour afficher le fichier sur les pages index/detail
+        yield TextField::new('modificationFileName3', 'Pièce jointe modif3.')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/fichiers/commandes3/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })
+            ->hideOnForm()
+            ->renderAsHtml();
 
         // Affichage de l'HISTORIQUE des motifs (lecture seule)
         yield TextareaField::new('paoMotifM1', 'Motif Modif. 1')->setFormTypeOption('disabled', true);
@@ -803,36 +866,48 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
             ->hideOnForm()
             ->renderAsHtml();
 
-        // Script pour afficher/cacher le champ motif
-        yield FormField::addPanel('')->setHelp(<<<HTML
+        yield FormField::addPanel('')->setHelp(<<<'HTML'
             <script>
-                document.addEventListener('DOMContentLoaded', function() {
-                    const batValidationSelect = document.querySelector('#Commande_paoBatValidation');
-                    // On cible l'élément parent pour bien cacher le label aussi
-                    const motifWrapper = document.querySelector('.bat-motif-field').closest('.form-group');
+            document.addEventListener('DOMContentLoaded', function() {
+                const batValidationSelect = document.querySelector('#Commande_paoBatValidation');
+                if (!batValidationSelect) return; // sans select, on stoppe
 
-                    function toggleMotifField() {
-                        // On vérifie que les éléments existent avant de les manipuler
-                        if (!batValidationSelect || !motifWrapper) return;
-                        
-                        if (batValidationSelect.value === 'Modification demandée') {
-                            motifWrapper.style.display = 'block';
-                        } else {
-                            motifWrapper.style.display = 'none';
-                        }
-                    }
+                // Récupère les wrappers si présents (closest('.form-group') si dispo, sinon l'élément lui-même)
+                const getWrapper = (selector) => {
+                    const el = document.querySelector(selector);
+                    if (!el) return null;
+                    return el.closest ? (el.closest('.form-group') || el) : el;
+                };
 
-                    // Au chargement de la page et lors d'événements Turbo
-                    document.addEventListener('turbo:load', toggleMotifField);
-                    toggleMotifField();
+                const motifWrapper  = getWrapper('.bat-motif-field');
+                const pjWrapper1    = getWrapper('.bat-pj-field');
+                const pjWrapper2    = getWrapper('.bat-pj-field-deux');
+                const pjWrapper3    = getWrapper('.bat-pj-field-trois');
 
-                    // À chaque changement du select
-                    if (batValidationSelect) {
-                        batValidationSelect.addEventListener('change', toggleMotifField);
-                    }
-                });
+                function toggleMotifField() {
+                    // Valeurs acceptées (pool de valeurs possibles pour tolérance)
+                    const v = batValidationSelect.value;
+                    // DEBUG : activez la ligne suivante temporairement si vous voulez voir la valeur dans la console
+                    // console.log('Commande_paoBatValidation value =', v);
+
+                    const shouldShow = v === 'Modification demandée' || v === 'Modification à faire' || v.toLowerCase().includes('modification');
+
+                    // Pour chaque wrapper, on applique la visibilité seulement s'il existe
+                    [motifWrapper, pjWrapper1, pjWrapper2, pjWrapper3].forEach(w => {
+                        if (!w) return;
+                        w.style.display = shouldShow ? 'block' : 'none';
+                    });
+                }
+
+                // Appels initiaux et listeners (Turbo-friendly)
+                toggleMotifField();
+                batValidationSelect.addEventListener('change', toggleMotifField);
+                document.addEventListener('turbo:load', toggleMotifField);
+            });
             </script>
-        HTML)->setCssClass('d-none'); // Cache le panneau
+            HTML
+            )->setCssClass('d-none');
+
 
         yield FormField::addPanel('')->setHelp(<<<HTML
             <script>

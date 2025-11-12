@@ -20,6 +20,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
 use Symfony\Component\Serializer\SerializerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 
 class PaoCommandeCrudController extends AbstractCrudController
 {
@@ -121,6 +122,48 @@ class PaoCommandeCrudController extends AbstractCrudController
         yield BooleanField::new('paoModif2Ok', 'M n°2 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
         yield BooleanField::new('paoModif3Ok', 'M n°3 Faite')->onlyOnIndex()->setFormTypeOption('disabled', true);
 
+        // Pour afficher le fichier sur les pages index/detail
+        yield TextField::new('modificationFileName', 'Pièce jointe modif.')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/fichiers/commandes/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })
+            ->hideOnForm()
+            ->renderAsHtml();
+        
+        // Pour afficher le fichier sur les pages index/detail
+        yield TextField::new('modificationFileName2', 'Pièce jointe modif2.')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/fichiers/commandes2/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })
+            ->hideOnForm()
+            ->renderAsHtml();
+
+        // Pour afficher le fichier sur les pages index/detail
+        yield TextField::new('modificationFileName3', 'Pièce jointe modif3.')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/fichiers/commandes3/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })
+            ->hideOnForm()
+            ->renderAsHtml();
+        
         yield TextareaField::new('paoMotifModification', 'Motif de modification à traiter')
             ->setFormTypeOption('disabled', true);
 
