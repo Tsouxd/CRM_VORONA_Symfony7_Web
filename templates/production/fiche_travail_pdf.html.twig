@@ -61,37 +61,49 @@
   </style>
 
 {% else %}
-  {# ========== VERSION PAYSAGE (avec pièce jointe) ========== #}
   <style>
     @page { margin: 0; size: A4 landscape; }
     body { margin: 0; background: #fff; color: #0e0f12; font-family: Helvetica, Arial, sans-serif; font-size: 7px; line-height: 1.15; }
 
     .sheet { padding: 4mm 6mm; box-sizing: border-box; width: 100%; }
 
-    /* ===== Layout principal ===== */
-    .main-container { display: table; width: 100%; table-layout: fixed; }
-    .column-left { display: table-cell; width: 58%; vertical-align: top; padding-right: 6px; }
-    .column-right { display: table-cell; width: 40%; vertical-align: top; padding-left: 6px; }
+    /* ===== Layout principal (MODIFIÉ) ===== */
+    .main-container { 
+        display: table; 
+        width: 100%; /* <-- CORRIGÉ : On utilise 100% de la page */
+        table-layout: fixed;
+        border-spacing: 20px;
+        padding-top: 15px;
+    } 
+    .column-left { 
+        display: table-cell; 
+        width: 50%; /* <-- CORRIGÉ : Un bon équilibre (58+42=100) */
+        vertical-align: top; 
+        box-sizing: border-box;
+    }
+    .column-right { 
+        display: table-cell; 
+        width: 50%; /* <-- CORRIGÉ : Le reste de l'espace pour les images */
+        vertical-align: top; 
+        box-sizing: border-box; 
+        padding-right: 30px;
+        padding-left: 20px;
+        padding-top: 120px;
+    }
 
-    /* ===== Typo ===== */
+    /* ... Le reste du CSS jusqu'à la section des pièces jointes est bon ... */
     .title { font-size: 12px; font-weight: bold; }
     .subtitle { font-size: 7px; color: #505868; margin-top: 1px; }
     h3 { margin: 0 0 3px; font-size: 8px; font-weight: bold; text-transform: uppercase; color: #111826; }
     label { display: block; font-size: 6.5px; text-transform: uppercase; color: #303846; margin-bottom: 1px; }
-
-    /* ===== Header ===== */
     .header-table { width: 100%; border-spacing: 0; margin-bottom: 4px; }
     .header-table td { vertical-align: middle; }
     .brand-table { border-spacing: 0; }
     .brand-table td { vertical-align: middle; padding: 0; }
     .logo { width: 24px; height: 24px; border-radius: 6px; background: #0ea5e9; margin-right: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
     .logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
-
-    /* ===== Section ===== */
     .section { border: 1px solid #e8ebef; border-radius: 5px; padding: 4px; margin-bottom: 4px; background: #fff; }
     .section--tinted { background: #f8fafc; }
-
-    /* ===== Grilles ===== */
     .layout-grid { width: 100%; border-collapse: separate; border-spacing: 3px 2px; }
     .layout-grid td { vertical-align: top; padding: 0; }
     .layout-grid .g-2 td { width: 50%; }
@@ -99,79 +111,51 @@
     .layout-grid .g-4 td { width: 25%; }
     .nested-grid { width: 100%; border-spacing: 3px 0; }
     .nested-grid td { width: 50%; padding: 0; }
-
-    /* ===== Form fields ===== */
-    .form-field { 
-        width: 100%; 
-        height: 20px; 
-        padding: 2px 4px; 
-        border: 1px solid #dde1e6; 
-        border-radius: 3px; 
-        background: #fff; 
-        font-size: 7px; 
-        box-sizing: border-box; 
-        line-height: 15px; 
-        overflow: hidden; 
-        text-overflow: ellipsis; 
-        white-space: nowrap; 
-    }
+    .form-field { width: 100%; height: 20px; padding: 2px 4px; border: 1px solid #dde1e6; border-radius: 3px; background: #fff; font-size: 7px; box-sizing: border-box; line-height: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .form-field-textarea { height: 35px; white-space: normal; }
-
-    /* ===== Chips ===== */
     .chips { margin-bottom: 3px; line-height: 1.4; }
-    .chip { 
-        display: inline-block; 
-        margin-right: 2px; 
-        margin-bottom: 2px; 
-        background: #f5f7fa; 
-        border: 1px solid #e8ebef; 
-        padding: 1px 4px; 
-        border-radius: 999px; 
-        font-size: 6px; 
-    }
-
-    /* ===== Tableau ===== */
+    .chip { display: inline-block; margin-right: 2px; margin-bottom: 2px; background: #f5f7fa; border: 1px solid #e8ebef; padding: 1px 4px; border-radius: 999px; font-size: 6px; }
     table#items { width: 100%; border-collapse: separate; border-spacing: 0; }
-    #items thead th { 
-        font-size: 6.5px; 
-        text-transform: uppercase; 
-        text-align: left; 
-        color: #303846; 
-        background: #f4f7fb; 
-    }
-    #items th, #items td { 
-        border: 1px solid #e8ebef; 
-        padding: 2px 3px; 
-        vertical-align: middle; 
-        font-size: 7px;
-    }
+    #items thead th { font-size: 6.5px; text-transform: uppercase; text-align: left; color: #303846; background: #f4f7fb; }
+    #items th, #items td { border: 1px solid #e8ebef; padding: 2px 3px; vertical-align: middle; font-size: 7px; }
     #items tbody td { height: 16px; }
-
-    /* ===== Footer / Signatures ===== */
     .footer-table { width: 100%; border-collapse: separate; border-spacing: 4px 0; margin-top: 4px; }
     .footer-table td { width: 33.33%; }
     .sign { border: 1px dashed #cccccc; border-radius: 5px; padding: 4px; height: 25px; }
     .sign .label { font-size: 6.5px; color: #6b7280; }
 
-    /* ===== Colonne pièces jointes ===== */
-    .attachments { 
-        width: 100%; 
-        height: 100%; 
-        display: flex; 
-        flex-direction: column; 
-        justify-content: flex-start; 
-        align-items: center; 
+    /* ===== Colonne pièces jointes (MODIFIÉ) ===== */
+    .attachments-table {
+        width: 100%;
+        /* 1ère valeur = horizontal, 2ème = vertical */
+        border-spacing: 20px 20px; /* <-- MODIFIÉ : 8px entre les côtés, 12px entre le haut et le bas */
+        border-collapse: separate;
     }
-    .attachments img { 
-        width: 100%; 
-        max-height: 270px; 
-        object-fit: contain; 
-        border: 1px solid #ccc; 
-        border-radius: 5px; 
-        margin-bottom: 5px; 
-        display: block; 
+    .attachments-table td {
+        width: 50%;
+        vertical-align: top;
+        padding: 0;
     }
-  </style>
+    .attachments-table img {
+        width: 100%;
+        height: auto;
+        max-height: 150px; 
+        object-fit: contain;
+        border-radius: 5px;
+        display: block;
+    }
+
+    /* ===== NOUVEAU STYLE SPÉCIFIQUE POUR UNE SEULE IMAGE ===== */
+    .attachments-table.single-image td {
+        width: 100%; /* La cellule prend toute la largeur */
+        padding: 0;  /* On annule les espacements de la grille */
+    }
+    .attachments-table.single-image img {
+        padding-left: 62px;
+        width: 70%;
+        max-height: 400px; /* On autorise l'image à être beaucoup plus grande */
+    }
+</style>
 {% endif %}
 
 </head>
@@ -243,7 +227,7 @@
                   {% endfor %}
               </div>
           </td>
-          <td><label>Finition</label><div class="form-field">{{ commande.finition ?: '' }}</div></td>
+          <!--<td><label>Finition</label><div class="form-field">{{ commande.finition ?: '' }}</div></td>-->
         </tr>
       </table>
 
@@ -314,14 +298,26 @@
     
     {% if aDesPiecesJointes %}</div>{% endif %} <!-- FIN .column-left -->
 
-    <!-- Colonne droite: pièces jointes -->
+    <!-- Colonne droite: pièces jointes (AVEC TABLEAU) -->
     {% if aDesPiecesJointes %}
     <div class="column-right">
-      <div class="attachments">
+      <table class="attachments-table{% if pieces_jointes|length == 1 %} single-image{% endif %}">
         {% for image in pieces_jointes %}
-          <img src="{{ image }}" alt="Pièce jointe {{ loop.index }}">
+          {% if loop.first or loop.index0 is divisible by(2) %}
+            {# Ouvre une nouvelle ligne (tr) pour la 1ère, 3ème, 5ème... image #}
+            <tr>
+          {% endif %}
+          
+          <td>
+            <img src="{{ image }}" alt="Pièce jointe {{ loop.index }}">
+          </td>
+
+          {% if loop.index is divisible by(2) or loop.last %}
+            {# Ferme la ligne (tr) pour la 2ème, 4ème... image ou si c'est la dernière #}
+            </tr>
+          {% endif %}
         {% endfor %}
-      </div>
+      </table>
     </div>
     {% endif %}
 

@@ -83,6 +83,18 @@ class Commande
     #[ORM\Column(type: 'string', length: 255, nullable: true)]
     private ?string $pieceJointe = null;
 
+    #[Vich\UploadableField(mapping: 'piece_jointe_commande', fileNameProperty: 'pieceJointe2')]
+    private ?File $pieceJointeFile2 = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $pieceJointe2 = null;
+
+    #[Vich\UploadableField(mapping: 'piece_jointe_commande', fileNameProperty: 'pieceJointe3')]
+    private ?File $pieceJointeFile3 = null;
+
+    #[ORM\Column(type: 'string', length: 255, nullable: true)]
+    private ?string $pieceJointe3 = null;
+
     #[ORM\Column(type: 'datetime', nullable: true)]
     private ?\DateTimeInterface $updatedAt = null;
 
@@ -367,6 +379,24 @@ class Commande
     public function getPieceJointeFile(): ?File { return $this->pieceJointeFile; }
     public function setPieceJointe(?string $pieceJointe): void { $this->pieceJointe = $pieceJointe; }
     public function getPieceJointe(): ?string { return $this->pieceJointe; }
+
+    public function setPieceJointeFile2(?File $file2 = null): void
+    {
+        $this->pieceJointeFile2 = $file2;
+        if ($file2) $this->updatedAt = new \DateTimeImmutable();
+    }
+    public function getPieceJointeFile2(): ?File { return $this->pieceJointeFile2; }
+    public function setPieceJointe2(?string $pieceJointe2): void { $this->pieceJointe2 = $pieceJointe2; }
+    public function getPieceJointe2(): ?string { return $this->pieceJointe2; }
+
+    public function setPieceJointeFile3(?File $file3 = null): void
+    {
+        $this->pieceJointeFile3 = $file3;
+        if ($file3) $this->updatedAt = new \DateTimeImmutable();
+    }
+    public function getPieceJointeFile3(): ?File { return $this->pieceJointeFile3; }
+    public function setPieceJointe3(?string $pieceJointe3): void { $this->pieceJointe3 = $pieceJointe3; }
+    public function getPieceJointe3(): ?string { return $this->pieceJointe3; }
 
     public function getUpdatedAt(): ?\DateTimeInterface { return $this->updatedAt; }
     public function setUpdatedAt(?\DateTimeInterface $updatedAt): void { $this->updatedAt = $updatedAt; }

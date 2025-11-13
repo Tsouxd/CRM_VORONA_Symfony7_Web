@@ -848,12 +848,53 @@ class CommandeCrudController extends AbstractCrudController implements EventSubs
         yield TextareaField::new('paoMotifM3', 'Motif Modif. 3')->setFormTypeOption('disabled', true);
 
         // Upload (formulaire)
-        yield TextField::new('pieceJointeFile')
+        yield TextField::new('pieceJointeFile', 'Pièce jointe 1')
             ->setFormType(VichFileType::class)
+            ->setHelp('Joindre un fichier(PDF, image...).')
             ->onlyOnForms();
 
         // Affichage (index/detail) → lien cliquable
-        yield TextField::new('pieceJointe')
+        yield TextField::new('pieceJointe', 'Pièce jointe 1')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/pieces/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })  
+            ->hideOnForm()
+            ->renderAsHtml();
+
+        // Upload (formulaire)
+        yield TextField::new('pieceJointeFile2', 'Pièce jointe 2')
+            ->setFormType(VichFileType::class)
+            ->setHelp('Joindre un fichier(PDF, image...).')
+            ->onlyOnForms();
+
+        // Affichage (index/detail) → lien cliquable
+        yield TextField::new('pieceJointe2', 'Pièce jointe 2')
+            ->formatValue(function ($value, $entity) {
+                if (!$value) {
+                    return null;
+                }
+                return sprintf(
+                    '<a href="/uploads/pieces/%s" target="_blank">📂 Voir le fichier</a>',
+                    $value
+                );
+            })  
+            ->hideOnForm()
+            ->renderAsHtml();
+
+        // Upload (formulaire)
+        yield TextField::new('pieceJointeFile3', 'Pièce jointe 3')
+            ->setFormType(VichFileType::class)
+            ->setHelp('Joindre un fichier(PDF, image...).')
+            ->onlyOnForms();
+
+        // Affichage (index/detail) → lien cliquable
+        yield TextField::new('pieceJointe3', 'Pièce jointe 3')
             ->formatValue(function ($value, $entity) {
                 if (!$value) {
                     return null;

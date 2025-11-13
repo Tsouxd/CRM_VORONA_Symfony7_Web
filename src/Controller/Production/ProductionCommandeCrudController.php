@@ -176,10 +176,16 @@ class ProductionCommandeCrudController extends AbstractCrudController
         $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath)); // Changé en png si c'est un png
 
         // Gestion des pièces jointes
-        $piecesJointesBase64 = [];
-        $nomFichiers = explode(',', $commande->getPieceJointe() ?? '');
+        $piecesJointes = [
+            $commande->getPieceJointe(),
+            $commande->getPieceJointe2(),
+            $commande->getPieceJointe3(),
+        ];
 
-        foreach ($nomFichiers as $nom) {
+        $piecesJointesBase64 = [];
+        //$nomFichiers = explode(',', $commande->getPieceJointe() ?? '');
+
+        foreach ($piecesJointes as $nom) {
             $nom = trim($nom);
             if (!$nom) continue;
 
@@ -225,7 +231,7 @@ class ProductionCommandeCrudController extends AbstractCrudController
         );
     }
 
-    // === C'EST LA MÉTHODE QUI APPLIQUE LE FILTRE (MISE À JOUR) ===
+    // === C'EST LA MÉTHODE QUI APPLIQUE LE FILTRE ===
     public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
     {
         $qb = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
@@ -293,8 +299,8 @@ class ProductionCommandeCrudController extends AbstractCrudController
                 Commande::STATUT_PRODUCTION_POUR_LIVRAISON => 'success',
             ]);
 
-        yield TextField::new('finition', 'Finition')
-            ->setFormTypeOption('required', false);
+        //yield TextField::new('finition', 'Finition')
+        //    ->setFormTypeOption('required', false);
 
         // --- Panneau Livraison avec logique conditionnelle ---
         yield FormField::addPanel('Gestion de la Livraison');
