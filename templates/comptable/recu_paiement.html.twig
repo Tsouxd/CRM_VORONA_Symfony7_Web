@@ -1,78 +1,144 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Reçu de Paiement #{{ paiement.id }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiche d'Encaissement - FOREVER MG</title>
     <style>
-        body { font-family: Arial, sans-serif; font-size: 12px; color: #333; }
-        .container { width: 80%; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 40px; }
-        .header h1 { margin: 0; }
-        .details { margin-bottom: 30px; }
-        .details td { padding: 5px; }
-        .summary { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-        .summary th, .summary td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .summary th { background-color: #f2f2f2; }
-        .total-row td { font-weight: bold; font-size: 1.2em; }
-        .footer { text-align: center; margin-top: 50px; font-size: 10px; color: #777; }
+        /* --- STYLE DE LA FACTURE APPLIQUÉ ICI --- */
+        @import url('https://fonts.googleapis.com/css2?family=Arial&family=Dancing+Script&display=swap');
+        html, body { height: 100%; margin: 0; padding: 0; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; font-size: 10pt; }
+        .page { width: 18cm; height: 85%; margin: 20px auto; padding: 10mm; box-sizing: border-box; display: flex; flex-direction: column; position: relative; }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid black; padding-bottom: 8px; margin-bottom: 12px; gap: 12px; padding-right: 140px; }
+        .company-info { flex: 1 1 auto; }
+        .company-info p { margin: 0; line-height: 1.25; }
+        .company-name { font-weight: bold; color: #4A90E2; }
+        .logo-placeholder { width: 120px; height: 70px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; font-size: 9pt; flex: 0 0 auto; position: absolute; top: 6mm; right: 8mm; }
+        .doc-title-section { margin-bottom: 8px; }
+        .doc-title { font-size: 16pt; font-weight: bold; text-decoration: underline; margin: 0 0 10px 0; }
+        .doc-meta { display: flex; gap: 10px; flex-direction: row; width: 50%;}
+        .doc-id, .doc-date { border: 1px solid black; padding: 4px 6px; }
+        .doc-id table, .doc-date table { border-collapse: collapse; }
+        .doc-id td, .doc-date td { padding: 2px 4px; }
+        .client-info { width: 48%; margin-bottom: 15px; border: 1px solid black; margin-top: 15px; }
+        .client-info table { width: 100%; border-collapse: collapse; }
+        .client-info td { border: 1px solid black; padding: 4px 6px; }
+        .client-info td:first-child { font-weight: bold; width: 90px; }
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; font-size: 9pt; }
+        .items-table thead { background-color: #e0e0e0; }
+        .items-table th, .items-table td { border: 1px solid black; padding: 6px; text-align: left; }
+        .items-table .col-total { text-align: right; width: 120px; }
+        .items-table .col-designation { width: auto; }
+        .footer-section { margin-top: auto; }
+        .totals-and-signature { display: flex; justify-content: flex-end; }
+        .totals table { border-collapse: collapse; width: 300px; }
+        .totals td { border: 1px solid black; padding: 6px; }
+        .totals td:first-child { background-color: #e0e0e0; font-weight: bold; width: 50%;}
+        .totals td:last-child { text-align: right; }
+        .totals .total-row td { font-weight: bold; }
+        .remarks { margin-top: 20px; }
+        .remarks p { margin: 0 0 4px 0; }
+        .signature-section { text-align: right; margin-top: 40px; }
+        .placeholder { color: #888; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="page">
+        <!-- HEADER (Identique à la facture) -->
         <div class="header">
-            {# Mettez le nom de votre entreprise ici #}
-            <h2>VOTRE ENTREPRISE</h2>
-            <p>Adresse de votre entreprise<br>Tél: XX XX XXX XX</p>
-            <h1>FICHE D'ENCAISSEMENT</h1>
+            <div class="company-info">
+                <p class="company-name">FOREVER MG</p>
+                <p>ANDAFIAVARATRA</p>
+                <p>034 03 767 69 - 038 25 722 47</p>
+                <p>NIF: 3000736044</p>
+                <p>STAT: 90000 11 2012 0 00411</p>
+            </div>
+            <div class="logo-placeholder">
+                <img src="{{ logo }}" alt="Logo Forever" style="width:100px;">
+            </div>
         </div>
 
-        <table class="details">
-            <tr>
-                <td><strong>Reçu N° :</strong></td>
-                <td>P-{{ paiement.id }}</td>
-            </tr>
-            <tr>
-                <td><strong>Date d'encaissement :</strong></td>
-                <td>{{ paiement.datePaiement|date('d/m/Y H:i') }}</td>
-            </tr>
-            <tr>
-                <td><strong>Reçu de :</strong></td>
-                <td>{{ paiement.commande.client.nom }}</td>
-            </tr>
-             <tr>
-                <td><strong>Pour Commande N° :</strong></td>
-                <td>{{ paiement.commande.id }}</td>
-            </tr>
-        </table>
+        <!-- SECTION TITRE (Adaptée pour la fiche d'encaissement) -->
+        <div class="doc-title-section">
+            <h1 class="doc-title">FICHE D'ENCAISSEMENT</h1>
+            <div class="doc-meta">
+                <div class="doc-id">
+                    <table>
+                        <tr>
+                            <td style="font-weight:bold;padding-right:6px;">N° Reçu :</td>
+                            <td>P-{{ '%05d'|format(paiement.id) }}</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight:bold;padding-right:6px;">N° Commande :</td>
+                            <td>{{ paiement.commande.id }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="doc-date">
+                    <table>
+                        <tr>
+                            <td style="font-weight:bold;padding-right:6px;">Date :</td>
+                            <td>{{ paiement.datePaiement|date('d/m/Y') }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-        <table class="summary">
+        <!-- INFOS CLIENT (Adaptées pour la fiche d'encaissement) -->
+        <div class="client-info">
+            <table>
+                <tr><td>CLIENT :</td><td>{{ paiement.commande.client.nom }}</td></tr>
+                {# Affichage conditionnel des infos pro comme sur la facture #}
+                {% if paiement.commande.client and paiement.commande.client.type == 'professionnel' %}
+                    <tr><td>NIF :</td><td>{{ paiement.commande.client.nif }}</td></tr>
+                    <tr><td>STAT :</td><td>{{ paiement.commande.client.stat }}</td></tr>
+                {% endif %}
+                <tr><td>CONTACT :</td><td>{{ paiement.commande.client.telephone }}</td></tr>
+            </table>
+        </div>
+
+        <!-- TABLEAU DES ARTICLES (Simplifié pour l'encaissement) -->
+        <table class="items-table">
             <thead>
                 <tr>
-                    <th>Description</th>
-                    <th style="text-align: right;">Montant</th>
+                    <th class="col-designation">DESCRIPTION</th>
+                    <th class="col-total">MONTANT</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td>
-                        Paiement par {{ paiement.referencePaiement }}
-                        {% if paiement.detailsPaiement %}<br><small>({{ paiement.detailsPaiement }})</small>{% endif %}
+                    <td class="col-designation">
+                        Paiement pour la commande N° {{ paiement.commande.id }}<br>
+                        <em>Mode de paiement : {{ paiement.referencePaiement }}
+                        {% if paiement.detailsPaiement %} ({{ paiement.detailsPaiement }}){% endif %}</em>
                     </td>
-                    <td style="text-align: right;">{{ paiement.montant|number_format(2, ',', ' ') }} MGA</td>
-                </tr>
-                <tr class="total-row">
-                    <td>Total Encaissé</td>
-                    <td style="text-align: right;">{{ paiement.montant|number_format(2, ',', ' ') }} MGA</td>
+                    <td class="col-total">{{ paiement.montant|number_format(0, ',', ' ') }} Ar</td>
                 </tr>
             </tbody>
         </table>
 
-        <div class="notes">
-            <p>Arrêté la présente fiche à la somme de : <em>(Montant en toutes lettres ici si nécessaire)</em>.</p>
+        <!-- SECTION DES TOTAUX (Simplifiée pour l'encaissement) -->
+        <div class="totals-and-signature">
+            <div class="totals">
+                <table>
+                    <tr class="total-row">
+                        <td>TOTAL ENCAISSÉ</td>
+                        <td>{{ paiement.montant|number_format(0, ',', ' ') }} Ar</td>
+                    </tr>
+                </table>
+            </div>
         </div>
 
-        <div class="footer">
-            <p>Merci de votre confiance.</p>
+        <!-- PIED DE PAGE (Adapté pour l'encaissement) -->
+        <div class="footer-section">
+            <div class="remarks">
+                <p>Arrêté la présente fiche à la somme de : <strong>{{ paiement.montant|en_lettres }} Ariary.</strong></p>
+            </div>
+            <div class="signature-section">
+                <p>Le Responsable</p>
+            </div>
         </div>
     </div>
 </body>

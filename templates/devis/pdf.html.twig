@@ -194,14 +194,9 @@
                         <p><strong>Conditions de règlement :</strong> {{ devis.methodePaiement }}</p>
                     {% endif %}
 
-                    {#<p>En cas de retard de paiement, une pénalité de X% sera appliquée.</p>#}
-
-                    {# <p>Devis valable 30 jours à compter de sa date d'émission.</p> #}
-                    <p style="font-weight:bold; margin-top:10px;">
-                        Arrêté le présent devis à la somme de : 
-                        <span style="text-decoration:underline;">
-                            {{ (devis.totalBrut - (devis.remise|default(0)))|number_format(0, ',', ' ') }} Ariary
-                        </span>
+                    <p style="margin-top:4px;">
+                        <strong>Arrêté le présent devis à la somme de :</strong>
+                        <em>{{ (devis.totalBrut - (devis.remise|default(0)))|en_lettres }}</em>.
                     </p>
                 </div>
             </div>

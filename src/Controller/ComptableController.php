@@ -205,9 +205,13 @@ class ComptableController extends AbstractController
             return $this->redirectToRoute('app_comptable_commande_detail', ['id' => $paiement->getCommande()->getId()]);
         }
 
+        $logoPath = $this->getParameter('kernel.project_dir') . '/public/utils/logo/Fichier 2-8.png';
+        $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+
         // 1. On rend la vue Twig en une chaîne de caractères HTML
         $html = $this->renderView('comptable/recu_paiement.html.twig', [
             'paiement' => $paiement,
+            'logo' => $logoBase64,
         ]);
         
         // 2. On configure Dompdf
